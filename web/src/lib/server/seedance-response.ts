@@ -38,3 +38,20 @@ export function extractSeedanceResultUrl(payload: ProviderPayload) {
   return null;
 }
 
+export function extractSeedanceLastFrameUrl(payload: ProviderPayload) {
+  for (const path of [
+    "content.last_frame_url",
+    "data.content.last_frame_url",
+    "last_frame_url",
+    "data.last_frame_url",
+    "data.output.last_frame_url"
+  ]) {
+    const value = valueAtPath(payload, path);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}

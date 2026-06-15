@@ -1,4 +1,5 @@
 import type { MaterialSlot } from "@/lib/material-slots";
+import type { VideoGenerationSettings } from "@/lib/generation-settings";
 
 export type CurrentUser = {
   id: string;
@@ -42,7 +43,7 @@ export type PetAsset = {
   videoUrl?: string | null;
 };
 
-export type GenerationJobStatus = "queued" | "running" | "succeeded" | "failed";
+export type GenerationJobStatus = "queued" | "running" | "succeeded" | "failed" | "expired";
 
 export type GenerationJob = {
   jobId: string;
@@ -53,8 +54,13 @@ export type GenerationJob = {
   slot?: string;
   progress?: number;
   resultUrl?: string | null;
+  lastFrameUrl?: string | null;
   message?: string;
   createdAt?: string;
+  prompt?: string;
+  settings?: VideoGenerationSettings;
+  sourceImageUrl?: string;
+  lastImageUrl?: string;
 };
 
 export type StudioBootstrap = {

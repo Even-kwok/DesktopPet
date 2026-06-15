@@ -1,11 +1,11 @@
+import type { VideoGenerationSettings } from "@/lib/generation-settings";
+
 type SeedanceRequestOptions = {
   model: string;
   prompt: string;
   sourceImageUrl: string;
   lastImageUrl?: string;
-  durationSeconds: number;
-  cameraFixed: boolean;
-  watermark: boolean;
+  settings: VideoGenerationSettings;
 };
 
 type SeedanceTextBlock = {
@@ -24,15 +24,17 @@ type SeedanceImageBlock = {
 export type SeedanceRequestBody = {
   model: string;
   content: Array<SeedanceTextBlock | SeedanceImageBlock>;
+  duration: number;
+  ratio: string;
+  resolution: string;
+  framespersecond: number;
+  camera_fixed: boolean;
+  watermark: boolean;
+  generate_audio: boolean;
+  return_last_frame: boolean;
 };
 
 export function buildSeedanceRequestBody(options: SeedanceRequestOptions): SeedanceRequestBody {
-  const prompt = [
-    options.prompt,
-    `--duration ${options.durationSeconds}`,
-    `--camerafixed ${options.cameraFixed}`,
-    `--watermark ${options.watermark}`
-  ].join(" ");
   const lastImageUrl = options.lastImageUrl ?? options.sourceImageUrl;
 
   return {
@@ -40,7 +42,7 @@ export function buildSeedanceRequestBody(options: SeedanceRequestOptions): Seeda
     content: [
       {
         type: "text",
-        text: prompt
+        text: options.prompt
       },
       {
         type: "image_url",
@@ -56,6 +58,14 @@ export function buildSeedanceRequestBody(options: SeedanceRequestOptions): Seeda
           url: lastImageUrl
         }
       }
-    ]
+    ],
+    duration: options.settings.durationSeconds,
+    ratio: options.settings.ratio,
+    resolution: options.settings.resolution,
+    framespersecond: options.settings.framesPerSecond,
+    camera_fixed: options.settings.cameraFixed,
+    watermark: options.settings.watermark,
+    generate_audio: options.settings.generateAudio,
+    return_last_frame: options.settings.returnLastFrame
   };
 }

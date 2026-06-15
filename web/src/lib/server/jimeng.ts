@@ -1,6 +1,14 @@
-import { materialSlots } from "@/lib/material-slots";
+import {
+  buildSlotPrompt,
+  clampVideoDuration,
+  defaultVideoGenerationSettings,
+  type VideoGenerationSettings
+} from "@/lib/generation-settings";
 import { buildSeedanceRequestBody } from "@/lib/server/seedance-request";
-import { extractSeedanceResultUrl } from "@/lib/server/seedance-response";
+import {
+  extractSeedanceLastFrameUrl,
+  extractSeedanceResultUrl
+} from "@/lib/server/seedance-response";
 import type { GenerationJob, GenerationJobStatus } from "@/lib/types";
 
 type JimengConfig = {
@@ -8,9 +16,7 @@ type JimengConfig = {
   baseUrl: string;
   model: string;
   queryUrlTemplate: string;
-  durationSeconds: number;
-  cameraFixed: boolean;
-  watermark: boolean;
+  settings: VideoGenerationSettings;
 };
 
 type ProviderPayload = Record<string, unknown>;
@@ -56,6 +62,18 @@ function booleanFromEnv(value: string | undefined, fallback: boolean) {
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
+function settingFromEnv<T extends string>(
+  value: string | undefined,
+  fallback: T,
+  allowedValues: readonly T[]
+) {
+  if (!value) {
+    return fallback;
+  }
+
+  return allowedValues.includes(value as T) ? (value as T) : fallback;
+}
+
 export function getJimengConfig(): JimengConfig | null {
   const apiKey = process.env.JIMENG_API_KEY?.trim() || process.env.ARK_API_KEY?.trim();
   const baseUrl = process.env.JIMENG_API_BASE_URL?.trim() || defaultBaseUrl;
@@ -71,9 +89,49 @@ export function getJimengConfig(): JimengConfig | null {
     model,
     queryUrlTemplate:
       process.env.JIMENG_QUERY_URL_TEMPLATE?.trim() || `${normalizeBaseUrl(baseUrl)}/{taskId}`,
-    durationSeconds: numberFromEnv(process.env.JIMENG_VIDEO_DURATION_SECONDS, 10),
-    cameraFixed: booleanFromEnv(process.env.JIMENG_VIDEO_CAMERA_FIXED, true),
-    watermark: booleanFromEnv(process.env.JIMENG_VIDEO_WATERMARK, false)
+    settings: {
+      durationSeconds: clampVideoDuration(
+        numberFromEnv(
+          process.env.JIMENG_VIDEO_DURATION_SECONDS,
+          defaultVideoGenerationSettings.durationSeconds
+        )
+      ),
+      ratio: settingFromEnv(process.env.JIMENG_VIDEO_RATIO, defaultVideoGenerationSettings.ratio, [
+        "adaptive",
+        "1:1",
+        "16:9",
+        "9:16",
+        "4:3",
+        "3:4"
+      ]),
+      resolution: settingFromEnv(
+        process.env.JIMENG_VIDEO_RESOLUTION,
+        defaultVideoGenerationSettings.resolution,
+        ["480p", "720p", "1080p"]
+      ),
+      framesPerSecond: numberFromEnv(
+        process.env.JIMENG_VIDEO_FRAMES_PER_SECOND,
+        defaultVideoGenerationSettings.framesPerSecond
+      ) === 30
+        ? 30
+        : 24,
+      cameraFixed: booleanFromEnv(
+        process.env.JIMENG_VIDEO_CAMERA_FIXED,
+        defaultVideoGenerationSettings.cameraFixed
+      ),
+      watermark: booleanFromEnv(
+        process.env.JIMENG_VIDEO_WATERMARK,
+        defaultVideoGenerationSettings.watermark
+      ),
+      generateAudio: booleanFromEnv(
+        process.env.JIMENG_VIDEO_GENERATE_AUDIO,
+        defaultVideoGenerationSettings.generateAudio
+      ),
+      returnLastFrame: booleanFromEnv(
+        process.env.JIMENG_VIDEO_RETURN_LAST_FRAME,
+        defaultVideoGenerationSettings.returnLastFrame
+      )
+    }
   };
 }
 
@@ -81,31 +139,19 @@ export function isJimengJobId(jobId: string) {
   return jobId.startsWith(jobPrefix);
 }
 
-function slotPrompt(slotId: string) {
-  const slot = materialSlots.find((item) => item.id === slotId);
-  const slotName = slot?.name ?? slotId;
-  const trigger = slot?.trigger ?? "桌面宠物动作";
-
-  return [
-    "固定摄像机视角，只生成单只猫或狗的桌面宠物动作视频。",
-    "纯绿色背景，方便后续绿幕抠像；不要出现人、文字、水印、食物碗或多余物体。",
-    "宠物主体完整，尽量保持在画面中央，动作自然可爱，适合循环播放。",
-    `动作状态：${slotName}。触发场景：${trigger}。`
-  ].join("\n");
-}
-
 function createRequestBody(input: {
   sourceImageUrl: string;
+  lastImageUrl?: string;
   slot: string;
   config: JimengConfig;
+  settings: VideoGenerationSettings;
 }) {
   return buildSeedanceRequestBody({
     model: input.config.model,
-    prompt: slotPrompt(input.slot),
+    prompt: buildSlotPrompt(input.slot),
     sourceImageUrl: input.sourceImageUrl,
-    durationSeconds: input.config.durationSeconds,
-    cameraFixed: input.config.cameraFixed,
-    watermark: input.config.watermark
+    lastImageUrl: input.lastImageUrl,
+    settings: input.settings
   });
 }
 
@@ -158,6 +204,10 @@ function providerStatus(payload: ProviderPayload): GenerationJobStatus {
     return "failed";
   }
 
+  if (["expired", "timeout", "timed_out"].includes(status)) {
+    return "expired";
+  }
+
   if (["queued", "pending", "created", "submitted"].includes(status)) {
     return "queued";
   }
@@ -199,6 +249,8 @@ export async function createJimengVideoJob(input: {
   petId: string;
   slot: string;
   sourceImageUrl: string;
+  lastImageUrl?: string;
+  settings?: VideoGenerationSettings;
   cost: number;
 }): Promise<GenerationJob | null> {
   const config = getJimengConfig();
@@ -207,19 +259,26 @@ export async function createJimengVideoJob(input: {
     return null;
   }
 
+  const settings = {
+    ...config.settings,
+    ...input.settings,
+    durationSeconds: clampVideoDuration(input.settings?.durationSeconds ?? config.settings.durationSeconds)
+  };
+  const requestBody = createRequestBody({
+    sourceImageUrl: input.sourceImageUrl,
+    lastImageUrl: input.lastImageUrl,
+    slot: input.slot,
+    config,
+    settings
+  });
+
   const response = await fetch(config.baseUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${config.apiKey}`
     },
-    body: JSON.stringify(
-      createRequestBody({
-        sourceImageUrl: input.sourceImageUrl,
-        slot: input.slot,
-        config
-      })
-    )
+    body: JSON.stringify(requestBody)
   });
   const payload = await parseProviderResponse(response);
   const taskId = providerJobId(payload);
@@ -237,8 +296,13 @@ export async function createJimengVideoJob(input: {
     slot: input.slot,
     progress: 0,
     resultUrl: providerResultUrl(payload),
+    lastFrameUrl: extractSeedanceLastFrameUrl(payload),
     message: "Jimeng video generation task created.",
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    prompt: buildSlotPrompt(input.slot),
+    settings,
+    sourceImageUrl: input.sourceImageUrl,
+    lastImageUrl: input.lastImageUrl ?? input.sourceImageUrl
   };
 }
 
@@ -265,8 +329,9 @@ export async function getJimengVideoJob(jobId: string): Promise<GenerationJob | 
     status,
     cost: 0,
     petId: "pet_orange",
-    progress: status === "succeeded" || status === "failed" ? 100 : 60,
+    progress: status === "succeeded" || status === "failed" || status === "expired" ? 100 : 60,
     resultUrl: providerResultUrl(payload),
+    lastFrameUrl: extractSeedanceLastFrameUrl(payload),
     message: providerErrorMessage(payload) || "Jimeng provider status fetched.",
     createdAt: new Date().toISOString()
   };

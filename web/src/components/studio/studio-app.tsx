@@ -2,6 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  buildSlotPrompt,
+  clampVideoDuration,
+  defaultVideoGenerationSettings,
+  videoFpsOptions,
+  videoRatioOptions,
+  videoResolutionOptions,
+  type VideoGenerationSettings
+} from "@/lib/generation-settings";
+import {
   createActionVideoJob,
   createFrontImageJob,
   getGenerationJob,
@@ -44,6 +53,12 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [selectedFileName, setSelectedFileName] = useState("");
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const [sourcePublicUrl, setSourcePublicUrl] = useState<string | null>(null);
+  const [videoSettings, setVideoSettings] = useState<VideoGenerationSettings>(
+    defaultVideoGenerationSettings
+  );
+  const [promptPreviewSlotId, setPromptPreviewSlotId] = useState(
+    initialData.materialSlots[0]?.id ?? ""
+  );
   const [confirmedPetIds, setConfirmedPetIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<StatusMessage>({
     tone: "info",
@@ -77,12 +92,16 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     );
   }
 
-  function setAssetStatus(petId: string, slot: string, status: PetAssetStatus) {
+  function setAssetPatch(petId: string, slot: string, patch: Partial<PetAsset>) {
     setAssets((currentAssets) =>
       currentAssets.map((asset) =>
-        asset.petId === petId && asset.slot === slot ? { ...asset, status } : asset
+        asset.petId === petId && asset.slot === slot ? { ...asset, ...patch } : asset
       )
     );
+  }
+
+  function setAssetStatus(petId: string, slot: string, status: PetAssetStatus) {
+    setAssetPatch(petId, slot, { status });
   }
 
   function assetFor(slot: string) {
@@ -90,7 +109,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   }
 
   function isGeneratingSlot(slot: string) {
-    return jobs.some(
+    return Boolean(jobForSlot(slot));
+  }
+
+  function jobForSlot(slot: string) {
+    return jobs.find(
       (job) =>
         job.petId === selectedPet?.id &&
         job.slot === slot &&
@@ -101,28 +124,61 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   async function pollJob(job: GenerationJob) {
     let latestJob = job;
 
-    for (let attempt = 1; attempt <= 30; attempt += 1) {
+    for (let attempt = 1; attempt <= 120; attempt += 1) {
       setJobs((currentJobs) =>
         currentJobs.map((item) =>
           item.jobId === job.jobId
             ? {
                 ...item,
                 ...latestJob,
+                petId: item.petId,
+                slot: item.slot,
+                cost: item.cost,
+                prompt: item.prompt,
+                settings: item.settings,
+                sourceImageUrl: item.sourceImageUrl,
+                lastImageUrl: item.lastImageUrl,
+                createdAt: item.createdAt,
                 status: latestJob.status === "queued" ? "running" : latestJob.status,
-                progress: latestJob.progress ?? Math.min(95, 20 + attempt * 3)
+                progress: estimateJobProgress(item, attempt)
               }
             : item
         )
       );
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       latestJob = await getGenerationJob(job.jobId);
 
       setJobs((currentJobs) =>
-        currentJobs.map((item) => (item.jobId === job.jobId ? { ...item, ...latestJob } : item))
+        currentJobs.map((item) =>
+          item.jobId === job.jobId
+            ? {
+                ...item,
+                ...latestJob,
+                petId: item.petId,
+                slot: item.slot,
+                cost: item.cost,
+                prompt: item.prompt,
+                settings: item.settings,
+                sourceImageUrl: item.sourceImageUrl,
+                lastImageUrl: item.lastImageUrl,
+                createdAt: item.createdAt,
+                progress:
+                  latestJob.status === "succeeded" ||
+                  latestJob.status === "failed" ||
+                  latestJob.status === "expired"
+                    ? 100
+                    : estimateJobProgress(item, attempt)
+              }
+            : item
+        )
       );
 
-      if (latestJob.status === "succeeded" || latestJob.status === "failed") {
+      if (
+        latestJob.status === "succeeded" ||
+        latestJob.status === "failed" ||
+        latestJob.status === "expired"
+      ) {
         return latestJob;
       }
     }
@@ -222,7 +278,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       const job = await createActionVideoJob({
         petId: selectedPet.id,
         slot: slot.id,
-        sourceImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined
+        sourceImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined,
+        lastImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined,
+        settings: videoSettings
       });
       setJobs((currentJobs) => [job, ...currentJobs]);
       setUser((currentUser) => ({
@@ -234,7 +292,10 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       const finishedJob = await pollJob(job);
 
       if (finishedJob.status === "succeeded") {
-        setAssetStatus(selectedPet.id, slot.id, "ready");
+        setAssetPatch(selectedPet.id, slot.id, {
+          status: "ready",
+          videoUrl: finishedJob.resultUrl ?? null
+        });
         setPetPatch(selectedPet.id, { materialsReady: readyCount + 1 });
         setMessage({
           tone: "success",
@@ -242,11 +303,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             ? `「${slot.name}」已生成，视频地址已返回。`
             : `「${slot.name}」已生成，占位素材已加入素材库。`
         });
-      } else if (finishedJob.status === "failed") {
+      } else if (finishedJob.status === "failed" || finishedJob.status === "expired") {
         setAssetStatus(selectedPet.id, slot.id, "failed");
         setMessage({
           tone: "error",
-          text: finishedJob.message ?? `「${slot.name}」生成失败。`
+          text: finishedJob.message ?? `「${slot.name}」生成失败或超时。`
         });
       }
     } catch (error) {
@@ -438,9 +499,13 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               selectedPet={selectedPet}
               isFrontConfirmed={isFrontConfirmed}
               sourcePreviewUrl={sourcePreviewUrl}
+              videoSettings={videoSettings}
+              promptPreviewSlotId={promptPreviewSlotId}
+              onPromptPreviewSlotChange={setPromptPreviewSlotId}
+              onVideoSettingsChange={setVideoSettings}
               onConfirmFrontImage={handleConfirmFrontImage}
               assetFor={assetFor}
-              isGeneratingSlot={isGeneratingSlot}
+              jobForSlot={jobForSlot}
               onGenerateAction={handleGenerateAction}
             />
           ) : null}
@@ -568,18 +633,26 @@ function MaterialsTab({
   selectedPet,
   isFrontConfirmed,
   sourcePreviewUrl,
+  videoSettings,
+  promptPreviewSlotId,
+  onPromptPreviewSlotChange,
+  onVideoSettingsChange,
   onConfirmFrontImage,
   assetFor,
-  isGeneratingSlot,
+  jobForSlot,
   onGenerateAction
 }: {
   slots: MaterialSlot[];
   selectedPet: Pet | undefined;
   isFrontConfirmed: boolean;
   sourcePreviewUrl: string | null;
+  videoSettings: VideoGenerationSettings;
+  promptPreviewSlotId: string;
+  onPromptPreviewSlotChange: (slotId: string) => void;
+  onVideoSettingsChange: (settings: VideoGenerationSettings) => void;
   onConfirmFrontImage: () => void;
   assetFor: (slot: string) => PetAsset | undefined;
-  isGeneratingSlot: (slot: string) => boolean;
+  jobForSlot: (slot: string) => GenerationJob | undefined;
   onGenerateAction: (slot: MaterialSlot) => void;
 }) {
   return (
@@ -602,6 +675,14 @@ function MaterialsTab({
         </button>
       </section>
 
+      <GenerationDebugPanel
+        slots={slots}
+        settings={videoSettings}
+        promptPreviewSlotId={promptPreviewSlotId}
+        onPromptPreviewSlotChange={onPromptPreviewSlotChange}
+        onSettingsChange={onVideoSettingsChange}
+      />
+
       {materialGroups.map((group) => {
         const groupSlots = slots.filter((slot) => slot.group === group.id);
         const completeCount = groupSlots.filter((slot) => assetFor(slot.id)?.status === "ready").length;
@@ -622,9 +703,10 @@ function MaterialsTab({
               {groupSlots.map((slot) => (
                 <MaterialCard
                   asset={assetFor(slot.id)}
-                  isGenerating={isGeneratingSlot(slot.id)}
+                  activeJob={jobForSlot(slot.id)}
                   isFrontConfirmed={isFrontConfirmed}
                   key={slot.id}
+                  settings={videoSettings}
                   slot={slot}
                   onGenerate={() => onGenerateAction(slot)}
                 />
@@ -640,23 +722,31 @@ function MaterialsTab({
 function MaterialCard({
   slot,
   asset,
-  isGenerating,
+  activeJob,
   isFrontConfirmed,
+  settings,
   onGenerate
 }: {
   slot: MaterialSlot;
   asset: PetAsset | undefined;
-  isGenerating: boolean;
+  activeJob: GenerationJob | undefined;
   isFrontConfirmed: boolean;
+  settings: VideoGenerationSettings;
   onGenerate: () => void;
 }) {
+  const isGenerating = Boolean(activeJob);
   const status = isGenerating ? "generating" : asset?.status ?? "missing";
   const isReady = status === "ready";
+  const prompt = buildSlotPrompt(slot.id);
 
   return (
     <article className={isReady ? "card ready-card" : "card"}>
       <div className="preview">
-        <span className="preview-icon">{isGenerating ? "⏳" : slot.icon}</span>
+        {asset?.videoUrl ? (
+          <video className="preview-video" src={asset.videoUrl} controls loop muted playsInline />
+        ) : (
+          <span className="preview-icon">{isGenerating ? "⏳" : slot.icon}</span>
+        )}
       </div>
       <div className="card-body">
         <div className="card-title-row">
@@ -667,16 +757,203 @@ function MaterialCard({
           <span className={badgeClassForAsset(status)}>{labelForAsset(status)}</span>
         </div>
         <span className="slot-key">{slot.id}</span>
+        {activeJob ? <JobProgress job={activeJob} compact /> : null}
+        <details className="prompt-details">
+          <summary>查看提示词和参数</summary>
+          <div className="prompt-meta">
+            <span>{settings.durationSeconds}s</span>
+            <span>{settings.resolution}</span>
+            <span>{settings.ratio}</span>
+            <span>{settings.framesPerSecond} FPS</span>
+          </div>
+          <pre>{prompt}</pre>
+        </details>
         <div className="card-actions">
           <button className="button" disabled={!isFrontConfirmed || isGenerating} onClick={onGenerate}>
             {isGenerating ? "生成中" : `生成 ${slot.cost} 分`}
           </button>
-          <button className="button secondary" disabled={!isReady}>
+          <a
+            className={isReady && asset?.videoUrl ? "button secondary" : "button secondary disabled-link"}
+            href={asset?.videoUrl ?? undefined}
+            rel="noreferrer"
+            target="_blank"
+          >
             预览
-          </button>
+          </a>
         </div>
       </div>
     </article>
+  );
+}
+
+function GenerationDebugPanel({
+  slots,
+  settings,
+  promptPreviewSlotId,
+  onPromptPreviewSlotChange,
+  onSettingsChange
+}: {
+  slots: MaterialSlot[];
+  settings: VideoGenerationSettings;
+  promptPreviewSlotId: string;
+  onPromptPreviewSlotChange: (slotId: string) => void;
+  onSettingsChange: (settings: VideoGenerationSettings) => void;
+}) {
+  const previewSlot = slots.find((slot) => slot.id === promptPreviewSlotId) ?? slots[0];
+  const prompt = buildSlotPrompt(previewSlot?.id ?? "");
+
+  function patchSettings(patch: Partial<VideoGenerationSettings>) {
+    onSettingsChange({ ...settings, ...patch });
+  }
+
+  return (
+    <section className="panel generation-debug-panel">
+      <div className="debug-head">
+        <PanelTitle
+          icon="🧪"
+          title="生成调试面板"
+          subtitle="开发阶段先公开显示请求参数和提示词；上线前再按需要折叠。"
+        />
+        <span className="badge sky">官方无实时百分比，进度为估算</span>
+      </div>
+
+      <div className="settings-grid">
+        <label className="setting-field">
+          <span>时长</span>
+          <input
+            className="input"
+            type="number"
+            min={4}
+            max={15}
+            value={settings.durationSeconds}
+            onChange={(event) =>
+              patchSettings({ durationSeconds: clampVideoDuration(Number(event.target.value)) })
+            }
+          />
+          <small>Seedance 2.0 支持 4-15 秒。</small>
+        </label>
+
+        <label className="setting-field">
+          <span>画幅</span>
+          <select
+            className="input"
+            value={settings.ratio}
+            onChange={(event) =>
+              patchSettings({ ratio: event.target.value as VideoGenerationSettings["ratio"] })
+            }
+          >
+            {videoRatioOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="setting-field">
+          <span>清晰度</span>
+          <select
+            className="input"
+            value={settings.resolution}
+            onChange={(event) =>
+              patchSettings({ resolution: event.target.value as VideoGenerationSettings["resolution"] })
+            }
+          >
+            {videoResolutionOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="setting-field">
+          <span>帧率</span>
+          <select
+            className="input"
+            value={settings.framesPerSecond}
+            onChange={(event) =>
+              patchSettings({ framesPerSecond: Number(event.target.value) as 24 | 30 })
+            }
+          >
+            {videoFpsOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="toggle-grid">
+        <Toggle
+          checked={settings.cameraFixed}
+          label="固定镜头"
+          onChange={(checked) => patchSettings({ cameraFixed: checked })}
+        />
+        <Toggle
+          checked={settings.generateAudio}
+          label="生成声音"
+          onChange={(checked) => patchSettings({ generateAudio: checked })}
+        />
+        <Toggle
+          checked={settings.watermark}
+          label="加水印"
+          onChange={(checked) => patchSettings({ watermark: checked })}
+        />
+        <Toggle
+          checked={settings.returnLastFrame}
+          label="返回尾帧图"
+          onChange={(checked) => patchSettings({ returnLastFrame: checked })}
+        />
+      </div>
+
+      <div className="debug-info-grid">
+        <div className="debug-note">
+          <strong>当前输出</strong>
+          <p>格式：MP4。大小：生成完成后由实际视频决定，当前先展示 URL，后续可下载转存到 Storage 后记录文件大小。</p>
+        </div>
+        <div className="debug-note">
+          <strong>首尾帧</strong>
+          <p>现在首帧和尾帧都使用同一张正面形象图，分别传 `first_frame` / `last_frame`。</p>
+        </div>
+      </div>
+
+      <div className="prompt-preview-box">
+        <label className="setting-field">
+          <span>查看动作提示词</span>
+          <select
+            className="input"
+            value={previewSlot?.id ?? ""}
+            onChange={(event) => onPromptPreviewSlotChange(event.target.value)}
+          >
+            {slots.map((slot) => (
+              <option key={slot.id} value={slot.id}>
+                {slot.name} / {slot.id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <pre>{prompt}</pre>
+      </div>
+    </section>
+  );
+}
+
+function Toggle({
+  checked,
+  label,
+  onChange
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="toggle-pill">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -772,7 +1049,7 @@ function FriendsTab({
 function JobsTab({ jobs }: { jobs: GenerationJob[] }) {
   return (
     <section className="panel management-panel">
-      <PanelTitle icon="📦" title="任务队列" subtitle="后续这里会展示真实的 GPT Image / 即梦任务状态。" />
+      <PanelTitle icon="📦" title="任务队列" subtitle="方舟查询接口只返回阶段状态，百分比是页面估算。" />
       {jobs.length === 0 ? (
         <div className="empty-state">还没有生成任务。上传图片或点击动作卡片开始。</div>
       ) : (
@@ -783,8 +1060,30 @@ function JobsTab({ jobs }: { jobs: GenerationJob[] }) {
                 <strong>{job.type === "front_image" ? "正面形象" : job.slot}</strong>
                 <p>{job.jobId}</p>
               </div>
-              <span className={job.status === "succeeded" ? "badge" : "badge sky"}>{job.status}</span>
-              <progress max={100} value={job.progress ?? 0} />
+              <span className={job.status === "succeeded" ? "badge" : "badge sky"}>
+                {labelForJobStatus(job.status)}
+              </span>
+              <JobProgress job={job} />
+              {job.settings ? (
+                <div className="job-settings">
+                  <span>{job.settings.durationSeconds}s</span>
+                  <span>{job.settings.resolution}</span>
+                  <span>{job.settings.ratio}</span>
+                  <span>{job.settings.framesPerSecond} FPS</span>
+                  <span>{job.settings.generateAudio ? "有声" : "无声"}</span>
+                </div>
+              ) : null}
+              {job.resultUrl ? (
+                <a className="result-link" href={job.resultUrl} rel="noreferrer" target="_blank">
+                  打开生成视频
+                </a>
+              ) : null}
+              {job.prompt ? (
+                <details className="prompt-details job-prompt">
+                  <summary>查看本次提示词</summary>
+                  <pre>{job.prompt}</pre>
+                </details>
+              ) : null}
             </div>
           ))}
         </div>
@@ -819,6 +1118,23 @@ function BillingTab({ user, jobs }: { user: CurrentUser; jobs: GenerationJob[] }
 
 function StatusBanner({ message }: { message: StatusMessage }) {
   return <div className={`status-banner ${message.tone}`}>{message.text}</div>;
+}
+
+function JobProgress({ job, compact = false }: { job: GenerationJob; compact?: boolean }) {
+  const progress = estimateJobProgress(job);
+
+  return (
+    <div className={compact ? "job-progress compact" : "job-progress"}>
+      <div className="progress-label-row">
+        <span>{labelForJobStatus(job.status)}</span>
+        <span>{progress}%</span>
+      </div>
+      <progress max={100} value={progress} />
+      <p>
+        已耗时 {formatElapsed(job.createdAt)} · 官方状态 {job.status} · 百分比为页面估算
+      </p>
+    </div>
+  );
 }
 
 function TabButton({
@@ -890,6 +1206,54 @@ function labelForAsset(status: PetAssetStatus) {
     case "missing":
       return "待生成";
   }
+}
+
+function labelForJobStatus(status: GenerationJob["status"]) {
+  switch (status) {
+    case "queued":
+      return "排队中";
+    case "running":
+      return "生成中";
+    case "succeeded":
+      return "已完成";
+    case "failed":
+      return "失败";
+    case "expired":
+      return "已超时";
+  }
+}
+
+function estimateJobProgress(job: GenerationJob, attempt = 0) {
+  if (job.status === "succeeded" || job.status === "failed" || job.status === "expired") {
+    return 100;
+  }
+
+  const startedAt = job.createdAt ? Date.parse(job.createdAt) : NaN;
+  const elapsedSeconds = Number.isFinite(startedAt) ? (Date.now() - startedAt) / 1000 : 0;
+  const timeBasedProgress =
+    job.status === "queued"
+      ? Math.min(18, 6 + attempt * 2 + elapsedSeconds / 20)
+      : Math.min(94, 24 + attempt * 2 + elapsedSeconds / 4);
+
+  return Math.max(0, Math.round(job.progress ?? timeBasedProgress));
+}
+
+function formatElapsed(createdAt: string | undefined) {
+  if (!createdAt) {
+    return "0:00";
+  }
+
+  const startedAt = Date.parse(createdAt);
+
+  if (!Number.isFinite(startedAt)) {
+    return "0:00";
+  }
+
+  const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
 }
 
 function badgeClassForAsset(status: PetAssetStatus) {

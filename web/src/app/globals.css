@@ -320,6 +320,13 @@ button:disabled {
   box-shadow: 0 0 0 4px rgba(255, 104, 120, 0.14);
 }
 
+select.input {
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 14px center / 7px 7px no-repeat,
+    #fff;
+}
+
 .backend-pill {
   display: inline-flex;
   width: fit-content;
@@ -536,6 +543,13 @@ button:disabled {
   font-size: 42px;
 }
 
+.preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #101719;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -596,6 +610,84 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.disabled-link {
+  pointer-events: none;
+  opacity: 0.48;
+}
+
+.prompt-details {
+  display: grid;
+  gap: 8px;
+}
+
+.prompt-details summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.prompt-details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 12px;
+  border-radius: 14px;
+  background: #182528;
+  color: #e9fffa;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.prompt-meta,
+.job-settings {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.prompt-meta span,
+.job-settings span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eff8f5;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.job-progress {
+  display: grid;
+  gap: 5px;
+  min-width: 180px;
+}
+
+.job-progress.compact {
+  min-width: 0;
+}
+
+.progress-label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.job-progress progress {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--accent);
+}
+
+.job-progress p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .friend-board {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -622,7 +714,8 @@ button:disabled {
 }
 
 .image-confirm-panel,
-.management-panel {
+.management-panel,
+.generation-debug-panel {
   padding: 16px;
 }
 
@@ -653,6 +746,106 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.generation-debug-panel {
+  display: grid;
+  gap: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 247, 232, 0.9), rgba(234, 251, 247, 0.92));
+}
+
+.debug-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.settings-grid,
+.debug-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.setting-field {
+  display: grid;
+  gap: 6px;
+}
+
+.setting-field span,
+.toggle-pill span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.setting-field small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.toggle-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid var(--line);
+}
+
+.toggle-pill input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.debug-info-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.debug-note {
+  padding: 13px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(215, 231, 227, 0.75);
+}
+
+.debug-note strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.debug-note p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.prompt-preview-box {
+  display: grid;
+  gap: 10px;
+}
+
+.prompt-preview-box pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 12px;
+  border-radius: 14px;
+  background: #182528;
+  color: #e9fffa;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .pet-list-grid,
@@ -696,7 +889,7 @@ button:disabled {
 }
 
 .job-row {
-  grid-template-columns: 1fr auto 160px;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 240px);
 }
 
 .job-row p {
@@ -705,9 +898,16 @@ button:disabled {
   font-size: 12px;
 }
 
-.job-row progress {
-  width: 100%;
-  accent-color: var(--accent);
+.job-row .job-settings,
+.job-row .result-link,
+.job-row .job-prompt {
+  grid-column: 1 / -1;
+}
+
+.result-link {
+  width: fit-content;
+  color: var(--sky);
+  font-weight: 900;
 }
 
 .billing-grid {
@@ -729,7 +929,9 @@ button:disabled {
   .hero-panel,
   .friend-board,
   .image-confirm-panel,
-  .billing-grid {
+  .billing-grid,
+  .settings-grid,
+  .debug-info-grid {
     grid-template-columns: 1fr;
   }
 

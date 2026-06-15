@@ -1,4 +1,5 @@
 import type { BackendStatus, GenerationJob, SourceImageUploadResponse, UploadUrlResponse } from "@/lib/types";
+import type { VideoGenerationSettings } from "@/lib/generation-settings";
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -91,6 +92,8 @@ export function createActionVideoJob(input: {
   petId: string;
   slot: string;
   sourceImageUrl?: string;
+  lastImageUrl?: string;
+  settings?: VideoGenerationSettings;
 }) {
   return requestJSON<GenerationJob>("/api/generation/action-video", {
     method: "POST",

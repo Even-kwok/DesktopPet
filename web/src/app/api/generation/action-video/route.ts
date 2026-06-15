@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { defaultVideoGenerationSettings } from "@/lib/generation-settings";
 import { materialSlots } from "@/lib/material-slots";
 import { createJimengVideoJob } from "@/lib/server/jimeng";
 import { createMockGenerationJob } from "@/lib/server/studio-data";
@@ -10,10 +11,23 @@ export const preferredRegion = "sin1";
 
 const slotIds = new Set(materialSlots.map((slot) => slot.id));
 
+const settingsSchema = z.object({
+  durationSeconds: z.number().int().min(4).max(15),
+  ratio: z.enum(["adaptive", "1:1", "16:9", "9:16", "4:3", "3:4"]),
+  resolution: z.enum(["480p", "720p", "1080p"]),
+  framesPerSecond: z.union([z.literal(24), z.literal(30)]),
+  cameraFixed: z.boolean(),
+  watermark: z.boolean(),
+  generateAudio: z.boolean(),
+  returnLastFrame: z.boolean()
+});
+
 const requestSchema = z.object({
   petId: z.string().min(1),
   slot: z.string().refine((value) => slotIds.has(value), "Unknown material slot"),
-  sourceImageUrl: z.string().url().optional()
+  sourceImageUrl: z.string().url().optional(),
+  lastImageUrl: z.string().url().optional(),
+  settings: settingsSchema.optional()
 });
 
 export async function POST(request: Request) {
@@ -39,6 +53,8 @@ export async function POST(request: Request) {
         petId: parsed.data.petId,
         slot: parsed.data.slot,
         sourceImageUrl: parsed.data.sourceImageUrl,
+        lastImageUrl: parsed.data.lastImageUrl ?? parsed.data.sourceImageUrl,
+        settings: parsed.data.settings ?? defaultVideoGenerationSettings,
         cost
       });
 
