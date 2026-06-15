@@ -524,8 +524,14 @@ function BackendPanel({ backend }: { backend: BackendStatus }) {
           <span>原图 bucket</span>
           <strong>{backend.sourceImageBucket}</strong>
         </div>
+        <div>
+          <span>服务端密钥</span>
+          <strong>{backend.serviceRoleLooksValid ? "service_role" : backend.serviceRoleRole ?? "未识别"}</strong>
+        </div>
       </div>
-      {backend.missingEnv.length > 0 ? (
+      {!backend.serviceRoleLooksValid && backend.serviceRoleConfigured ? (
+        <p className="backend-warning">SUPABASE_SERVICE_ROLE_KEY 已填写，但不是 service_role key。</p>
+      ) : backend.missingEnv.length > 0 ? (
         <p className="backend-warning">待配置：{backend.missingEnv.join(" / ")}</p>
       ) : (
         <p className="backend-ok">环境变量已就绪，可以开始写入 Supabase。</p>

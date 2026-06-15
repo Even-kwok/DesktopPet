@@ -4,6 +4,21 @@ type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
 
+function errorMessageFromPayload(
+  payload: unknown,
+  fallback: string
+) {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const error = typeof record.error === "string" ? record.error : fallback;
+  const details = typeof record.details === "string" ? record.details : "";
+
+  return details ? `${error}: ${details}` : error;
+}
+
 async function requestJSON<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(path, {
     ...options,
@@ -17,10 +32,7 @@ async function requestJSON<T>(path: string, options: RequestOptions = {}): Promi
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "error" in payload
-        ? String(payload.error)
-        : `Request failed with status ${response.status}`;
+    const message = errorMessageFromPayload(payload, `Request failed with status ${response.status}`);
     throw new Error(message);
   }
 
@@ -54,10 +66,7 @@ export async function uploadSourceImage(input: {
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "error" in payload
-        ? String(payload.error)
-        : `Upload failed with status ${response.status}`;
+    const message = errorMessageFromPayload(payload, `Upload failed with status ${response.status}`);
     throw new Error(message);
   }
 

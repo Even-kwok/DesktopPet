@@ -80,6 +80,9 @@ export type BackendStatus = {
   supabaseConfigured: boolean;
   authConfigured: boolean;
   storageConfigured: boolean;
+  serviceRoleConfigured: boolean;
+  serviceRoleLooksValid: boolean;
+  serviceRoleRole: string | null;
   sourceImageBucket: string;
   frontImageBucket: string;
   actionVideoBucket: string;

@@ -7,13 +7,21 @@ export const dynamic = "force-dynamic";
 export const preferredRegion = "sin1";
 
 const supportedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+const maxSourceImageBytes = 30 * 1024 * 1024;
 
-function sanitizeFileName(fileName: string) {
-  return fileName
-    .trim()
-    .replace(/[/\\?%*:|"<>]/g, "-")
-    .replace(/\s+/g, "-")
-    .slice(0, 96);
+function formatBytes(bytes: number) {
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
+
+function extensionForContentType(contentType: string) {
+  switch (contentType) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    default:
+      return "png";
+  }
 }
 
 export async function POST(request: Request) {
@@ -38,9 +46,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "UNSUPPORTED_IMAGE_TYPE" }, { status: 400 });
   }
 
+  if (file.size > maxSourceImageBytes) {
+    return NextResponse.json(
+      {
+        error: "SOURCE_IMAGE_TOO_LARGE",
+        details: `图片不能超过 ${formatBytes(maxSourceImageBytes)}，当前约 ${formatBytes(file.size)}。`
+      },
+      { status: 413 }
+    );
+  }
+
   const bucket = getStorageBuckets().sourceImages;
-  const safeFileName = sanitizeFileName(file.name || "pet-source.png");
-  const storagePath = `${petId}/${crypto.randomUUID()}-${safeFileName}`;
+  const fileExtension = extensionForContentType(file.type);
+  const storagePath = `${petId}/${crypto.randomUUID()}.${fileExtension}`;
   const backend = getBackendStatus();
 
   if (backend.mode === "mock") {
@@ -70,6 +88,14 @@ export async function POST(request: Request) {
   });
 
   if (uploadResult.error) {
+    console.error("Source image upload failed", {
+      bucket,
+      storagePath,
+      fileSize: file.size,
+      fileType: file.type,
+      message: uploadResult.error.message
+    });
+
     return NextResponse.json(
       {
         error: "SOURCE_IMAGE_UPLOAD_FAILED",

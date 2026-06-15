@@ -85,3 +85,24 @@ create table if not exists public.pet_hosting_requests (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles enable row level security;
+alter table public.pets enable row level security;
+alter table public.pet_assets enable row level security;
+alter table public.generation_jobs enable row level security;
+alter table public.credit_ledger enable row level security;
+alter table public.friend_requests enable row level security;
+alter table public.friendships enable row level security;
+alter table public.pet_hosting_requests enable row level security;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('source-images', 'source-images', true, 31457280, array['image/png', 'image/jpeg', 'image/webp']),
+  ('front-images', 'front-images', true, 31457280, array['image/png', 'image/jpeg', 'image/webp']),
+  ('action-videos', 'action-videos', true, 52428800, array['video/mp4', 'video/quicktime', 'video/webm']),
+  ('asset-bundles', 'asset-bundles', true, 104857600, array['application/zip', 'application/octet-stream'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types,
+  updated_at = now();
