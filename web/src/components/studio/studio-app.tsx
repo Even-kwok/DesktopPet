@@ -6,12 +6,13 @@ import {
   createFrontImageJob,
   getGenerationJob,
   recallPet,
-  requestUploadUrl,
   sendHostingRequest,
-  updateHostingRequest
+  updateHostingRequest,
+  uploadSourceImage
 } from "@/lib/api-client";
 import { materialGroups, type MaterialGroup, type MaterialSlot } from "@/lib/material-slots";
 import type {
+  BackendStatus,
   CurrentUser,
   GenerationJob,
   HostingRequest,
@@ -128,16 +129,18 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     setSelectedFileName(file.name);
 
     try {
-      const upload = await requestUploadUrl({
+      const upload = await uploadSourceImage({
         petId: selectedPet.id,
-        fileName: file.name,
-        contentType: file.type || "image/png"
+        file
       });
       setSourcePublicUrl(upload.publicUrl);
       setPetPatch(selectedPet.id, { sourceImageUrl: previewUrl });
       setMessage({
         tone: "success",
-        text: "图片已进入上传队列。当前是 mock，本地先显示预览，接 Supabase 后会真正上传。"
+        text:
+          upload.mode === "supabase"
+            ? `图片已上传到 Supabase：${upload.bucket}/${upload.storagePath}`
+            : "图片已进入 mock 上传流程。本地先显示预览，配置 Supabase 后会真正写入 Storage。"
       });
     } catch (error) {
       setMessage({
@@ -305,6 +308,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
           <div>
             <h1>DesktopPet Studio</h1>
             <p>网页负责账号、积分、素材生成；Mac App 负责陪伴、播放和托管管理。</p>
+            <span className={initialData.backend.mode === "supabase" ? "backend-pill live" : "backend-pill"}>
+              {initialData.backend.mode === "supabase" ? "Supabase 已连接" : "Mock 后端"}
+            </span>
           </div>
         </div>
 
@@ -339,6 +345,8 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               <button className="button">发送登录验证码</button>
             </div>
           </section>
+
+          <BackendPanel backend={initialData.backend} />
 
           <section className="panel workflow-panel">
             <PanelTitle icon="🪄" title="生成流程" subtitle="每一步都会记录任务、扣积分和保存素材。" />
@@ -493,6 +501,35 @@ function PetPanel({
           <span>动作位</span>
         </div>
       </div>
+    </section>
+  );
+}
+
+function BackendPanel({ backend }: { backend: BackendStatus }) {
+  const isLive = backend.mode === "supabase";
+
+  return (
+    <section className="panel backend-panel">
+      <PanelTitle
+        icon={isLive ? "🟢" : "🧪"}
+        title="后端状态"
+        subtitle={isLive ? "真实 Supabase 存储已启用。" : "当前使用 mock 数据，不会写入云端。"}
+      />
+      <div className="backend-grid">
+        <div>
+          <span>模式</span>
+          <strong>{isLive ? "Supabase" : "Mock"}</strong>
+        </div>
+        <div>
+          <span>原图 bucket</span>
+          <strong>{backend.sourceImageBucket}</strong>
+        </div>
+      </div>
+      {backend.missingEnv.length > 0 ? (
+        <p className="backend-warning">待配置：{backend.missingEnv.join(" / ")}</p>
+      ) : (
+        <p className="backend-ok">环境变量已就绪，可以开始写入 Supabase。</p>
+      )}
     </section>
   );
 }

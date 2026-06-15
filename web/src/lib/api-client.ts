@@ -1,4 +1,4 @@
-import type { GenerationJob, UploadUrlResponse } from "@/lib/types";
+import type { BackendStatus, GenerationJob, SourceImageUploadResponse, UploadUrlResponse } from "@/lib/types";
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -36,6 +36,36 @@ export function requestUploadUrl(input: {
     method: "POST",
     body: input
   });
+}
+
+export async function uploadSourceImage(input: {
+  petId: string;
+  file: File;
+}) {
+  const formData = new FormData();
+  formData.append("petId", input.petId);
+  formData.append("file", input.file);
+
+  const response = await fetch("/api/source-images", {
+    method: "POST",
+    body: formData
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String(payload.error)
+        : `Upload failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload as SourceImageUploadResponse;
+}
+
+export function getBackendStatus() {
+  return requestJSON<BackendStatus>("/api/backend/status");
 }
 
 export function createFrontImageJob(input: {

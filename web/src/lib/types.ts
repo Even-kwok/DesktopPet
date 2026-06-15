@@ -64,10 +64,32 @@ export type StudioBootstrap = {
   hostingRequests: HostingRequest[];
   assets: PetAsset[];
   materialSlots: MaterialSlot[];
+  backend: BackendStatus;
 };
 
 export type UploadUrlResponse = {
   uploadUrl: string;
   publicUrl: string;
   expiresIn: number;
+};
+
+export type BackendMode = "mock" | "supabase";
+
+export type BackendStatus = {
+  mode: BackendMode;
+  supabaseConfigured: boolean;
+  authConfigured: boolean;
+  storageConfigured: boolean;
+  sourceImageBucket: string;
+  frontImageBucket: string;
+  actionVideoBucket: string;
+  missingEnv: string[];
+  message: string;
+};
+
+export type SourceImageUploadResponse = {
+  mode: BackendMode;
+  bucket: string;
+  storagePath: string;
+  publicUrl: string;
 };

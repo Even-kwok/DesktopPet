@@ -118,6 +118,7 @@ SUPABASE_ASSET_BUNDLE_BUCKET
 
 ```text
 GET  /api/health
+GET  /api/backend/status
 GET  /api/studio/bootstrap
 GET  /api/pets
 GET  /api/pets/:petId/materials
@@ -127,6 +128,7 @@ POST /api/hosting/requests
 PATCH /api/hosting/requests/:requestId
 POST /api/hosting/recall
 POST /api/upload-url
+POST /api/source-images
 POST /api/generation/front-image
 POST /api/generation/action-video
 GET  /api/jobs/:jobId
@@ -136,12 +138,14 @@ These routes are mock-first. The next step is replacing the mock bodies with Sup
 
 Recommended replacement order:
 
-1. Replace `/api/upload-url` with Supabase Storage signed upload URLs.
-2. Replace `/api/generation/front-image` with a real server-side GPT Image job.
-3. Replace `/api/generation/action-video` with a real server-side JiMeng job.
-4. Store every job in Postgres and make `/api/jobs/:jobId` read real job status.
-5. Store generated videos in Supabase Storage and register them through `/api/pets/:petId/materials`.
-6. Add auth checks to every route before opening the web studio to real users.
+1. Configure Supabase env vars and verify `/api/backend/status` switches from `mock` to `supabase`.
+2. Use `/api/source-images` to upload source pet images into Supabase Storage.
+3. Replace `/api/upload-url` with Supabase Storage signed upload URLs for larger direct-to-storage uploads.
+4. Replace `/api/generation/front-image` with a real server-side GPT Image job.
+5. Replace `/api/generation/action-video` with a real server-side JiMeng job.
+6. Store every job in Postgres and make `/api/jobs/:jobId` read real job status.
+7. Store generated videos in Supabase Storage and register them through `/api/pets/:petId/materials`.
+8. Add auth checks to every route before opening the web studio to real users.
 
 ## Mac App Integration Later
 

@@ -6,6 +6,7 @@ import {
   petAssets,
   pets
 } from "@/lib/mock-data";
+import { getBackendStatus } from "@/lib/supabase/server";
 import type { GenerationJob, StudioBootstrap } from "@/lib/types";
 
 export function getStudioBootstrap(): StudioBootstrap {
@@ -15,7 +16,8 @@ export function getStudioBootstrap(): StudioBootstrap {
     friends,
     hostingRequests,
     assets: petAssets,
-    materialSlots
+    materialSlots,
+    backend: getBackendStatus()
   };
 }
 

@@ -278,7 +278,8 @@ button:disabled {
 }
 
 .auth-panel,
-.workflow-panel {
+.workflow-panel,
+.backend-panel {
   padding: 16px;
 }
 
@@ -317,6 +318,62 @@ button:disabled {
 .input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(255, 104, 120, 0.14);
+}
+
+.backend-pill {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fff3d4;
+  color: #9a6712;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.backend-pill.live {
+  background: rgba(45, 185, 133, 0.14);
+  color: #187b5b;
+}
+
+.backend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.backend-grid div {
+  padding: 11px;
+  border-radius: 15px;
+  background: #f6fbfa;
+}
+
+.backend-grid span,
+.backend-warning,
+.backend-ok {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.backend-grid strong {
+  display: block;
+  margin-top: 3px;
+  word-break: break-word;
+}
+
+.backend-warning,
+.backend-ok {
+  margin: 12px 0 0;
+  line-height: 1.45;
+}
+
+.backend-warning {
+  color: #a76d12;
+}
+
+.backend-ok {
+  color: #167b59;
 }
 
 .workflow-steps {

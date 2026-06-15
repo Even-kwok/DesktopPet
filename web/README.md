@@ -17,6 +17,8 @@ Open `http://localhost:3000`.
 
 - Auth UI placeholder
 - Pet material generation studio UI
+- Backend status indicator for mock vs Supabase mode
+- Source image upload route, ready to write into Supabase Storage when env vars are configured
 - Mock generation API routes
 - Mock job polling route
 - Mock friends and hosting routes

@@ -37,6 +37,7 @@ Current web MVP includes:
 - Pet material slot cards matching the Mac app slots.
 - Interactive mock upload, credit deduction, generation polling, friend hosting, and pet recall flows.
 - Mock API routes under `web/src/app/api` with a typed client in `web/src/lib/api-client.ts`.
+- Backend status detection for mock vs Supabase mode, plus a source-image upload route ready for Supabase Storage.
 - Supabase adapter placeholder for the next backend step.
 
 Deployment notes live in `docs/deployment.md`, and the first Supabase schema draft lives in `docs/schema.sql`.
@@ -87,6 +88,7 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
 - The web studio is still mock-first: front-image generation and state-video generation show progress and deduct local prototype credits, but do not call external APIs yet.
 - Future web API wiring points:
   - `/api/upload-url`: create a signed upload URL in Supabase Storage.
+  - `/api/source-images`: upload original pet images into Supabase Storage.
   - `/api/generation/front-image`: call GPT Image generation from the server.
   - `/api/generation/action-video`: call JiMeng video generation from the server.
   - `/api/jobs/[jobId]`: poll queued generation jobs.
