@@ -90,6 +90,7 @@ export function createFrontImageJob(input: {
 export function createActionVideoJob(input: {
   petId: string;
   slot: string;
+  sourceImageUrl?: string;
 }) {
   return requestJSON<GenerationJob>("/api/generation/action-video", {
     method: "POST",

@@ -147,6 +147,35 @@ Recommended replacement order:
 7. Store generated videos in Supabase Storage and register them through `/api/pets/:petId/materials`.
 8. Add auth checks to every route before opening the web studio to real users.
 
+## JiMeng / Volcengine Video Provider
+
+The action-video route supports a real provider when these Vercel env vars are set:
+
+```text
+JIMENG_API_KEY
+JIMENG_API_BASE_URL
+JIMENG_QUERY_URL_TEMPLATE
+JIMENG_VIDEO_MODEL
+JIMENG_VIDEO_DURATION_SECONDS
+JIMENG_VIDEO_CAMERA_FIXED
+JIMENG_VIDEO_WATERMARK
+```
+
+For the currently enabled Volcengine Ark model, use:
+
+```text
+JIMENG_API_BASE_URL=https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks
+JIMENG_QUERY_URL_TEMPLATE=https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{taskId}
+JIMENG_VIDEO_MODEL=doubao-seedance-2-0-fast-260128
+JIMENG_VIDEO_DURATION_SECONDS=10
+JIMENG_VIDEO_CAMERA_FIXED=true
+JIMENG_VIDEO_WATERMARK=false
+```
+
+`JIMENG_API_BASE_URL` is the provider's create-task endpoint. `JIMENG_QUERY_URL_TEMPLATE` should contain `{taskId}` where the provider task id belongs. Keep `JIMENG_API_KEY` server-only and never expose it to the Mac app or browser.
+
+When the env vars are missing, `/api/generation/action-video` stays in mock mode. When they are present, the route sends the uploaded pet image URL and the selected material slot prompt to the provider, then `/api/jobs/:jobId` polls provider status.
+
 ## Mac App Integration Later
 
 Mac App should only call:

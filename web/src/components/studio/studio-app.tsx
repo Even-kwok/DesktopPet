@@ -99,24 +99,35 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   }
 
   async function pollJob(job: GenerationJob) {
-    setJobs((currentJobs) =>
-      currentJobs.map((item) =>
-        item.jobId === job.jobId ? { ...item, status: "running", progress: 50 } : item
-      )
-    );
+    let latestJob = job;
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const finishedJob = await getGenerationJob(job.jobId);
+    for (let attempt = 1; attempt <= 30; attempt += 1) {
+      setJobs((currentJobs) =>
+        currentJobs.map((item) =>
+          item.jobId === job.jobId
+            ? {
+                ...item,
+                ...latestJob,
+                status: latestJob.status === "queued" ? "running" : latestJob.status,
+                progress: latestJob.progress ?? Math.min(95, 20 + attempt * 3)
+              }
+            : item
+        )
+      );
 
-    setJobs((currentJobs) =>
-      currentJobs.map((item) =>
-        item.jobId === job.jobId
-          ? { ...item, ...finishedJob, status: finishedJob.status, progress: 100 }
-          : item
-      )
-    );
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      latestJob = await getGenerationJob(job.jobId);
 
-    return finishedJob;
+      setJobs((currentJobs) =>
+        currentJobs.map((item) => (item.jobId === job.jobId ? { ...item, ...latestJob } : item))
+      );
+
+      if (latestJob.status === "succeeded" || latestJob.status === "failed") {
+        return latestJob;
+      }
+    }
+
+    return latestJob;
   }
 
   async function handleImageSelected(file: File | undefined) {
@@ -134,7 +145,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         file
       });
       setSourcePublicUrl(upload.publicUrl);
-      setPetPatch(selectedPet.id, { sourceImageUrl: previewUrl });
+      setPetPatch(selectedPet.id, { sourceImageUrl: upload.publicUrl });
       setMessage({
         tone: "success",
         text:
@@ -172,7 +183,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
       if (finishedJob.status === "succeeded") {
         setPetPatch(selectedPet.id, {
-          frontImageUrl: sourcePreviewUrl,
+          frontImageUrl: sourcePublicUrl,
           status: "正面形象待确认"
         });
         setMessage({ tone: "success", text: "正面形象已生成。当前 mock 使用上传图作为预览。" });
@@ -210,7 +221,8 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       setAssetStatus(selectedPet.id, slot.id, "generating");
       const job = await createActionVideoJob({
         petId: selectedPet.id,
-        slot: slot.id
+        slot: slot.id,
+        sourceImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined
       });
       setJobs((currentJobs) => [job, ...currentJobs]);
       setUser((currentUser) => ({
@@ -224,7 +236,18 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       if (finishedJob.status === "succeeded") {
         setAssetStatus(selectedPet.id, slot.id, "ready");
         setPetPatch(selectedPet.id, { materialsReady: readyCount + 1 });
-        setMessage({ tone: "success", text: `「${slot.name}」已生成，占位素材已加入素材库。` });
+        setMessage({
+          tone: "success",
+          text: finishedJob.resultUrl
+            ? `「${slot.name}」已生成，视频地址已返回。`
+            : `「${slot.name}」已生成，占位素材已加入素材库。`
+        });
+      } else if (finishedJob.status === "failed") {
+        setAssetStatus(selectedPet.id, slot.id, "failed");
+        setMessage({
+          tone: "error",
+          text: finishedJob.message ?? `「${slot.name}」生成失败。`
+        });
       }
     } catch (error) {
       setAssetStatus(selectedPet.id, slot.id, "failed");
