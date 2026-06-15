@@ -1,13 +1,12 @@
-.DS_Store
 .build/
 .swiftpm/
+.git/
+.vercel/
 DerivedData/
 *.xcuserstate
 *.xcuserdata/
-.vercel/
 web/.next/
 web/node_modules/
 web/.env.local
 web/.vercel/
 web/*.tsbuildinfo
-.vercel

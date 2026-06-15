@@ -65,7 +65,7 @@ Team: guoyaowens-projects
 Project: web
 Project ID: prj_eK7l5ukD6Yc5WuSog21Mzedr2uWA
 Production URL: https://web-guoyaowens-projects.vercel.app
-Inspector: https://vercel.com/guoyaowens-projects/web/FDEZNTSoq5TBrw8qyHZwVpkh2aWY
+Inspector: https://vercel.com/guoyaowens-projects/web/fVZuarhaLat1YqrJSUT1XkjSm8rm
 ```
 
 The production `vercel.app` URL is public. SSO deployment protection has been disabled for this project. Git fork protection remains enabled.
