@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test:unit": "node --experimental-strip-types --test src/lib/server/seedance-request.test.ts",
+    "test:unit": "node --experimental-strip-types --test src/lib/server/seedance-request.test.ts src/lib/server/seedance-response.test.ts",
     "start": "next start",
     "lint": "tsc --noEmit"
   },

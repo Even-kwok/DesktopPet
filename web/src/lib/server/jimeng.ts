@@ -1,5 +1,6 @@
 import { materialSlots } from "@/lib/material-slots";
 import { buildSeedanceRequestBody } from "@/lib/server/seedance-request";
+import { extractSeedanceResultUrl } from "@/lib/server/seedance-response";
 import type { GenerationJob, GenerationJobStatus } from "@/lib/types";
 
 type JimengConfig = {
@@ -138,15 +139,7 @@ function providerJobId(payload: ProviderPayload) {
 }
 
 function providerResultUrl(payload: ProviderPayload) {
-  return providerValue(payload, [
-    "video_url",
-    "result_url",
-    "data.video_url",
-    "data.result_url",
-    "data.output.video_url",
-    "data.output.result_url",
-    "data.output.url"
-  ]);
+  return extractSeedanceResultUrl(payload);
 }
 
 function providerStatus(payload: ProviderPayload): GenerationJobStatus {
