@@ -1,4 +1,5 @@
 import { materialSlots } from "@/lib/material-slots";
+import { buildSeedanceRequestBody } from "@/lib/server/seedance-request";
 import type { GenerationJob, GenerationJobStatus } from "@/lib/types";
 
 type JimengConfig = {
@@ -97,28 +98,14 @@ function createRequestBody(input: {
   slot: string;
   config: JimengConfig;
 }) {
-  const prompt = [
-    slotPrompt(input.slot),
-    `--duration ${input.config.durationSeconds}`,
-    `--camerafixed ${input.config.cameraFixed}`,
-    `--watermark ${input.config.watermark}`
-  ].join(" ");
-
-  return {
+  return buildSeedanceRequestBody({
     model: input.config.model,
-    content: [
-      {
-        type: "text",
-        text: prompt
-      },
-      {
-        type: "image_url",
-        image_url: {
-          url: input.sourceImageUrl
-        }
-      }
-    ]
-  };
+    prompt: slotPrompt(input.slot),
+    sourceImageUrl: input.sourceImageUrl,
+    durationSeconds: input.config.durationSeconds,
+    cameraFixed: input.config.cameraFixed,
+    watermark: input.config.watermark
+  });
 }
 
 function providerValue(payload: ProviderPayload, keys: string[]) {
