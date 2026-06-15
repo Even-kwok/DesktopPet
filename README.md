@@ -2,6 +2,16 @@
 
 Native macOS desktop pet MVP built with SwiftUI, AppKit, AVFoundation, and Core Image.
 
+The repository now contains two product surfaces:
+
+- `Sources/CatDesktopPet`: native macOS desktop pet app.
+- `web`: Next.js web studio for accounts, credits, material generation, and cloud asset management.
+
+The intended split is:
+
+- Web handles registration, login, subscription, credits, image upload, image/video generation, and cloud material storage.
+- Mac App stays lightweight: local video import, desktop rendering, transparent windows, pet interaction, and later friend/hosting sync.
+
 ## Run in Xcode
 
 1. Open `Package.swift` in Xcode.
@@ -9,6 +19,27 @@ Native macOS desktop pet MVP built with SwiftUI, AppKit, AVFoundation, and Core 
 3. Choose `My Mac` as the run destination.
 4. Press `Cmd + R`.
 5. Use the menu bar paw icon to choose an MP4 or MOV green-screen cat video.
+
+## Run Web Studio
+
+```bash
+cd web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Current web MVP includes:
+
+- Game-like material studio UI with selectable pets, portrait preview, material cards, jobs, friends, and billing mock panels.
+- Pet material slot cards matching the Mac app slots.
+- Interactive mock upload, credit deduction, generation polling, friend hosting, and pet recall flows.
+- Mock API routes under `web/src/app/api` with a typed client in `web/src/lib/api-client.ts`.
+- Supabase adapter placeholder for the next backend step.
+
+Deployment notes live in `docs/deployment.md`, and the first Supabase schema draft lives in `docs/schema.sql`.
 
 ## MVP Scope
 
@@ -52,11 +83,19 @@ Native macOS desktop pet MVP built with SwiftUI, AppKit, AVFoundation, and Core 
 ## Notes
 
 - Click-through mode lets mouse events pass to apps behind the pet window. Turn it off from the menu to click the pet again.
-- The material studio is currently a UI mock for the upcoming API flow. Front-image generation and state-video generation show progress and deduct local prototype credits, but do not call external APIs yet.
-- Future API wiring points:
-  - Image upload + GPT Image generation belongs behind `PetStudioViewModel.generateFrontImage()`.
-  - State video generation belongs behind `PetStudioViewModel.generate(slot:)`.
-  - API-returned videos should be saved locally, then registered with `SettingsStore.saveVideoURL(_:for:petIndex:)`.
+- The native material studio stays intentionally simple. Registration, login, credits, subscriptions, image generation, and video generation now belong to the web studio.
+- The web studio is still mock-first: front-image generation and state-video generation show progress and deduct local prototype credits, but do not call external APIs yet.
+- Future web API wiring points:
+  - `/api/upload-url`: create a signed upload URL in Supabase Storage.
+  - `/api/generation/front-image`: call GPT Image generation from the server.
+  - `/api/generation/action-video`: call JiMeng video generation from the server.
+  - `/api/jobs/[jobId]`: poll queued generation jobs.
+  - `/api/pets/[petId]/materials`: register generated or uploaded videos for a pet.
+  - `/api/hosting/*`: friend hosting request, accept/decline/return, and recall flows.
+- Future Mac sync points:
+  - Download confirmed web-generated videos into local app storage.
+  - Register downloaded videos with `SettingsStore.saveVideoURL(_:for:petIndex:)`.
+  - Use desktop-side friend/hosting UI only for pet placement and sync, not payments or generation.
 - The chroma key is intentionally simple for the MVP. Edge cleanup and feathering can be added later.
 - `选择状态视频` contains separate upload slots for the current pet slots.
 - `删除状态视频` clears a selected slot from the app without deleting the original video file.

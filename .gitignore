@@ -4,3 +4,8 @@
 DerivedData/
 *.xcuserstate
 *.xcuserdata/
+web/.next/
+web/node_modules/
+web/.env.local
+web/.vercel/
+web/*.tsbuildinfo
