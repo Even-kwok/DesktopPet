@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   buildSlotPrompt,
-  clampVideoDuration,
   defaultVideoGenerationSettings,
   videoFpsOptions,
   videoRatioOptions,
@@ -58,7 +57,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [promptPreviewSlotId, setPromptPreviewSlotId] = useState(
     initialData.materialSlots[0]?.id ?? ""
   );
-  const [confirmedPetIds, setConfirmedPetIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<StatusMessage>({
     tone: "info",
     text: "上传一张绿幕正面坐姿图后，就可以直接作为动作视频的首尾帧。"
@@ -83,10 +81,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   }, [sourcePreviewUrl]);
 
   const readyCount = selectedPetAssets.filter((asset) => asset.status === "ready").length;
-  const isFrontConfirmed = selectedPet
-    ? confirmedPetIds.has(selectedPet.id) ||
-      Boolean(selectedPet.frontImageUrl || selectedPet.sourceImageUrl)
-    : false;
+  const hasFrameImage = selectedPet ? Boolean(selectedPet.frontImageUrl || selectedPet.sourceImageUrl) : false;
 
   function setPetPatch(petId: string, patch: Partial<Pet>) {
     setPets((currentPets) =>
@@ -204,7 +199,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         frontImageUrl: upload.publicUrl,
         status: "首尾帧形象已就绪"
       });
-      setConfirmedPetIds((currentIds) => new Set(currentIds).add(selectedPet.id));
       setMessage({
         tone: "success",
         text:
@@ -220,23 +214,12 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     }
   }
 
-  function handleConfirmFrontImage() {
-    if (!selectedPet?.frontImageUrl && !selectedPet?.sourceImageUrl) {
-      setMessage({ tone: "error", text: "请先上传一张绿幕正面坐姿图。" });
-      return;
-    }
-
-    setConfirmedPetIds((currentIds) => new Set(currentIds).add(selectedPet.id));
-    setPetPatch(selectedPet.id, { status: "首尾帧形象已确认" });
-    setMessage({ tone: "success", text: "这张图会作为首帧和尾帧，现在可以生成动作素材。" });
-  }
-
   async function handleGenerateAction(slot: MaterialSlot) {
     if (!selectedPet) {
       return;
     }
 
-    if (!isFrontConfirmed) {
+    if (!hasFrameImage) {
       setMessage({ tone: "error", text: "请先上传绿幕正面坐姿图，再生成动作视频。" });
       return;
     }
@@ -248,7 +231,10 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         slot: slot.id,
         sourceImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined,
         lastImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined,
-        settings: videoSettings
+        settings: {
+          ...videoSettings,
+          durationSeconds: slot.durationSeconds
+        }
       });
       setJobs((currentJobs) => [job, ...currentJobs]);
       setUser((currentUser) => ({
@@ -464,14 +450,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
           {activeTab === "materials" ? (
             <MaterialsTab
               slots={initialData.materialSlots}
-              selectedPet={selectedPet}
-              isFrontConfirmed={isFrontConfirmed}
-              sourcePreviewUrl={sourcePreviewUrl}
+              hasFrameImage={hasFrameImage}
               videoSettings={videoSettings}
               promptPreviewSlotId={promptPreviewSlotId}
               onPromptPreviewSlotChange={setPromptPreviewSlotId}
               onVideoSettingsChange={setVideoSettings}
-              onConfirmFrontImage={handleConfirmFrontImage}
               assetFor={assetFor}
               jobForSlot={jobForSlot}
               onGenerateAction={handleGenerateAction}
@@ -598,57 +581,27 @@ function BackendPanel({ backend }: { backend: BackendStatus }) {
 
 function MaterialsTab({
   slots,
-  selectedPet,
-  isFrontConfirmed,
-  sourcePreviewUrl,
+  hasFrameImage,
   videoSettings,
   promptPreviewSlotId,
   onPromptPreviewSlotChange,
   onVideoSettingsChange,
-  onConfirmFrontImage,
   assetFor,
   jobForSlot,
   onGenerateAction
 }: {
   slots: MaterialSlot[];
-  selectedPet: Pet | undefined;
-  isFrontConfirmed: boolean;
-  sourcePreviewUrl: string | null;
+  hasFrameImage: boolean;
   videoSettings: VideoGenerationSettings;
   promptPreviewSlotId: string;
   onPromptPreviewSlotChange: (slotId: string) => void;
   onVideoSettingsChange: (settings: VideoGenerationSettings) => void;
-  onConfirmFrontImage: () => void;
   assetFor: (slot: string) => PetAsset | undefined;
   jobForSlot: (slot: string) => GenerationJob | undefined;
   onGenerateAction: (slot: MaterialSlot) => void;
 }) {
   return (
     <>
-      <section className="panel image-confirm-panel">
-        <div>
-          <h3>首尾帧形象图</h3>
-          <p>上传的绿幕正面坐姿图会直接作为动作视频的首帧和尾帧。</p>
-          <p className="small-note">
-            建议：猫咪完整入镜、正面坐着、背景为均匀亮绿，边缘少阴影，避免绿色配饰和复杂道具。
-          </p>
-        </div>
-        <div className="mini-preview">
-          {selectedPet?.frontImageUrl || selectedPet?.sourceImageUrl || sourcePreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt="首尾帧形象预览"
-              src={selectedPet?.frontImageUrl ?? selectedPet?.sourceImageUrl ?? sourcePreviewUrl ?? ""}
-            />
-          ) : (
-            <span>🐾</span>
-          )}
-        </div>
-        <button className={isFrontConfirmed ? "button success" : "button"} onClick={onConfirmFrontImage}>
-          {isFrontConfirmed ? "已可生成动作" : "使用这张图"}
-        </button>
-      </section>
-
       <GenerationDebugPanel
         slots={slots}
         settings={videoSettings}
@@ -678,7 +631,7 @@ function MaterialsTab({
                 <MaterialCard
                   asset={assetFor(slot.id)}
                   activeJob={jobForSlot(slot.id)}
-                  isFrontConfirmed={isFrontConfirmed}
+                  hasFrameImage={hasFrameImage}
                   key={slot.id}
                   settings={videoSettings}
                   slot={slot}
@@ -697,14 +650,14 @@ function MaterialCard({
   slot,
   asset,
   activeJob,
-  isFrontConfirmed,
+  hasFrameImage,
   settings,
   onGenerate
 }: {
   slot: MaterialSlot;
   asset: PetAsset | undefined;
   activeJob: GenerationJob | undefined;
-  isFrontConfirmed: boolean;
+  hasFrameImage: boolean;
   settings: VideoGenerationSettings;
   onGenerate: () => void;
 }) {
@@ -735,7 +688,7 @@ function MaterialCard({
         <details className="prompt-details">
           <summary>查看提示词和参数</summary>
           <div className="prompt-meta">
-            <span>{settings.durationSeconds}s</span>
+            <span>{slot.durationSeconds}s</span>
             <span>{settings.resolution}</span>
             <span>{settings.ratio}</span>
             <span>{settings.framesPerSecond} FPS</span>
@@ -743,7 +696,7 @@ function MaterialCard({
           <pre>{prompt}</pre>
         </details>
         <div className="card-actions">
-          <button className="button" disabled={!isFrontConfirmed || isGenerating} onClick={onGenerate}>
+          <button className="button" disabled={!hasFrameImage || isGenerating} onClick={onGenerate}>
             {isGenerating ? "生成中" : `生成 ${slot.cost} 分`}
           </button>
           <a
@@ -792,21 +745,6 @@ function GenerationDebugPanel({
       </div>
 
       <div className="settings-grid">
-        <label className="setting-field">
-          <span>时长</span>
-          <input
-            className="input"
-            type="number"
-            min={4}
-            max={15}
-            value={settings.durationSeconds}
-            onChange={(event) =>
-              patchSettings({ durationSeconds: clampVideoDuration(Number(event.target.value)) })
-            }
-          />
-          <small>Seedance 2.0 支持 4-15 秒。</small>
-        </label>
-
         <label className="setting-field">
           <span>画幅</span>
           <select
@@ -880,7 +818,7 @@ function GenerationDebugPanel({
       <div className="debug-info-grid">
         <div className="debug-note">
           <strong>当前输出</strong>
-          <p>格式：MP4。当前模型支持 480p / 720p、24 FPS。文件大小要等生成完成后由实际视频决定。</p>
+          <p>格式：MP4。当前模型支持 480p / 720p、24 FPS。时长由每个动作卡片内置，范围固定为 4-15 秒。</p>
         </div>
         <div className="debug-note">
           <strong>首尾帧</strong>
