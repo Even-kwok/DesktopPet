@@ -1,4 +1,11 @@
-import type { BackendStatus, GenerationJob, SourceImageUploadResponse, UploadUrlResponse } from "@/lib/types";
+import type {
+  BackendStatus,
+  DesktopPetBundle,
+  DesktopPetBundlePublishResponse,
+  GenerationJob,
+  SourceImageUploadResponse,
+  UploadUrlResponse
+} from "@/lib/types";
 import type { VideoGenerationSettings } from "@/lib/generation-settings";
 
 type RequestOptions = Omit<RequestInit, "body"> & {
@@ -103,6 +110,13 @@ export function createActionVideoJob(input: {
 
 export function getGenerationJob(jobId: string) {
   return requestJSON<GenerationJob>(`/api/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export function publishDesktopPetBundle(bundle: DesktopPetBundle) {
+  return requestJSON<DesktopPetBundlePublishResponse>("/api/desktop/pets", {
+    method: "POST",
+    body: bundle
+  });
 }
 
 export function sendHostingRequest(input: {

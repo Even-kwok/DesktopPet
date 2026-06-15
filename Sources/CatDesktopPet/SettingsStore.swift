@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-enum PetActionSlot: String, CaseIterable {
+enum PetActionSlot: String, CaseIterable, Codable {
     case idleLoop = "idle_loop"
     case catchBug = "catch_bug"
     case catchBugUp = "catch_bug_up"

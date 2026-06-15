@@ -27,6 +27,7 @@ final class PetStudioViewModel: ObservableObject {
     private let defaults: UserDefaults
     private let settingsStore: SettingsStore
     private let petColonyController: PetColonyController
+    private let desktopSyncClient: DesktopPetSyncClient
     private let onLibraryChanged: () -> Void
     private let frontImageCreditCost = 10
 
@@ -38,6 +39,7 @@ final class PetStudioViewModel: ObservableObject {
     @Published private(set) var isFrontImageConfirmed = false
     @Published private(set) var creditBalance: Int
     @Published private(set) var isGeneratingFrontImage = false
+    @Published private(set) var isSyncingDesktopBundle = false
     @Published private(set) var generatingSlots: Set<PetActionSlot> = []
     @Published private(set) var generatedSlots: Set<PetActionSlot> = []
     @Published private(set) var localVideoSlots: Set<PetActionSlot> = []
@@ -46,11 +48,13 @@ final class PetStudioViewModel: ObservableObject {
     init(
         settingsStore: SettingsStore,
         petColonyController: PetColonyController,
+        desktopSyncClient: DesktopPetSyncClient = DesktopPetSyncClient(),
         defaults: UserDefaults = .standard,
         onLibraryChanged: @escaping () -> Void = {}
     ) {
         self.settingsStore = settingsStore
         self.petColonyController = petColonyController
+        self.desktopSyncClient = desktopSyncClient
         self.defaults = defaults
         self.onLibraryChanged = onLibraryChanged
 
@@ -243,6 +247,37 @@ final class PetStudioViewModel: ObservableObject {
 
     func hasLocalVideo(for slot: PetActionSlot) -> Bool {
         localVideoSlots.contains(slot)
+    }
+
+    func syncFromWebStudio() {
+        guard !isSyncingDesktopBundle else {
+            return
+        }
+
+        isSyncingDesktopBundle = true
+        statusMessage = "正在从网页同步生成好的素材..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let summary = try await self.desktopSyncClient.importLatestBundle(
+                    settingsStore: self.settingsStore,
+                    petColonyController: self.petColonyController
+                )
+
+                self.refreshPetList()
+                self.loadSelectedPetDraft()
+                self.isSyncingDesktopBundle = false
+                self.statusMessage = "已从网页同步 \(summary.petCount) 只宠物、\(summary.materialCount) 个动作素材。"
+                self.onLibraryChanged()
+            } catch {
+                self.isSyncingDesktopBundle = false
+                self.statusMessage = error.localizedDescription
+            }
+        }
     }
 
     func localVideoURL(for slot: PetActionSlot) -> URL? {

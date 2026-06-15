@@ -43,6 +43,35 @@ export type PetAsset = {
   videoUrl?: string | null;
 };
 
+export type DesktopPetMaterial = {
+  slot: string;
+  name: string;
+  videoUrl: string;
+  status: "ready";
+};
+
+export type DesktopPetBundlePet = {
+  id: string;
+  name: string;
+  type: "cat" | "dog";
+  avatarUrl?: string | null;
+  materials: DesktopPetMaterial[];
+};
+
+export type DesktopPetBundle = {
+  version: 1;
+  generatedAt: string;
+  pets: DesktopPetBundlePet[];
+};
+
+export type DesktopPetBundlePublishResponse = {
+  mode: BackendMode;
+  bucket: string;
+  storagePath: string;
+  publicUrl?: string;
+  bundle: DesktopPetBundle;
+};
+
 export type GenerationJobStatus = "queued" | "running" | "succeeded" | "failed" | "expired";
 
 export type GenerationJob = {

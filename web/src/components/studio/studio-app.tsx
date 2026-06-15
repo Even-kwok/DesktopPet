@@ -9,9 +9,11 @@ import {
   videoResolutionOptions,
   type VideoGenerationSettings
 } from "@/lib/generation-settings";
+import { buildDesktopPetBundle } from "@/lib/desktop-bundle";
 import {
   createActionVideoJob,
   getGenerationJob,
+  publishDesktopPetBundle,
   recallPet,
   sendHostingRequest,
   updateHostingRequest,
@@ -105,6 +107,15 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     return selectedPetAssets.find((asset) => asset.slot === slot);
   }
 
+  async function publishDesktopSyncBundle(nextPets: Pet[], nextAssets: PetAsset[]) {
+    return publishDesktopPetBundle(
+      buildDesktopPetBundle({
+        pets: nextPets,
+        assets: nextAssets
+      })
+    );
+  }
+
   function jobForSlot(slot: string) {
     return jobs.find(
       (job) =>
@@ -193,11 +204,21 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         petId: selectedPet.id,
         file
       });
+      const nextPets = pets.map((pet) =>
+        pet.id === selectedPet.id
+          ? {
+              ...pet,
+              sourceImageUrl: upload.publicUrl,
+              frontImageUrl: upload.publicUrl,
+              status: "首尾帧形象已就绪"
+            }
+          : pet
+      );
+
       setSourcePublicUrl(upload.publicUrl);
-      setPetPatch(selectedPet.id, {
-        sourceImageUrl: upload.publicUrl,
-        frontImageUrl: upload.publicUrl,
-        status: "首尾帧形象已就绪"
+      setPets(nextPets);
+      void publishDesktopSyncBundle(nextPets, assets).catch((error) => {
+        console.warn("Desktop bundle publish after image upload failed", error);
       });
       setMessage({
         tone: "success",
@@ -246,16 +267,37 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       const finishedJob = await pollJob(job);
 
       if (finishedJob.status === "succeeded") {
-        setAssetPatch(selectedPet.id, slot.id, {
-          status: "ready",
-          videoUrl: finishedJob.resultUrl ?? null
-        });
-        setPetPatch(selectedPet.id, { materialsReady: readyCount + 1 });
+        const nextAssets = assets.map((asset) =>
+          asset.petId === selectedPet.id && asset.slot === slot.id
+            ? {
+                ...asset,
+                status: "ready" as const,
+                videoUrl: finishedJob.resultUrl ?? null
+              }
+            : asset
+        );
+        const nextPets = pets.map((pet) =>
+          pet.id === selectedPet.id ? { ...pet, materialsReady: readyCount + 1 } : pet
+        );
+        let desktopPublishMessage = "";
+
+        setAssets(nextAssets);
+        setPets(nextPets);
+
+        try {
+          const publishResult = await publishDesktopSyncBundle(nextPets, nextAssets);
+          desktopPublishMessage =
+            publishResult.mode === "supabase" ? "已发布到桌面同步包。" : "已更新桌面同步包 mock。";
+        } catch (error) {
+          desktopPublishMessage =
+            error instanceof Error ? `桌面同步包发布失败：${error.message}` : "桌面同步包发布失败。";
+        }
+
         setMessage({
-          tone: "success",
+          tone: desktopPublishMessage.includes("失败") ? "error" : "success",
           text: finishedJob.resultUrl
-            ? `「${slot.name}」已生成，视频地址已返回。`
-            : `「${slot.name}」已生成，占位素材已加入素材库。`
+            ? `「${slot.name}」已生成，视频地址已返回。${desktopPublishMessage}`
+            : `「${slot.name}」已生成，占位素材已加入素材库。${desktopPublishMessage}`
         });
       } else if (finishedJob.status === "failed" || finishedJob.status === "expired") {
         setAssetStatus(selectedPet.id, slot.id, "failed");

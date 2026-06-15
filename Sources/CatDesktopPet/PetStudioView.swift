@@ -151,6 +151,19 @@ struct PetStudioView: View {
             }
             .buttonStyle(StudioButtonStyle(kind: .primary))
 
+            Button {
+                viewModel.syncFromWebStudio()
+            } label: {
+                if viewModel.isSyncingDesktopBundle {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Label("同步网页生成素材", systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
+            .buttonStyle(StudioButtonStyle(kind: .success))
+            .disabled(viewModel.isSyncingDesktopBundle)
+
             HStack(spacing: 8) {
                 Button {
                     viewModel.generateFrontImage()
@@ -184,6 +197,7 @@ struct PetStudioView: View {
                 infoRow(icon: "wand.and.stars", title: "生成正面", detail: "\(viewModel.frontImageCost) 积分 / 次")
                 infoRow(icon: "film.stack", title: "生成动作", detail: "每个状态单独生成")
                 infoRow(icon: "externaldrive", title: "本地素材", detail: "也可以直接导入 MP4 / MOV")
+                infoRow(icon: "icloud.and.arrow.down", title: "网页同步", detail: "拉取网页端已生成的视频")
             }
             .padding(.top, 4)
 
@@ -206,7 +220,7 @@ struct PetStudioView: View {
 
                 Spacer()
 
-                statusBadge("API 未接入", color: StudioPalette.muted)
+                statusBadge("网页同步", color: StudioPalette.mint)
             }
 
             ScrollView {
