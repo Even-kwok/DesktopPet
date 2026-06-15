@@ -34,7 +34,7 @@ test("builds a Seedance first-last-frame request with matching images by default
   assert.equal(body.ratio, "adaptive");
   assert.equal(body.resolution, "720p");
   assert.equal(body.framespersecond, 24);
-  assert.equal(body.camera_fixed, true);
+  assert.equal("camera_fixed" in body, false);
   assert.equal(body.watermark, false);
   assert.equal(body.generate_audio, false);
   assert.equal(body.return_last_frame, true);

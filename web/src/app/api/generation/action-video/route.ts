@@ -14,8 +14,8 @@ const slotIds = new Set(materialSlots.map((slot) => slot.id));
 const settingsSchema = z.object({
   durationSeconds: z.number().int().min(4).max(15),
   ratio: z.enum(["adaptive", "1:1", "16:9", "9:16", "4:3", "3:4"]),
-  resolution: z.enum(["480p", "720p", "1080p"]),
-  framesPerSecond: z.union([z.literal(24), z.literal(30)]),
+  resolution: z.enum(["480p", "720p"]),
+  framesPerSecond: z.literal(24),
   cameraFixed: z.boolean(),
   watermark: z.boolean(),
   generateAudio: z.boolean(),

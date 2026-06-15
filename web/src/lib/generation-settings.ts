@@ -3,8 +3,8 @@ import { materialSlots } from "./material-slots";
 export type VideoGenerationSettings = {
   durationSeconds: number;
   ratio: "adaptive" | "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
-  resolution: "480p" | "720p" | "1080p";
-  framesPerSecond: 24 | 30;
+  resolution: "480p" | "720p";
+  framesPerSecond: 24;
   cameraFixed: boolean;
   watermark: boolean;
   generateAudio: boolean;
@@ -33,13 +33,11 @@ export const videoRatioOptions = [
 
 export const videoResolutionOptions = [
   { label: "480p", value: "480p" },
-  { label: "720p", value: "720p" },
-  { label: "1080p", value: "1080p" }
+  { label: "720p", value: "720p" }
 ] as const;
 
 export const videoFpsOptions = [
-  { label: "24 FPS", value: 24 },
-  { label: "30 FPS", value: 30 }
+  { label: "24 FPS", value: 24 }
 ] as const;
 
 export function buildSlotPrompt(slotId: string) {

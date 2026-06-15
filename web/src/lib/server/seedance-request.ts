@@ -28,7 +28,6 @@ export type SeedanceRequestBody = {
   ratio: string;
   resolution: string;
   framespersecond: number;
-  camera_fixed: boolean;
   watermark: boolean;
   generate_audio: boolean;
   return_last_frame: boolean;
@@ -63,7 +62,6 @@ export function buildSeedanceRequestBody(options: SeedanceRequestOptions): Seeda
     ratio: options.settings.ratio,
     resolution: options.settings.resolution,
     framespersecond: options.settings.framesPerSecond,
-    camera_fixed: options.settings.cameraFixed,
     watermark: options.settings.watermark,
     generate_audio: options.settings.generateAudio,
     return_last_frame: options.settings.returnLastFrame

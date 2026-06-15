@@ -12,7 +12,6 @@ import {
 } from "@/lib/generation-settings";
 import {
   createActionVideoJob,
-  createFrontImageJob,
   getGenerationJob,
   recallPet,
   sendHostingRequest,
@@ -62,7 +61,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [confirmedPetIds, setConfirmedPetIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<StatusMessage>({
     tone: "info",
-    text: "选择宠物照片后，可以先生成正面形象，再逐个生成动作视频。"
+    text: "上传一张绿幕正面坐姿图后，就可以直接作为动作视频的首尾帧。"
   });
 
   const selectedPet = useMemo(
@@ -84,7 +83,10 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   }, [sourcePreviewUrl]);
 
   const readyCount = selectedPetAssets.filter((asset) => asset.status === "ready").length;
-  const isFrontConfirmed = selectedPet ? confirmedPetIds.has(selectedPet.id) : false;
+  const isFrontConfirmed = selectedPet
+    ? confirmedPetIds.has(selectedPet.id) ||
+      Boolean(selectedPet.frontImageUrl || selectedPet.sourceImageUrl)
+    : false;
 
   function setPetPatch(petId: string, patch: Partial<Pet>) {
     setPets((currentPets) =>
@@ -106,10 +108,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
   function assetFor(slot: string) {
     return selectedPetAssets.find((asset) => asset.slot === slot);
-  }
-
-  function isGeneratingSlot(slot: string) {
-    return Boolean(jobForSlot(slot));
   }
 
   function jobForSlot(slot: string) {
@@ -201,13 +199,18 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         file
       });
       setSourcePublicUrl(upload.publicUrl);
-      setPetPatch(selectedPet.id, { sourceImageUrl: upload.publicUrl });
+      setPetPatch(selectedPet.id, {
+        sourceImageUrl: upload.publicUrl,
+        frontImageUrl: upload.publicUrl,
+        status: "首尾帧形象已就绪"
+      });
+      setConfirmedPetIds((currentIds) => new Set(currentIds).add(selectedPet.id));
       setMessage({
         tone: "success",
         text:
           upload.mode === "supabase"
-            ? `图片已上传到 Supabase：${upload.bucket}/${upload.storagePath}`
-            : "图片已进入 mock 上传流程。本地先显示预览，配置 Supabase 后会真正写入 Storage。"
+            ? `猫咪形象图已上传：${upload.bucket}/${upload.storagePath}。现在会直接作为首尾帧生成动作视频。`
+            : "图片已进入 mock 上传流程。本地先显示预览；配置 Supabase 后会真正写入 Storage。"
       });
     } catch (error) {
       setMessage({
@@ -217,50 +220,15 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     }
   }
 
-  async function handleGenerateFrontImage() {
-    if (!selectedPet || !sourcePublicUrl || !sourcePreviewUrl) {
-      setMessage({ tone: "error", text: "请先上传一张宠物图片。" });
-      return;
-    }
-
-    try {
-      const job = await createFrontImageJob({
-        petId: selectedPet.id,
-        sourceImageUrl: sourcePublicUrl
-      });
-      setJobs((currentJobs) => [job, ...currentJobs]);
-      setUser((currentUser) => ({
-        ...currentUser,
-        credits: Math.max(currentUser.credits - job.cost, 0)
-      }));
-      setMessage({ tone: "info", text: "正面形象生成任务已创建，正在等待结果。" });
-
-      const finishedJob = await pollJob(job);
-
-      if (finishedJob.status === "succeeded") {
-        setPetPatch(selectedPet.id, {
-          frontImageUrl: sourcePublicUrl,
-          status: "正面形象待确认"
-        });
-        setMessage({ tone: "success", text: "正面形象已生成。当前 mock 使用上传图作为预览。" });
-      }
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : "生成正面形象失败。"
-      });
-    }
-  }
-
   function handleConfirmFrontImage() {
-    if (!selectedPet?.frontImageUrl) {
-      setMessage({ tone: "error", text: "请先生成正面形象。" });
+    if (!selectedPet?.frontImageUrl && !selectedPet?.sourceImageUrl) {
+      setMessage({ tone: "error", text: "请先上传一张绿幕正面坐姿图。" });
       return;
     }
 
     setConfirmedPetIds((currentIds) => new Set(currentIds).add(selectedPet.id));
-    setPetPatch(selectedPet.id, { status: "正面形象已确认" });
-    setMessage({ tone: "success", text: "形象已确认，现在可以批量补齐动作素材。" });
+    setPetPatch(selectedPet.id, { status: "首尾帧形象已确认" });
+    setMessage({ tone: "success", text: "这张图会作为首帧和尾帧，现在可以生成动作素材。" });
   }
 
   async function handleGenerateAction(slot: MaterialSlot) {
@@ -269,7 +237,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     }
 
     if (!isFrontConfirmed) {
-      setMessage({ tone: "error", text: "请先确认宠物正面形象，再生成动作视频。" });
+      setMessage({ tone: "error", text: "请先上传绿幕正面坐姿图，再生成动作视频。" });
       return;
     }
 
@@ -435,9 +403,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
           <section className="panel workflow-panel">
             <PanelTitle icon="🪄" title="生成流程" subtitle="每一步都会记录任务、扣积分和保存素材。" />
             <div className="workflow-steps">
-              <Step number="1" title="上传宠物图片" text="存入 source-images bucket。" />
-              <Step number="2" title="生成正面形象" text="调用 GPT Image，用户满意后确认。" />
-              <Step number="3" title="生成动作视频" text="按动作卡片逐个调用即梦视频接口。" />
+              <Step number="1" title="上传绿幕形象图" text="猫咪正面坐姿图，直接存入 source-images。" />
+              <Step number="2" title="生成动作视频" text="上传图同时作为 Seedance 首帧和尾帧。" />
+              <Step number="3" title="预览和筛选" text="不满意可以调整提示词或参数后重试。" />
               <Step number="4" title="下载素材包" text="Mac App 导入本地播放，云端保留备份。" />
             </div>
           </section>
@@ -450,21 +418,21 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               <p>网页端先做创作工坊，之后接入订阅、积分、生成任务和云端素材库。Mac App 保持轻量，只同步账号和下载素材。</p>
               <div className="hero-actions">
                 <label className="button file-button">
-                  上传图片
+                  上传猫咪形象图
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     onChange={(event) => void handleImageSelected(event.target.files?.[0])}
                   />
                 </label>
-                <button className="button secondary" onClick={() => void handleGenerateFrontImage()}>
-                  生成正面形象
-                </button>
                 <button className="button ghost" onClick={() => setActiveTab("jobs")}>
                   查看任务队列
                 </button>
               </div>
               {selectedFileName ? <p className="small-note">已选择：{selectedFileName}</p> : null}
+              <p className="small-note">
+                图片要求：纯绿幕背景，猫咪正面坐着，身体完整，居中清晰，光线均匀；不要裁切耳朵尾巴，不要文字、水印、食盆、玩具或绿色项圈。
+              </p>
             </div>
             <div className="credit-pill">
               <span>当前余额</span>
@@ -659,19 +627,25 @@ function MaterialsTab({
     <>
       <section className="panel image-confirm-panel">
         <div>
-          <h3>正面形象</h3>
-          <p>确认后才能生成动作视频。真实接入后，这里会展示 GPT Image 返回的正面图。</p>
+          <h3>首尾帧形象图</h3>
+          <p>上传的绿幕正面坐姿图会直接作为动作视频的首帧和尾帧。</p>
+          <p className="small-note">
+            建议：猫咪完整入镜、正面坐着、背景为均匀亮绿，边缘少阴影，避免绿色配饰和复杂道具。
+          </p>
         </div>
         <div className="mini-preview">
-          {selectedPet?.frontImageUrl || sourcePreviewUrl ? (
+          {selectedPet?.frontImageUrl || selectedPet?.sourceImageUrl || sourcePreviewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt="正面形象预览" src={selectedPet?.frontImageUrl ?? sourcePreviewUrl ?? ""} />
+            <img
+              alt="首尾帧形象预览"
+              src={selectedPet?.frontImageUrl ?? selectedPet?.sourceImageUrl ?? sourcePreviewUrl ?? ""}
+            />
           ) : (
             <span>🐾</span>
           )}
         </div>
         <button className={isFrontConfirmed ? "button success" : "button"} onClick={onConfirmFrontImage}>
-          {isFrontConfirmed ? "形象已确认" : "确认形象"}
+          {isFrontConfirmed ? "已可生成动作" : "使用这张图"}
         </button>
       </section>
 
@@ -873,7 +847,7 @@ function GenerationDebugPanel({
             className="input"
             value={settings.framesPerSecond}
             onChange={(event) =>
-              patchSettings({ framesPerSecond: Number(event.target.value) as 24 | 30 })
+              patchSettings({ framesPerSecond: Number(event.target.value) as 24 })
             }
           >
             {videoFpsOptions.map((option) => (
@@ -886,11 +860,6 @@ function GenerationDebugPanel({
       </div>
 
       <div className="toggle-grid">
-        <Toggle
-          checked={settings.cameraFixed}
-          label="固定镜头"
-          onChange={(checked) => patchSettings({ cameraFixed: checked })}
-        />
         <Toggle
           checked={settings.generateAudio}
           label="生成声音"
@@ -911,11 +880,11 @@ function GenerationDebugPanel({
       <div className="debug-info-grid">
         <div className="debug-note">
           <strong>当前输出</strong>
-          <p>格式：MP4。大小：生成完成后由实际视频决定，当前先展示 URL，后续可下载转存到 Storage 后记录文件大小。</p>
+          <p>格式：MP4。当前模型支持 480p / 720p、24 FPS。文件大小要等生成完成后由实际视频决定。</p>
         </div>
         <div className="debug-note">
           <strong>首尾帧</strong>
-          <p>现在首帧和尾帧都使用同一张正面形象图，分别传 `first_frame` / `last_frame`。</p>
+          <p>上传图会同时传给 `first_frame` / `last_frame`。固定镜头通过提示词约束，不发送 `camera_fixed` 字段。</p>
         </div>
       </div>
 
@@ -1051,13 +1020,13 @@ function JobsTab({ jobs }: { jobs: GenerationJob[] }) {
     <section className="panel management-panel">
       <PanelTitle icon="📦" title="任务队列" subtitle="方舟查询接口只返回阶段状态，百分比是页面估算。" />
       {jobs.length === 0 ? (
-        <div className="empty-state">还没有生成任务。上传图片或点击动作卡片开始。</div>
+        <div className="empty-state">还没有生成任务。上传绿幕形象图或点击动作卡片开始。</div>
       ) : (
         <div className="job-list">
           {jobs.map((job) => (
             <div className="job-row" key={job.jobId}>
               <div>
-                <strong>{job.type === "front_image" ? "正面形象" : job.slot}</strong>
+                <strong>{job.type === "front_image" ? "形象图任务" : job.slot}</strong>
                 <p>{job.jobId}</p>
               </div>
               <span className={job.status === "succeeded" ? "badge" : "badge sky"}>

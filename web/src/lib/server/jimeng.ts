@@ -107,14 +107,9 @@ export function getJimengConfig(): JimengConfig | null {
       resolution: settingFromEnv(
         process.env.JIMENG_VIDEO_RESOLUTION,
         defaultVideoGenerationSettings.resolution,
-        ["480p", "720p", "1080p"]
+        ["480p", "720p"]
       ),
-      framesPerSecond: numberFromEnv(
-        process.env.JIMENG_VIDEO_FRAMES_PER_SECOND,
-        defaultVideoGenerationSettings.framesPerSecond
-      ) === 30
-        ? 30
-        : 24,
+      framesPerSecond: 24,
       cameraFixed: booleanFromEnv(
         process.env.JIMENG_VIDEO_CAMERA_FIXED,
         defaultVideoGenerationSettings.cameraFixed
