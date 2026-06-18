@@ -105,6 +105,8 @@ asset-bundles
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
+ADMIN_EMAILS
+AUTH_MOCK_COOKIE_SECRET
 SUPABASE_SOURCE_IMAGE_BUCKET
 SUPABASE_FRONT_IMAGE_BUCKET
 SUPABASE_ACTION_VIDEO_BUCKET
@@ -113,15 +115,25 @@ SUPABASE_ASSET_BUNDLE_BUCKET
 
 4. Apply the schema in `docs/schema.sql`.
 5. Keep service-role keys only in Vercel server env. Never expose them in the Mac app.
+6. Grant admin access through Supabase `app_metadata.role = admin`, `app_metadata.roles = ["admin"]`, `app_metadata.is_admin = true`, or the server-only `ADMIN_EMAILS` allowlist. Never authorize admins from `user_metadata`.
+7. New Supabase public tables need explicit `GRANT` statements in addition to RLS policies. The schema draft includes grants for authenticated app access and keeps service-role usage server-side.
 
 ## API Routes In This MVP
 
 ```text
 GET  /api/health
 GET  /api/backend/status
+GET  /login
+GET  /admin/login
+POST /api/auth/login
+POST /api/auth/admin/login
+POST /api/auth/logout
 GET  /api/studio/bootstrap
+GET  /api/admin/overview
 GET  /api/pets
 GET  /api/pets/:petId/materials
+GET  /api/desktop/pets
+POST /api/desktop/pets
 GET  /api/friends
 GET  /api/hosting/requests
 POST /api/hosting/requests
@@ -147,18 +159,67 @@ Recommended replacement order:
 7. Store generated videos in Supabase Storage and register them through `/api/pets/:petId/materials`.
 8. Add auth checks to every route before opening the web studio to real users.
 
+## Desktop Account Sync
+
+The Mac app should use one account-scoped endpoint for material sync:
+
+```text
+GET /api/desktop/pets
+```
+
+The response includes:
+
+- `account`: the signed-in account summary
+- `sync`: backend mode and recommended poll interval
+- `pets`: account pets with `id`, `petNumber`, owner id, current host id, ownership, display state, avatar URL, and ready materials
+
+The Mac app downloads ready videos into local Application Support storage and then uses local file references for playback. A pet with `displayState = unavailable` stays in the account data but should not appear on the local desktop, which lets friend hosting move the visible pet between accounts.
+
+During the placeholder phase, the Mac app stores only a mock account in UserDefaults. Real Supabase Auth should replace that local placeholder with a real session/token provider, while keeping `DesktopPetSyncClient.importLatestBundle` focused on bundle import.
+
+## Admin Dashboard
+
+The first admin page lives at:
+
+```text
+/admin
+```
+
+It is backed by:
+
+```text
+GET /api/admin/overview
+```
+
+It should grow into management for:
+
+- users and account status
+- pets, pet numbers, owners, and current hosts
+- pet materials and generated asset metadata
+- credit balances and credit ledger entries
+- recharge/payment records
+- friend requests and accepted friendships
+- pet hosting requests
+- material slot definitions, including Chinese display name, code identifier, group purpose, client-fixed trigger label, duration-based credit rule, admin-editable prompt template, and generation settings
+
+The full `prompt_template` belongs in the private material-definition table and is read by server/admin routes only. Public user-facing material config should come from a projection that excludes the prompt template.
+
 ## JiMeng / Volcengine Video Provider
 
 The action-video route supports a real provider when these Vercel env vars are set:
 
 ```text
+mini_API_KEY
 JIMENG_API_KEY
+ARK_API_KEY
 JIMENG_API_BASE_URL
 JIMENG_QUERY_URL_TEMPLATE
 JIMENG_VIDEO_MODEL
 JIMENG_VIDEO_DURATION_SECONDS
 JIMENG_VIDEO_CAMERA_FIXED
 JIMENG_VIDEO_WATERMARK
+GENERATION_JOB_TIMEOUT_SECONDS
+GENERATION_JOB_RECOVERY_WINDOW_SECONDS
 ```
 
 For the currently enabled Volcengine Ark model, use:
@@ -170,9 +231,15 @@ JIMENG_VIDEO_MODEL=doubao-seedance-2-0-fast-260128
 JIMENG_VIDEO_DURATION_SECONDS=10
 JIMENG_VIDEO_CAMERA_FIXED=true
 JIMENG_VIDEO_WATERMARK=false
+GENERATION_JOB_TIMEOUT_SECONDS=1800
+GENERATION_JOB_RECOVERY_WINDOW_SECONDS=86400
 ```
 
-`JIMENG_API_BASE_URL` is the provider's create-task endpoint. `JIMENG_QUERY_URL_TEMPLATE` should contain `{taskId}` where the provider task id belongs. Keep `JIMENG_API_KEY` server-only and never expose it to the Mac app or browser.
+`JIMENG_API_BASE_URL` is the provider's create-task endpoint. `JIMENG_QUERY_URL_TEMPLATE` should contain `{taskId}` where the provider task id belongs. Keep API keys server-only and never expose them to the Mac app or browser.
+
+The admin generation-settings panel can switch between `Doubao-Seedance-2.0-fast` and `Doubao-Seedance-2.0-mini`. Fast is the default because it is available through the Ark API for this account. When fast is selected, the server reads `SEEDANCE_FAST_API_KEY`, `JIMENG_FAST_API_KEY`, `FAST_API_KEY`, `JIMENG_API_KEY`, or `ARK_API_KEY` before falling back to mini keys. When mini is selected, the account must have API access to the mini model; otherwise Ark may report that the model is Playground-only for the account.
+
+Generation jobs use a 30-minute local timeout by default. The task queue also re-checks expired Jimeng jobs for 24 hours, so a provider result that arrives shortly after the local timeout can still be restored on refresh.
 
 When the env vars are missing, `/api/generation/action-video` stays in mock mode. When they are present, the route sends the uploaded pet image URL and the selected material slot prompt to the provider, then `/api/jobs/:jobId` polls provider status.
 

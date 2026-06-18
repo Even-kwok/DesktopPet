@@ -2,6 +2,48 @@ import AppKit
 import Foundation
 import UniformTypeIdentifiers
 
+struct DesktopSyncedPetCard: Identifiable, Equatable {
+    let id: String
+    let petNumber: String
+    let name: String
+    let ownership: String
+    let displayState: String
+    let avatarURL: URL?
+    let materialCount: Int
+
+    var statusText: String {
+        switch displayState {
+        case "active":
+            ownership == "hosted" ? "寄养在我的桌面" : "在我的桌面"
+        case "unavailable":
+            "托管在朋友那里"
+        case "hidden":
+            "已隐藏"
+        default:
+            "等待同步"
+        }
+    }
+
+    var canRecall: Bool {
+        displayState == "unavailable" || ownership == "away"
+    }
+
+    func shouldShowRecallAction(isSelected: Bool) -> Bool {
+        isSelected && canRecall
+    }
+}
+
+struct DesktopFriendCard: Identifiable, Decodable, Equatable {
+    let id: String
+    let name: String
+    let status: String
+    let hostedPets: Int
+
+    var isOnline: Bool {
+        status == "在线"
+    }
+}
+
 @MainActor
 final class PetStudioViewModel: ObservableObject {
     private enum Keys {
@@ -28,9 +70,13 @@ final class PetStudioViewModel: ObservableObject {
     private let settingsStore: SettingsStore
     private let petColonyController: PetColonyController
     private let desktopSyncClient: DesktopPetSyncClient
+    private let accountSessionStore: DesktopAccountSessionStore
     private let onLibraryChanged: () -> Void
     private let frontImageCreditCost = 10
 
+    @Published private(set) var currentAccount: DesktopAccountSession?
+    @Published var loginEmail = "demo@desktop.pet"
+    @Published var loginPassword = "123456"
     @Published private(set) var selectedPetIndex = 0
     @Published private(set) var petNames: [String] = []
     @Published var petNameDraft = ""
@@ -39,24 +85,34 @@ final class PetStudioViewModel: ObservableObject {
     @Published private(set) var isFrontImageConfirmed = false
     @Published private(set) var creditBalance: Int
     @Published private(set) var isGeneratingFrontImage = false
+    @Published private(set) var isLoggingIn = false
     @Published private(set) var isSyncingDesktopBundle = false
     @Published private(set) var generatingSlots: Set<PetActionSlot> = []
     @Published private(set) var generatedSlots: Set<PetActionSlot> = []
     @Published private(set) var localVideoSlots: Set<PetActionSlot> = []
-    @Published var statusMessage = "上传猫咪图片后，就可以生成正面形象。"
+    @Published private(set) var syncedPetCards: [DesktopSyncedPetCard] = []
+    @Published var selectedSyncedPetID: String?
+    @Published var friendEmailDraft = ""
+    @Published private(set) var friendCards: [DesktopFriendCard] = []
+    @Published private(set) var isRefreshingFriends = false
+    @Published private(set) var isMutatingFriend = false
+    @Published var statusMessage = ""
 
     init(
         settingsStore: SettingsStore,
         petColonyController: PetColonyController,
         desktopSyncClient: DesktopPetSyncClient = DesktopPetSyncClient(),
+        accountSessionStore: DesktopAccountSessionStore = DesktopAccountSessionStore(),
         defaults: UserDefaults = .standard,
         onLibraryChanged: @escaping () -> Void = {}
     ) {
         self.settingsStore = settingsStore
         self.petColonyController = petColonyController
         self.desktopSyncClient = desktopSyncClient
+        self.accountSessionStore = accountSessionStore
         self.defaults = defaults
         self.onLibraryChanged = onLibraryChanged
+        currentAccount = accountSessionStore.currentAccount
 
         let savedBalance = defaults.object(forKey: Keys.creditBalance) as? Int
         creditBalance = savedBalance ?? 120
@@ -69,12 +125,47 @@ final class PetStudioViewModel: ObservableObject {
         frontImageCreditCost
     }
 
+    var isSignedIn: Bool {
+        currentAccount != nil
+    }
+
+    var shouldShowCompactAccountPanel: Bool {
+        isSignedIn
+    }
+
+    var accountDisplayName: String {
+        currentAccount?.name ?? "未登录"
+    }
+
+    var accountDetail: String {
+        guard let currentAccount else {
+            return "登录后可同步网页端账号下的宠物数据。"
+        }
+
+        return "\(currentAccount.email) · \(currentAccount.credits) 积分"
+    }
+
+    var selectedSyncedPetCard: DesktopSyncedPetCard? {
+        if let selectedSyncedPetID,
+           let pet = syncedPetCards.first(where: { $0.id == selectedSyncedPetID }) {
+            return pet
+        }
+
+        return syncedPetCards.first
+    }
+
     var canGenerateFrontImage: Bool {
         sourceImageURL != nil && !isGeneratingFrontImage && creditBalance >= frontImageCreditCost
     }
 
     var canConfirmFrontImage: Bool {
         generatedFrontImageURL != nil && !isGeneratingFrontImage
+    }
+
+    var canAddFriend: Bool {
+        isSignedIn
+            && !isMutatingFriend
+            && !friendEmailDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func refreshPetList() {
@@ -114,6 +205,245 @@ final class PetStudioViewModel: ObservableObject {
         petColonyController.refreshDisplayNames()
         refreshPetList()
         onLibraryChanged()
+    }
+
+    func signInAccount() {
+        guard !isLoggingIn else {
+            return
+        }
+
+        let email = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = loginPassword
+
+        guard !email.isEmpty, !password.isEmpty else {
+            statusMessage = "请输入邮箱和密码。"
+            return
+        }
+
+        isLoggingIn = true
+        statusMessage = "正在登录账号..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let response = try await self.desktopSyncClient.login(email: email, password: password)
+                let account = DesktopAccountSession(
+                    id: response.account.id,
+                    name: response.account.name,
+                    email: response.account.email,
+                    credits: response.account.credits,
+                    accessToken: response.accessToken,
+                    signedInAt: ISO8601DateFormatter().string(from: Date())
+                )
+
+                self.accountSessionStore.save(account)
+                self.currentAccount = account
+                self.creditBalance = account.credits
+                self.persistCreditBalance()
+
+                do {
+                    self.friendCards = try await self.desktopSyncClient.fetchFriends(accessToken: account.accessToken)
+                } catch {
+                    self.friendCards = []
+                }
+
+                self.isLoggingIn = false
+                self.statusMessage = "登录成功。点击同步获取账号下的猫咪。"
+            } catch {
+                self.isLoggingIn = false
+                self.statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func signOutAccount() {
+        accountSessionStore.signOut()
+        currentAccount = nil
+        syncedPetCards = []
+        selectedSyncedPetID = nil
+        friendCards = []
+        friendEmailDraft = ""
+        statusMessage = "已退出账号。本地导入的视频素材已保留。"
+    }
+
+    func selectSyncedPet(_ petID: String) {
+        selectedSyncedPetID = petID
+    }
+
+    func requestHosting(to friend: DesktopFriendCard) {
+        guard let currentAccount else {
+            statusMessage = "请先登录账号。"
+            return
+        }
+
+        guard let selectedSyncedPetCard else {
+            statusMessage = "请先同步并选择一只猫咪。"
+            return
+        }
+
+        guard selectedSyncedPetCard.canRecall else {
+            statusMessage = "这只猫已经在我的桌面，不需要召回。"
+            return
+        }
+
+        guard !isMutatingFriend else {
+            return
+        }
+
+        isMutatingFriend = true
+        statusMessage = "正在向 \(friend.name) 发起寄养请求..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                _ = try await self.desktopSyncClient.requestHosting(
+                    petID: selectedSyncedPetCard.id,
+                    toUserID: friend.id,
+                    accessToken: currentAccount.accessToken
+                )
+                self.isMutatingFriend = false
+                self.statusMessage = "已向 \(friend.name) 发起「\(selectedSyncedPetCard.name)」寄养请求。"
+            } catch {
+                self.isMutatingFriend = false
+                self.statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func recallSelectedPet() {
+        guard let currentAccount else {
+            statusMessage = "请先登录账号。"
+            return
+        }
+
+        guard let selectedSyncedPetCard else {
+            statusMessage = "请先同步并选择一只猫咪。"
+            return
+        }
+
+        guard !isMutatingFriend else {
+            return
+        }
+
+        isMutatingFriend = true
+        statusMessage = "正在召回「\(selectedSyncedPetCard.name)」..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                _ = try await self.desktopSyncClient.recallPet(
+                    petID: selectedSyncedPetCard.id,
+                    accessToken: currentAccount.accessToken
+                )
+                self.markSyncedPetAsRecalled(petID: selectedSyncedPetCard.id)
+                self.isMutatingFriend = false
+                self.statusMessage = "已召回「\(selectedSyncedPetCard.name)」。"
+            } catch {
+                self.isMutatingFriend = false
+                self.statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func refreshFriends() {
+        guard let currentAccount else {
+            statusMessage = "请先登录账号。"
+            return
+        }
+
+        guard !isRefreshingFriends else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.refreshFriends(using: currentAccount.accessToken, shouldUpdateStatus: true)
+        }
+    }
+
+    func addFriend() {
+        guard let currentAccount else {
+            statusMessage = "请先登录账号。"
+            return
+        }
+
+        let email = friendEmailDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !email.isEmpty else {
+            statusMessage = "请输入好友邮箱。"
+            return
+        }
+
+        guard !isMutatingFriend else {
+            return
+        }
+
+        isMutatingFriend = true
+        statusMessage = "正在添加好友..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let friend = try await self.desktopSyncClient.addFriend(
+                    email: email,
+                    accessToken: currentAccount.accessToken
+                )
+                self.upsertFriend(friend)
+                self.friendEmailDraft = ""
+                self.isMutatingFriend = false
+                self.statusMessage = "已添加好友 \(friend.name)。"
+            } catch {
+                self.isMutatingFriend = false
+                self.statusMessage = "添加失败，请确认账号邮箱。"
+            }
+        }
+    }
+
+    func removeFriend(_ friend: DesktopFriendCard) {
+        guard let currentAccount else {
+            statusMessage = "请先登录账号。"
+            return
+        }
+
+        guard !isMutatingFriend else {
+            return
+        }
+
+        isMutatingFriend = true
+        statusMessage = "正在删除好友 \(friend.name)..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                _ = try await self.desktopSyncClient.removeFriend(
+                    friendID: friend.id,
+                    accessToken: currentAccount.accessToken
+                )
+                self.friendCards.removeAll { $0.id == friend.id }
+                self.isMutatingFriend = false
+                self.statusMessage = "已删除好友 \(friend.name)。"
+            } catch {
+                self.isMutatingFriend = false
+                self.statusMessage = error.localizedDescription
+            }
+        }
     }
 
     func chooseSourceImage() {
@@ -254,6 +584,11 @@ final class PetStudioViewModel: ObservableObject {
             return
         }
 
+        guard let currentAccount else {
+            statusMessage = "请先登录账号，再同步网页端宠物数据。"
+            return
+        }
+
         isSyncingDesktopBundle = true
         statusMessage = "正在从网页同步生成好的素材..."
 
@@ -263,7 +598,17 @@ final class PetStudioViewModel: ObservableObject {
             }
 
             do {
-                let summary = try await self.desktopSyncClient.importLatestBundle(
+                let bundle = try await self.desktopSyncClient.fetchBundle(
+                    accessToken: currentAccount.accessToken
+                )
+                self.applySyncedPetCards(from: bundle)
+                self.applySyncedAccount(from: bundle, fallbackToken: currentAccount.accessToken)
+                if let refreshedToken = self.currentAccount?.accessToken {
+                    await self.refreshFriends(using: refreshedToken, shouldUpdateStatus: false)
+                }
+
+                let summary = try await self.desktopSyncClient.importBundle(
+                    bundle,
                     settingsStore: self.settingsStore,
                     petColonyController: self.petColonyController
                 )
@@ -332,7 +677,98 @@ final class PetStudioViewModel: ObservableObject {
         } else if sourceImageURL != nil {
             statusMessage = "已选择图片。下一步可以生成正面形象。"
         } else {
-            statusMessage = "上传猫咪图片后，就可以生成正面形象。"
+            statusMessage = ""
+        }
+    }
+
+    private func applySyncedPetCards(from bundle: DesktopPetBundle) {
+        let cards = bundle.pets.map { pet in
+            DesktopSyncedPetCard(
+                id: pet.id,
+                petNumber: pet.petNumber ?? pet.id,
+                name: pet.name,
+                ownership: pet.ownership ?? "owned",
+                displayState: pet.displayState ?? "active",
+                avatarURL: pet.avatarUrl,
+                materialCount: pet.materials.count
+            )
+        }
+
+        syncedPetCards = cards
+
+        guard !cards.isEmpty else {
+            selectedSyncedPetID = nil
+            return
+        }
+
+        if let selectedSyncedPetID,
+           cards.contains(where: { $0.id == selectedSyncedPetID }) {
+            return
+        }
+
+        selectedSyncedPetID = cards.first?.id
+    }
+
+    private func applySyncedAccount(from bundle: DesktopPetBundle, fallbackToken: String) {
+        guard let account = bundle.account else {
+            return
+        }
+
+        let updatedAccount = DesktopAccountSession(
+            id: account.id,
+            name: account.name,
+            email: account.email,
+            credits: account.credits,
+            accessToken: fallbackToken,
+            signedInAt: currentAccount?.signedInAt ?? ISO8601DateFormatter().string(from: Date())
+        )
+
+        currentAccount = updatedAccount
+        creditBalance = account.credits
+        accountSessionStore.save(updatedAccount)
+        persistCreditBalance()
+    }
+
+    private func refreshFriends(using accessToken: String, shouldUpdateStatus: Bool) async {
+        isRefreshingFriends = true
+
+        do {
+            friendCards = try await desktopSyncClient.fetchFriends(accessToken: accessToken)
+            if shouldUpdateStatus {
+                statusMessage = friendCards.isEmpty ? "好友列表为空，可以用邮箱添加好友。" : "好友列表已刷新。"
+            }
+        } catch {
+            if shouldUpdateStatus {
+                statusMessage = error.localizedDescription
+            }
+        }
+
+        isRefreshingFriends = false
+    }
+
+    private func upsertFriend(_ friend: DesktopFriendCard) {
+        if let index = friendCards.firstIndex(where: { $0.id == friend.id }) {
+            friendCards[index] = friend
+        } else {
+            friendCards.append(friend)
+        }
+    }
+
+    private func markSyncedPetAsRecalled(petID: String) {
+        syncedPetCards = syncedPetCards.map { pet in
+            guard pet.id == petID else {
+                return pet
+            }
+
+            return DesktopSyncedPetCard(
+                id: pet.id,
+                petNumber: pet.petNumber,
+                name: pet.name,
+                ownership: "owned",
+                displayState: "active",
+                avatarURL: pet.avatarURL,
+                materialCount: pet.materialCount
+            )
         }
     }
 

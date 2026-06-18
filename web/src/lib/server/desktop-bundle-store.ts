@@ -1,7 +1,7 @@
 import { buildDesktopPetBundle, desktopPetBundleStoragePath } from "@/lib/desktop-bundle";
-import { petAssets, pets } from "@/lib/mock-data";
+import { loadAccountDataSnapshot } from "@/lib/server/account-data-store";
 import { getBackendStatus, getStorageBuckets, getSupabaseAdminClient } from "@/lib/supabase/server";
-import type { DesktopPetBundle, DesktopPetBundlePublishResponse } from "@/lib/types";
+import type { CurrentUser, DesktopPetBundle, DesktopPetBundlePublishResponse } from "@/lib/types";
 
 function emptyDesktopPetBundle(): DesktopPetBundle {
   return {
@@ -11,28 +11,16 @@ function emptyDesktopPetBundle(): DesktopPetBundle {
   };
 }
 
-export async function loadDesktopPetBundle(): Promise<DesktopPetBundle> {
+export async function loadDesktopPetBundle(account: CurrentUser): Promise<DesktopPetBundle> {
   const backend = getBackendStatus();
+  const snapshot = await loadAccountDataSnapshot(account);
 
-  if (backend.mode === "mock") {
-    return buildDesktopPetBundle({ pets, assets: petAssets });
-  }
-
-  const supabase = getSupabaseAdminClient();
-
-  if (!supabase) {
-    return emptyDesktopPetBundle();
-  }
-
-  const { data, error } = await supabase.storage
-    .from(getStorageBuckets().assetBundles)
-    .download(desktopPetBundleStoragePath);
-
-  if (error) {
-    return emptyDesktopPetBundle();
-  }
-
-  return JSON.parse(await data.text()) as DesktopPetBundle;
+  return buildDesktopPetBundle({
+    account: snapshot.user,
+    backendMode: backend.mode,
+    pets: snapshot.pets,
+    assets: snapshot.assets
+  });
 }
 
 export async function saveDesktopPetBundle(

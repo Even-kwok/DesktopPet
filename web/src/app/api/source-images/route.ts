@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { saveAccountPetImages } from "@/lib/server/account-data-store";
+import { getCurrentAuthContext } from "@/lib/server/auth";
 import { getBackendStatus, getStorageBuckets, getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { SourceImageUploadResponse } from "@/lib/types";
 
@@ -25,6 +27,12 @@ function extensionForContentType(contentType: string) {
 }
 
 export async function POST(request: Request) {
+  const auth = await getCurrentAuthContext();
+
+  if (!auth.user) {
+    return NextResponse.json({ error: "AUTH_REQUIRED" }, { status: 401 });
+  }
+
   const formData = await request.formData().catch(() => null);
 
   if (!formData) {
@@ -67,12 +75,20 @@ export async function POST(request: Request) {
       .map((part) => encodeURIComponent(part))
       .join("/");
 
-    return NextResponse.json({
+    const response = {
       mode: "mock",
       bucket,
       storagePath,
       publicUrl: `https://mock-cdn.desktop.pet/${bucket}/${encodedPath}`
-    } satisfies SourceImageUploadResponse);
+    } satisfies SourceImageUploadResponse;
+
+    const pet = await saveAccountPetImages({
+      account: auth.user,
+      petId,
+      imageUrl: response.publicUrl
+    });
+
+    return NextResponse.json({ ...response, pet });
   }
 
   const supabase = getSupabaseAdminClient();
@@ -109,10 +125,18 @@ export async function POST(request: Request) {
     data: { publicUrl }
   } = supabase.storage.from(bucket).getPublicUrl(storagePath);
 
-  return NextResponse.json({
+  const response = {
     mode: "supabase",
     bucket,
     storagePath,
     publicUrl
-  } satisfies SourceImageUploadResponse);
+  } satisfies SourceImageUploadResponse;
+
+  const pet = await saveAccountPetImages({
+    account: auth.user,
+    petId,
+    imageUrl: response.publicUrl
+  });
+
+  return NextResponse.json({ ...response, pet });
 }

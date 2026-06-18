@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { syncAccountGenerationJobStatus } from "@/lib/server/account-data-store";
+import { getCurrentAuthContext } from "@/lib/server/auth";
 import { getJimengVideoJob, isJimengJobId } from "@/lib/server/jimeng";
 import { getMockJobResult } from "@/lib/server/studio-data";
 
@@ -11,6 +13,25 @@ export async function GET(
   context: { params: Promise<{ jobId: string }> }
 ) {
   const { jobId } = await context.params;
+  const auth = await getCurrentAuthContext();
+
+  if (auth.user) {
+    try {
+      const storedJob = await syncAccountGenerationJobStatus(auth.user, jobId);
+
+      if (storedJob) {
+        return NextResponse.json(storedJob);
+      }
+    } catch (error: unknown) {
+      return NextResponse.json(
+        {
+          error: "GENERATION_JOB_STATUS_FAILED",
+          details: error instanceof Error ? error.message : "Generation job status request failed."
+        },
+        { status: 502 }
+      );
+    }
+  }
 
   if (isJimengJobId(jobId)) {
     try {

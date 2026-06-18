@@ -1,12 +1,21 @@
 create table if not exists public.profiles (
-  id uuid primary key,
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text unique,
   display_name text not null,
   avatar_url text,
+  account_status text not null default 'active' check (account_status in ('active', 'suspended', 'deleted')),
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.credit_balances (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  balance integer not null default 0 check (balance >= 0),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.pets (
   id uuid primary key default gen_random_uuid(),
+  pet_number text not null unique,
   owner_user_id uuid not null references public.profiles(id) on delete cascade,
   current_host_user_id uuid references public.profiles(id) on delete set null,
   name text not null,
@@ -15,17 +24,61 @@ create table if not exists public.pets (
   source_image_url text,
   front_image_url text,
   asset_bundle_url text,
-  location_status text not null default 'at_owner_desktop',
+  location_status text not null default 'at_owner_desktop'
+    check (location_status in ('at_owner_desktop', 'hosted_by_friend', 'away')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.material_slot_definitions (
+  slot text primary key,
+  name text not null,
+  group_id text not null,
+  trigger_label text not null,
+  trigger_is_editable boolean not null default false,
+  duration_seconds integer not null check (duration_seconds between 4 and 15),
+  credit_rate_per_second numeric(8, 2) not null default 1 check (credit_rate_per_second >= 0),
+  default_cost integer generated always as (ceil(duration_seconds * credit_rate_per_second)::integer) stored,
+  prompt_template text not null,
+  generation_settings jsonb not null default '{}'::jsonb,
+  is_enabled boolean not null default true,
+  sort_order integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create or replace view public.public_material_slot_definitions as
+select
+  slot,
+  name,
+  group_id,
+  trigger_label,
+  trigger_is_editable,
+  duration_seconds,
+  credit_rate_per_second,
+  default_cost,
+  generation_settings,
+  is_enabled,
+  sort_order,
+  updated_at
+from public.material_slot_definitions
+where is_enabled = true;
+
 create table if not exists public.pet_assets (
   id uuid primary key default gen_random_uuid(),
   pet_id uuid not null references public.pets(id) on delete cascade,
-  slot text not null,
+  slot text not null references public.material_slot_definitions(slot),
   video_url text,
   status text not null default 'missing',
+  provider text,
+  provider_job_id text,
+  prompt_snapshot_ref text,
+  generation_settings_snapshot jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (pet_id, slot)
@@ -43,6 +96,8 @@ create table if not exists public.generation_jobs (
   provider text,
   provider_job_id text,
   result_url text,
+  prompt_snapshot_ref text,
+  generation_settings_snapshot jsonb not null default '{}'::jsonb,
   error_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -55,6 +110,19 @@ create table if not exists public.credit_ledger (
   amount integer not null,
   reason text not null,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.recharge_records (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  provider text not null,
+  provider_transaction_id text,
+  amount_cents integer not null check (amount_cents >= 0),
+  currency text not null default 'CNY',
+  credits_granted integer not null check (credits_granted >= 0),
+  status text not null default 'pending' check (status in ('pending', 'paid', 'failed', 'refunded')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.friend_requests (
@@ -87,13 +155,133 @@ create table if not exists public.pet_hosting_requests (
 );
 
 alter table public.profiles enable row level security;
+alter table public.credit_balances enable row level security;
 alter table public.pets enable row level security;
+alter table public.material_slot_definitions enable row level security;
+alter table public.app_settings enable row level security;
 alter table public.pet_assets enable row level security;
 alter table public.generation_jobs enable row level security;
 alter table public.credit_ledger enable row level security;
+alter table public.recharge_records enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.friendships enable row level security;
 alter table public.pet_hosting_requests enable row level security;
+
+grant select, insert, update on public.profiles to authenticated;
+grant select on public.credit_balances to authenticated;
+grant select, insert, update on public.pets to authenticated;
+revoke select on public.material_slot_definitions from anon, authenticated;
+grant select, insert, update on public.material_slot_definitions to service_role;
+revoke all on public.app_settings from anon, authenticated;
+grant select, insert, update on public.app_settings to service_role;
+grant select on public.public_material_slot_definitions to anon, authenticated;
+grant select, insert, update on public.pet_assets to authenticated;
+grant select, insert, update on public.generation_jobs to authenticated;
+grant select, insert on public.credit_ledger to authenticated;
+grant select, insert on public.recharge_records to authenticated;
+grant select, insert, update on public.friend_requests to authenticated;
+grant select, insert, delete on public.friendships to authenticated;
+grant select, insert, update on public.pet_hosting_requests to authenticated;
+
+drop policy if exists "profiles are visible to their owner" on public.profiles;
+create policy "profiles are visible to their owner"
+on public.profiles for select
+to authenticated
+using (auth.uid() is not null and id = auth.uid());
+
+drop policy if exists "users can view their credit balance" on public.credit_balances;
+create policy "users can view their credit balance"
+on public.credit_balances for select
+to authenticated
+using (auth.uid() is not null and user_id = auth.uid());
+
+drop policy if exists "users can view owned or hosted pets" on public.pets;
+create policy "users can view owned or hosted pets"
+on public.pets for select
+to authenticated
+using (
+  auth.uid() is not null
+  and (owner_user_id = auth.uid() or current_host_user_id = auth.uid())
+);
+
+drop policy if exists "users can view materials for owned or hosted pets" on public.pet_assets;
+create policy "users can view materials for owned or hosted pets"
+on public.pet_assets for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.pets
+    where pets.id = pet_assets.pet_id
+      and (pets.owner_user_id = auth.uid() or pets.current_host_user_id = auth.uid())
+  )
+);
+
+drop policy if exists "material slot definitions are readable" on public.material_slot_definitions;
+create policy "material slot definitions are readable"
+on public.material_slot_definitions for select
+to service_role
+using (is_enabled = true);
+
+drop policy if exists "service role can manage app settings" on public.app_settings;
+create policy "service role can manage app settings"
+on public.app_settings for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists "users can view their generation jobs" on public.generation_jobs;
+create policy "users can view their generation jobs"
+on public.generation_jobs for select
+to authenticated
+using (auth.uid() is not null and user_id = auth.uid());
+
+drop policy if exists "users can view their credit ledger" on public.credit_ledger;
+create policy "users can view their credit ledger"
+on public.credit_ledger for select
+to authenticated
+using (auth.uid() is not null and user_id = auth.uid());
+
+drop policy if exists "users can view their recharge records" on public.recharge_records;
+create policy "users can view their recharge records"
+on public.recharge_records for select
+to authenticated
+using (auth.uid() is not null and user_id = auth.uid());
+
+drop policy if exists "users can view related hosting requests" on public.pet_hosting_requests;
+create policy "users can view related hosting requests"
+on public.pet_hosting_requests for select
+to authenticated
+using (
+  auth.uid() is not null
+  and (from_user_id = auth.uid() or to_user_id = auth.uid())
+);
+
+drop policy if exists "users can view their friendships" on public.friendships;
+create policy "users can view their friendships"
+on public.friendships for select
+to authenticated
+using (
+  auth.uid() is not null
+  and (user_a_id = auth.uid() or user_b_id = auth.uid())
+);
+
+insert into public.app_settings (key, value, updated_at)
+values (
+  'video_generation_settings',
+  '{
+    "durationSeconds": 10,
+    "ratio": "adaptive",
+    "resolution": "720p",
+    "framesPerSecond": 24,
+    "cameraFixed": true,
+    "watermark": false,
+    "generateAudio": false,
+    "returnLastFrame": true
+  }'::jsonb,
+  now()
+)
+on conflict (key) do nothing;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values

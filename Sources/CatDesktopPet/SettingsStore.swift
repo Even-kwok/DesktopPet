@@ -193,11 +193,14 @@ final class SettingsStore {
 
     var petCount: Int {
         get {
-            let savedCount = defaults.integer(forKey: Keys.petCount)
-            return max(savedCount == 0 ? 1 : savedCount, 1)
+            guard let savedCount = defaults.object(forKey: Keys.petCount) as? Int else {
+                return 1
+            }
+
+            return max(savedCount, 0)
         }
         set {
-            defaults.set(max(newValue, 1), forKey: Keys.petCount)
+            defaults.set(max(newValue, 0), forKey: Keys.petCount)
         }
     }
 
@@ -276,7 +279,7 @@ final class SettingsStore {
 
     func removePet(at index: Int) {
         let currentCount = petCount
-        guard currentCount > 1, (0..<currentCount).contains(index) else {
+        guard currentCount > 0, (0..<currentCount).contains(index) else {
             return
         }
 

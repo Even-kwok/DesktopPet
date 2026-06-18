@@ -24,7 +24,7 @@ final class PetColonyController {
     }
 
     func setPetCount(_ count: Int) {
-        let newCount = max(count, 1)
+        let newCount = max(count, 0)
         ensurePetControllers(upTo: newCount)
         settingsStore.petCount = newCount
 
@@ -50,7 +50,7 @@ final class PetColonyController {
     @discardableResult
     func removePet(at index: Int) -> Bool {
         let currentCount = settingsStore.petCount
-        guard currentCount > 1, (0..<currentCount).contains(index) else {
+        guard currentCount > 0, (0..<currentCount).contains(index) else {
             return isVisible
         }
 
@@ -125,6 +125,35 @@ final class PetColonyController {
         for controller in activePetControllers {
             controller.refreshPlayback()
         }
+    }
+
+    func prepareForSystemSleep() {
+        ensurePetControllers(upTo: settingsStore.petCount)
+        stopProximityInteractionTimer()
+
+        for controller in activePetControllers {
+            controller.prepareForSystemSleep()
+        }
+    }
+
+    @discardableResult
+    func resumeAfterSystemWake() -> Bool {
+        ensurePetControllers(upTo: settingsStore.petCount)
+
+        guard settingsStore.isPetVisible else {
+            stopProximityInteractionTimer()
+            return false
+        }
+
+        let didShowAnyPet = showAll()
+        settingsStore.isPetVisible = didShowAnyPet
+
+        for controller in activePetControllers {
+            controller.resumeAfterSystemWake()
+        }
+
+        updateProximityInteractionTimer()
+        return didShowAnyPet
     }
 
     func refreshDisplayNames() {

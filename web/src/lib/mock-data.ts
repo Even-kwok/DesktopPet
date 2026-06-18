@@ -1,41 +1,51 @@
-import { materialSlots } from "@/lib/material-slots";
-import type { CurrentUser, Friend, HostingRequest, Pet, PetAsset } from "@/lib/types";
+import { materialSlots } from "./material-slots.ts";
+import type { CurrentUser, Friend, HostingRequest, Pet, PetAsset } from "./types.ts";
 
 export const currentUser: CurrentUser = {
-  id: "user_demo",
+  id: "00000000-0000-4000-8000-000000000001",
   name: "栗子主人",
   email: "demo@desktop.pet",
-  credits: 120
+  credits: 10120
 };
 
 export const pets: Pet[] = [
   {
     id: "pet_orange",
+    petNumber: "CAT-20260616-0001",
+    ownerUserId: currentUser.id,
+    currentHostUserId: currentUser.id,
     name: "栗子",
     type: "cat",
     status: "在我的桌面",
     materialsReady: 8,
     mood: "好奇",
     host: "me",
+    ownership: "owned",
+    locationStatus: "at_owner_desktop",
     sourceImageUrl: null,
     frontImageUrl: null
   },
   {
     id: "pet_white",
+    petNumber: "CAT-20260616-0002",
+    ownerUserId: currentUser.id,
+    currentHostUserId: "00000000-0000-4000-8000-000000000101",
     name: "雪球",
     type: "cat",
     status: "托管在朋友家",
     materialsReady: 5,
     mood: "犯困",
     host: "friend",
+    ownership: "away",
+    locationStatus: "hosted_by_friend",
     sourceImageUrl: null,
     frontImageUrl: null
   }
 ];
 
 export const friends: Friend[] = [
-  { id: "friend_1", name: "Mika", status: "在线", hostedPets: 1 },
-  { id: "friend_2", name: "小北", status: "离线", hostedPets: 0 }
+  { id: "00000000-0000-4000-8000-000000000101", name: "Mika", status: "在线", hostedPets: 1 },
+  { id: "00000000-0000-4000-8000-000000000102", name: "小北", status: "离线", hostedPets: 0 }
 ];
 
 export const hostingRequests: HostingRequest[] = [

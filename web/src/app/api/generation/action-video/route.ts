@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { defaultVideoGenerationSettings } from "@/lib/generation-settings";
-import { materialSlots } from "@/lib/material-slots";
+import {
+  createAccountGenerationJob,
+  findActiveAccountGenerationJob
+} from "@/lib/server/account-data-store";
+import { getCurrentAuthContext } from "@/lib/server/auth";
+import { loadVideoGenerationSettings } from "@/lib/server/generation-settings-store";
+import { getAdminMaterialConfig } from "@/lib/server/material-library-store";
 import { createJimengVideoJob } from "@/lib/server/jimeng";
 import { createMockGenerationJob } from "@/lib/server/studio-data";
 
@@ -9,28 +14,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const preferredRegion = "sin1";
 
-const slotIds = new Set(materialSlots.map((slot) => slot.id));
-
-const settingsSchema = z.object({
-  durationSeconds: z.number().int().min(4).max(15),
-  ratio: z.enum(["adaptive", "1:1", "16:9", "9:16", "4:3", "3:4"]),
-  resolution: z.enum(["480p", "720p"]),
-  framesPerSecond: z.literal(24),
-  cameraFixed: z.boolean(),
-  watermark: z.boolean(),
-  generateAudio: z.boolean(),
-  returnLastFrame: z.boolean()
-});
-
 const requestSchema = z.object({
   petId: z.string().min(1),
-  slot: z.string().refine((value) => slotIds.has(value), "Unknown material slot"),
+  slot: z.string().min(1),
   sourceImageUrl: z.string().url().optional(),
-  lastImageUrl: z.string().url().optional(),
-  settings: settingsSchema.optional()
+  lastImageUrl: z.string().url().optional()
 });
 
 export async function POST(request: Request) {
+  const auth = await getCurrentAuthContext();
+
+  if (!auth.user) {
+    return NextResponse.json({ error: "AUTH_REQUIRED" }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
 
@@ -44,8 +41,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const slot = materialSlots.find((item) => item.id === parsed.data.slot);
-  const cost = slot?.cost ?? 10;
+  const materialConfig = await getAdminMaterialConfig(parsed.data.slot);
+
+  if (!materialConfig || !materialConfig.enabled) {
+    return NextResponse.json({ error: "UNKNOWN_MATERIAL_CONFIG" }, { status: 404 });
+  }
+
+  const activeJob = await findActiveAccountGenerationJob({
+    account: auth.user,
+    petId: parsed.data.petId,
+    slot: parsed.data.slot,
+    type: "action_video"
+  });
+
+  if (activeJob) {
+    return NextResponse.json(activeJob);
+  }
+
+  const cost = materialConfig.costCredits;
+  const savedSettings = await loadVideoGenerationSettings();
+  const settings = {
+    ...savedSettings,
+    durationSeconds: materialConfig.durationSeconds
+  };
 
   if (parsed.data.sourceImageUrl) {
     try {
@@ -54,15 +72,27 @@ export async function POST(request: Request) {
         slot: parsed.data.slot,
         sourceImageUrl: parsed.data.sourceImageUrl,
         lastImageUrl: parsed.data.lastImageUrl ?? parsed.data.sourceImageUrl,
-        settings: parsed.data.settings ?? defaultVideoGenerationSettings,
+        settings,
         cost
       });
 
       if (providerJob) {
-        return NextResponse.json(providerJob);
+        const storedJob = await createAccountGenerationJob({
+          account: auth.user,
+          job: providerJob,
+          provider: "jimeng"
+        });
+
+        return NextResponse.json(storedJob);
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Provider request failed.";
+
+      console.error("Jimeng video generation request failed", {
+        petId: parsed.data.petId,
+        slot: parsed.data.slot,
+        message
+      });
 
       return NextResponse.json(
         {
@@ -74,12 +104,19 @@ export async function POST(request: Request) {
     }
   }
 
+  const mockJob = createMockGenerationJob({
+    type: "action_video",
+    petId: parsed.data.petId,
+    slot: parsed.data.slot,
+    cost,
+    settings
+  });
+
   return NextResponse.json(
-    createMockGenerationJob({
-      type: "action_video",
-      petId: parsed.data.petId,
-      slot: parsed.data.slot,
-      cost
+    await createAccountGenerationJob({
+      account: auth.user,
+      job: mockJob,
+      provider: "mock"
     })
   );
 }

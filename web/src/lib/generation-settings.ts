@@ -1,6 +1,16 @@
-import { materialSlots } from "./material-slots";
+import {
+  defaultSeedanceVideoModel,
+  isSeedanceVideoModel,
+  seedanceVideoModelOptions,
+  seedanceVideoModelValues,
+  type SeedanceVideoModel
+} from "./seedance-models.ts";
+
+export { seedanceVideoModelOptions, seedanceVideoModelValues };
+export type { SeedanceVideoModel };
 
 export type VideoGenerationSettings = {
+  model: SeedanceVideoModel;
   durationSeconds: number;
   ratio: "adaptive" | "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
   resolution: "480p" | "720p";
@@ -12,6 +22,7 @@ export type VideoGenerationSettings = {
 };
 
 export const defaultVideoGenerationSettings: VideoGenerationSettings = {
+  model: defaultSeedanceVideoModel,
   durationSeconds: 10,
   ratio: "adaptive",
   resolution: "720p",
@@ -40,18 +51,7 @@ export const videoFpsOptions = [
   { label: "24 FPS", value: 24 }
 ] as const;
 
-export function buildSlotPrompt(slotId: string) {
-  const slot = materialSlots.find((item) => item.id === slotId);
-  const slotName = slot?.name ?? slotId;
-  const trigger = slot?.trigger ?? "桌面宠物动作";
-
-  return [
-    "固定摄像机视角，只生成单只猫或狗的桌面宠物动作视频。",
-    "纯绿色背景，方便后续绿幕抠像；不要出现人、文字、水印、食物碗或多余物体。",
-    "宠物主体完整，尽量保持在画面中央，动作自然可爱，适合循环播放。",
-    `动作状态：${slotName}。触发场景：${trigger}。`
-  ].join("\n");
-}
+type RawSettings = Record<string, unknown>;
 
 export function clampVideoDuration(value: number) {
   if (!Number.isFinite(value)) {
@@ -59,4 +59,51 @@ export function clampVideoDuration(value: number) {
   }
 
   return Math.max(4, Math.min(15, Math.round(value)));
+}
+
+export function normalizeVideoGenerationSettings(
+  input: unknown,
+  fallback: VideoGenerationSettings = defaultVideoGenerationSettings
+): VideoGenerationSettings {
+  const record = isRecord(input) ? input : {};
+
+  return {
+    model: isSeedanceVideoModel(record.model) ? record.model : fallback.model,
+    durationSeconds:
+      typeof record.durationSeconds === "number"
+        ? clampVideoDuration(record.durationSeconds)
+        : fallback.durationSeconds,
+    ratio: isVideoRatio(record.ratio) ? record.ratio : fallback.ratio,
+    resolution: isVideoResolution(record.resolution) ? record.resolution : fallback.resolution,
+    framesPerSecond: record.framesPerSecond === 24 ? 24 : fallback.framesPerSecond,
+    cameraFixed: typeof record.cameraFixed === "boolean" ? record.cameraFixed : fallback.cameraFixed,
+    watermark: typeof record.watermark === "boolean" ? record.watermark : fallback.watermark,
+    generateAudio:
+      typeof record.generateAudio === "boolean" ? record.generateAudio : fallback.generateAudio,
+    returnLastFrame:
+      typeof record.returnLastFrame === "boolean"
+        ? record.returnLastFrame
+        : fallback.returnLastFrame
+  };
+}
+
+export function patchVideoGenerationSettings(
+  current: VideoGenerationSettings,
+  patch: unknown
+) {
+  const patchRecord = isRecord(patch) ? patch : {};
+
+  return normalizeVideoGenerationSettings({ ...current, ...patchRecord }, current);
+}
+
+function isRecord(value: unknown): value is RawSettings {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isVideoRatio(value: unknown): value is VideoGenerationSettings["ratio"] {
+  return videoRatioOptions.some((option) => option.value === value);
+}
+
+function isVideoResolution(value: unknown): value is VideoGenerationSettings["resolution"] {
+  return videoResolutionOptions.some((option) => option.value === value);
 }

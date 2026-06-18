@@ -1,21 +1,28 @@
-import { materialSlots } from "@/lib/material-slots";
+import { currentUser } from "@/lib/mock-data";
+import type { VideoGenerationSettings } from "@/lib/generation-settings";
 import {
-  currentUser,
-  friends,
-  hostingRequests,
-  petAssets,
-  pets
-} from "@/lib/mock-data";
+  loadAccountDataSnapshot,
+  refreshAccountGenerationJobs
+} from "@/lib/server/account-data-store";
+import { listPublicMaterialSlots } from "@/lib/server/material-library-store";
 import { getBackendStatus } from "@/lib/supabase/server";
-import type { GenerationJob, StudioBootstrap } from "@/lib/types";
+import type { CurrentUser, GenerationJob, StudioBootstrap } from "@/lib/types";
 
-export function getStudioBootstrap(): StudioBootstrap {
+export async function getStudioBootstrap(user: CurrentUser = currentUser): Promise<StudioBootstrap> {
+  await refreshAccountGenerationJobs(user);
+
+  const [snapshot, materialSlots] = await Promise.all([
+    loadAccountDataSnapshot(user),
+    listPublicMaterialSlots()
+  ]);
+
   return {
-    user: currentUser,
-    pets,
-    friends,
-    hostingRequests,
-    assets: petAssets,
+    user: snapshot.user,
+    pets: snapshot.pets,
+    friends: snapshot.friends,
+    hostingRequests: snapshot.hostingRequests,
+    assets: snapshot.assets,
+    jobs: snapshot.generationJobs,
     materialSlots,
     backend: getBackendStatus()
   };
@@ -26,6 +33,7 @@ export function createMockGenerationJob(input: {
   petId: string;
   slot?: string;
   cost: number;
+  settings?: VideoGenerationSettings;
 }): GenerationJob {
   return {
     jobId: `${input.type === "front_image" ? "front" : "video"}_${crypto.randomUUID()}`,
@@ -36,7 +44,8 @@ export function createMockGenerationJob(input: {
     slot: input.slot,
     progress: 0,
     resultUrl: null,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    settings: input.settings
   };
 }
 

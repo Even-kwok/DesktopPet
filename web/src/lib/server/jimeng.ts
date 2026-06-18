@@ -1,15 +1,22 @@
 import {
-  buildSlotPrompt,
   clampVideoDuration,
   defaultVideoGenerationSettings,
   type VideoGenerationSettings
 } from "@/lib/generation-settings";
+import { getMaterialPrompt } from "@/lib/server/material-library-store";
 import { buildSeedanceRequestBody } from "@/lib/server/seedance-request";
 import {
   extractSeedanceLastFrameUrl,
   extractSeedanceResultUrl
 } from "@/lib/server/seedance-response";
 import type { GenerationJob, GenerationJobStatus } from "@/lib/types";
+import type { SeedanceVideoModel } from "@/lib/seedance-models";
+import {
+  getJimengApiKey,
+  getJimengBaseUrl,
+  getJimengQueryUrlTemplate,
+  getJimengVideoModel
+} from "./jimeng-env";
 
 type JimengConfig = {
   apiKey: string;
@@ -22,8 +29,6 @@ type JimengConfig = {
 type ProviderPayload = Record<string, unknown>;
 
 const jobPrefix = "jimeng_";
-const defaultBaseUrl = "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
-const defaultModel = "doubao-seedance-2-0-fast-260128";
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, "");
@@ -74,10 +79,12 @@ function settingFromEnv<T extends string>(
   return allowedValues.includes(value as T) ? (value as T) : fallback;
 }
 
-export function getJimengConfig(): JimengConfig | null {
-  const apiKey = process.env.JIMENG_API_KEY?.trim() || process.env.ARK_API_KEY?.trim();
-  const baseUrl = process.env.JIMENG_API_BASE_URL?.trim() || defaultBaseUrl;
-  const model = process.env.JIMENG_VIDEO_MODEL?.trim() || defaultModel;
+export function getJimengConfig(modelOverride?: SeedanceVideoModel): JimengConfig | null {
+  const model = modelOverride ?? getJimengVideoModel();
+  const apiKey = getJimengApiKey(model);
+  const baseUrl = getJimengBaseUrl();
+  const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const queryUrlTemplate = getJimengQueryUrlTemplate();
 
   if (!apiKey) {
     return null;
@@ -85,11 +92,11 @@ export function getJimengConfig(): JimengConfig | null {
 
   return {
     apiKey,
-    baseUrl: normalizeBaseUrl(baseUrl),
+    baseUrl: normalizedBaseUrl,
     model,
-    queryUrlTemplate:
-      process.env.JIMENG_QUERY_URL_TEMPLATE?.trim() || `${normalizeBaseUrl(baseUrl)}/{taskId}`,
+    queryUrlTemplate: queryUrlTemplate || `${normalizedBaseUrl}/{taskId}`,
     settings: {
+      model,
       durationSeconds: clampVideoDuration(
         numberFromEnv(
           process.env.JIMENG_VIDEO_DURATION_SECONDS,
@@ -137,13 +144,13 @@ export function isJimengJobId(jobId: string) {
 function createRequestBody(input: {
   sourceImageUrl: string;
   lastImageUrl?: string;
-  slot: string;
+  prompt: string;
   config: JimengConfig;
   settings: VideoGenerationSettings;
 }) {
   return buildSeedanceRequestBody({
     model: input.config.model,
-    prompt: buildSlotPrompt(input.slot),
+    prompt: input.prompt,
     sourceImageUrl: input.sourceImageUrl,
     lastImageUrl: input.lastImageUrl,
     settings: input.settings
@@ -248,7 +255,7 @@ export async function createJimengVideoJob(input: {
   settings?: VideoGenerationSettings;
   cost: number;
 }): Promise<GenerationJob | null> {
-  const config = getJimengConfig();
+  const config = getJimengConfig(input.settings?.model);
 
   if (!config) {
     return null;
@@ -259,10 +266,16 @@ export async function createJimengVideoJob(input: {
     ...input.settings,
     durationSeconds: clampVideoDuration(input.settings?.durationSeconds ?? config.settings.durationSeconds)
   };
+  const prompt = await getMaterialPrompt(input.slot);
+
+  if (!prompt) {
+    throw new Error(`Unknown material prompt: ${input.slot}`);
+  }
+
   const requestBody = createRequestBody({
     sourceImageUrl: input.sourceImageUrl,
     lastImageUrl: input.lastImageUrl,
-    slot: input.slot,
+    prompt,
     config,
     settings
   });
@@ -294,7 +307,6 @@ export async function createJimengVideoJob(input: {
     lastFrameUrl: extractSeedanceLastFrameUrl(payload),
     message: "Jimeng video generation task created.",
     createdAt: new Date().toISOString(),
-    prompt: buildSlotPrompt(input.slot),
     settings,
     sourceImageUrl: input.sourceImageUrl,
     lastImageUrl: input.lastImageUrl ?? input.sourceImageUrl

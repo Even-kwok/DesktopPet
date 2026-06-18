@@ -1,10 +1,12 @@
-import type { DesktopPetBundle, Pet, PetAsset } from "@/lib/types";
+import type { BackendMode, CurrentUser, DesktopPetBundle, Pet, PetAsset } from "@/lib/types";
 
 export const desktopPetBundleVersion = 1;
 export const desktopPetBundleStoragePath =
   process.env.DESKTOP_PET_BUNDLE_PATH || "desktop/latest.json";
 
 type BuildDesktopPetBundleInput = {
+  account?: CurrentUser | null;
+  backendMode?: BackendMode;
   generatedAt?: string;
   pets: Pet[];
   assets: PetAsset[];
@@ -35,10 +37,31 @@ const materialNameBySlot: Record<string, string> = {
 };
 
 export function buildDesktopPetBundle(input: BuildDesktopPetBundleInput): DesktopPetBundle {
+  const visiblePets = input.account
+    ? input.pets.filter(
+        (pet) =>
+          pet.ownerUserId === input.account?.id ||
+          pet.currentHostUserId === input.account?.id
+      )
+    : input.pets;
+
   return {
     version: desktopPetBundleVersion,
     generatedAt: input.generatedAt ?? new Date().toISOString(),
-    pets: input.pets.map((pet) => {
+    account: input.account
+      ? {
+          id: input.account.id,
+          name: input.account.name,
+          email: input.account.email,
+          credits: input.account.credits
+        }
+      : null,
+    sync: {
+      mode: input.backendMode ?? "mock",
+      source: input.account ? "account" : "mock",
+      recommendedPollSeconds: 300
+    },
+    pets: visiblePets.map((pet) => {
       const materials = input.assets
         .filter(
           (asset) =>
@@ -58,11 +81,24 @@ export function buildDesktopPetBundle(input: BuildDesktopPetBundleInput): Deskto
 
       return {
         id: pet.id,
+        petNumber: pet.petNumber,
+        ownerUserId: pet.ownerUserId,
+        currentHostUserId: pet.currentHostUserId ?? null,
         name: pet.name,
         type: pet.type,
+        ownership: pet.ownership,
+        displayState: displayStateForPet(pet),
         avatarUrl: pet.frontImageUrl ?? pet.sourceImageUrl ?? null,
         materials
       };
     })
   };
+}
+
+function displayStateForPet(pet: Pet): DesktopPetBundle["pets"][number]["displayState"] {
+  if (pet.locationStatus === "away" || pet.ownership === "away" || pet.host === "friend") {
+    return "unavailable";
+  }
+
+  return "active";
 }

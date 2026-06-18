@@ -10,20 +10,443 @@ struct PetStudioView: View {
             StudioPalette.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 18) {
-                petHeader
+            VStack(spacing: 12) {
+                if viewModel.shouldShowCompactAccountPanel {
+                    compactAccountPanel
+                }
 
-                HStack(alignment: .top, spacing: 18) {
-                    imageQuestPanel
-                        .frame(width: 330)
+                if viewModel.isSignedIn {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 10) {
+                            friendHostingPanel
+                            petSwitchPanel
+                        }
+                    }
+                } else {
+                    loginEmptyPanel
+                }
 
-                    materialBoard
+                if !viewModel.statusMessage.isEmpty {
+                    Text(viewModel.statusMessage)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(StudioPalette.muted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 8)
                 }
             }
-            .padding(18)
+            .padding(14)
         }
-        .frame(minWidth: 1080, minHeight: 720)
+        .frame(minWidth: 430, minHeight: 440)
         .foregroundStyle(StudioPalette.ink)
+    }
+
+    private var compactAccountPanel: some View {
+        HStack(spacing: 12) {
+            Image(systemName: viewModel.isSignedIn ? "person.crop.circle.badge.checkmark" : "person.crop.circle")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(viewModel.isSignedIn ? StudioPalette.mint : StudioPalette.muted)
+                .frame(width: 44, height: 44)
+                .background(StudioPalette.panel)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(viewModel.accountDisplayName)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .lineLimit(1)
+
+                Text(viewModel.accountDetail)
+                    .font(.caption)
+                    .foregroundStyle(StudioPalette.muted)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if viewModel.isSignedIn {
+                Button("退出") {
+                    viewModel.signOutAccount()
+                }
+                .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+            } else {
+                Button {
+                    viewModel.signInAccount()
+                } label: {
+                    if viewModel.isLoggingIn {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text("登录")
+                    }
+                }
+                .buttonStyle(StudioButtonStyle(kind: .primary, compact: true))
+                .disabled(viewModel.isLoggingIn)
+            }
+
+            Button {
+                viewModel.syncFromWebStudio()
+            } label: {
+                if viewModel.isSyncingDesktopBundle {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Label("同步", systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
+            .buttonStyle(StudioButtonStyle(kind: .success, compact: true))
+            .disabled(!viewModel.isSignedIn || viewModel.isSyncingDesktopBundle)
+        }
+        .padding(12)
+        .background(StudioPalette.panel)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(StudioPalette.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var loginEmptyPanel: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "pawprint.circle.fill")
+                .font(.system(size: 38, weight: .bold))
+                .foregroundStyle(StudioPalette.accent)
+
+            Text("登录后同步你的猫咪")
+                .font(.system(size: 20, weight: .heavy, design: .rounded))
+
+            Text("Mac 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。")
+                .font(.callout)
+                .foregroundStyle(StudioPalette.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+
+            VStack(spacing: 8) {
+                TextField("邮箱", text: $viewModel.loginEmail)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(StudioPalette.field)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                SecureField("密码", text: $viewModel.loginPassword)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(StudioPalette.field)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                Button {
+                    viewModel.signInAccount()
+                } label: {
+                    if viewModel.isLoggingIn {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("登录", systemImage: "person.crop.circle.badge.checkmark")
+                    }
+                }
+                .buttonStyle(StudioButtonStyle(kind: .primary))
+                .disabled(viewModel.isLoggingIn)
+            }
+            .frame(maxWidth: 320)
+        }
+        .frame(maxWidth: .infinity, minHeight: 220)
+        .padding(18)
+        .background(StudioPalette.panel)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(StudioPalette.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var petSwitchPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("我的猫咪")
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+
+                Spacer()
+
+                Text("\(viewModel.syncedPetCards.count) 只")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(StudioPalette.muted)
+            }
+
+            if viewModel.syncedPetCards.isEmpty {
+                emptySyncState
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.syncedPetCards) { pet in
+                        petSummaryRow(pet)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(StudioPalette.panel)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(StudioPalette.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var emptySyncState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "icloud.and.arrow.down")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(StudioPalette.sky)
+            Text("还没有同步猫咪")
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+            Text("点右上角同步，从网页端拉取账号下的猫咪和素材。")
+                .font(.caption)
+                .foregroundStyle(StudioPalette.muted)
+        }
+        .frame(maxWidth: .infinity, minHeight: 140)
+        .background(StudioPalette.field.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func petSummaryRow(_ pet: DesktopSyncedPetCard) -> some View {
+        let isSelected = pet.id == viewModel.selectedSyncedPetCard?.id
+
+        return HStack(alignment: .center, spacing: 14) {
+            petAvatar(pet, size: 76)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(pet.name)
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .lineLimit(1)
+
+                Text(pet.petNumber)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(StudioPalette.sky)
+
+                Text("\(pet.statusText) · \(pet.materialCount) 个素材")
+                    .font(.caption)
+                    .foregroundStyle(StudioPalette.muted)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if pet.shouldShowRecallAction(isSelected: isSelected) {
+                Button("召回") {
+                    viewModel.recallSelectedPet()
+                }
+                .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+            } else if !isSelected {
+                Button("选择") {
+                    viewModel.selectSyncedPet(pet.id)
+                }
+                .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+            }
+        }
+        .padding(12)
+        .background(isSelected ? StudioPalette.field.opacity(0.55) : StudioPalette.field.opacity(0.34))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? StudioPalette.line : Color.clear, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var friendHostingPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("好友")
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    Text("\(viewModel.friendCards.count) 位 · 可寄养和删除")
+                        .font(.caption)
+                        .foregroundStyle(StudioPalette.muted)
+                }
+
+                Spacer()
+
+                if viewModel.isRefreshingFriends {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                iconActionButton(
+                    systemImage: "arrow.clockwise",
+                    tint: StudioPalette.sky,
+                    help: "刷新好友"
+                ) {
+                    viewModel.refreshFriends()
+                }
+                .disabled(viewModel.isRefreshingFriends)
+            }
+
+            friendAddRow
+
+            if viewModel.friendCards.isEmpty {
+                friendEmptyState
+            } else {
+                ForEach(viewModel.friendCards) { friend in
+                    friendRow(friend)
+                }
+            }
+        }
+        .padding(12)
+        .background(StudioPalette.panel)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(StudioPalette.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var friendAddRow: some View {
+        HStack(spacing: 8) {
+            TextField("输入好友邮箱", text: $viewModel.friendEmailDraft)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(StudioPalette.field)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .onSubmit {
+                    viewModel.addFriend()
+                }
+
+            Button {
+                viewModel.addFriend()
+            } label: {
+                if viewModel.isMutatingFriend {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 18, height: 18)
+                } else {
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .heavy))
+                        .frame(width: 18, height: 18)
+                }
+            }
+            .buttonStyle(StudioButtonStyle(kind: .primary, compact: true))
+            .disabled(!viewModel.canAddFriend)
+        }
+    }
+
+    private var friendEmptyState: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.2.badge.plus")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(StudioPalette.placeholder)
+                .frame(width: 34, height: 34)
+                .background(StudioPalette.field)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("还没有好友")
+                    .font(.callout)
+                    .fontWeight(.heavy)
+                Text("用账号邮箱精确添加。在线状态先按服务器记录显示。")
+                    .font(.caption)
+                    .foregroundStyle(StudioPalette.muted)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .padding(10)
+        .background(StudioPalette.field.opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func friendRow(_ friend: DesktopFriendCard) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: friend.isOnline ? "person.2.fill" : "person.2")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(friend.isOnline ? StudioPalette.mint : StudioPalette.muted)
+                .frame(width: 32, height: 32)
+                .background(StudioPalette.field)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(friend.name)
+                    .font(.callout)
+                    .fontWeight(.heavy)
+                    .lineLimit(1)
+                Text("\(friend.status) · 托管 \(friend.hostedPets) 只")
+                    .font(.caption)
+                    .foregroundStyle(StudioPalette.muted)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button("寄养") {
+                viewModel.requestHosting(to: friend)
+            }
+            .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+            .disabled(viewModel.selectedSyncedPetCard == nil || viewModel.isMutatingFriend)
+
+            iconActionButton(
+                systemImage: "trash",
+                tint: StudioPalette.danger,
+                help: "删除好友"
+            ) {
+                viewModel.removeFriend(friend)
+            }
+            .disabled(viewModel.isMutatingFriend)
+        }
+        .padding(10)
+        .background(StudioPalette.field.opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func iconActionButton(
+        systemImage: String,
+        tint: Color,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .heavy))
+                .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(tint)
+        .background(tint.opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .help(help)
+    }
+
+    private func petAvatar(_ pet: DesktopSyncedPetCard, size: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(StudioPalette.sky.opacity(0.16))
+
+            if let avatarURL = pet.avatarURL {
+                AsyncImage(url: avatarURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        Image(systemName: "pawprint.fill")
+                            .font(.system(size: size * 0.36, weight: .bold))
+                            .foregroundStyle(StudioPalette.placeholder)
+                    }
+                }
+                .clipShape(Circle())
+            } else {
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: size * 0.36, weight: .bold))
+                    .foregroundStyle(StudioPalette.placeholder)
+            }
+        }
+        .frame(width: size, height: size)
+        .overlay(Circle().stroke(StudioPalette.line, lineWidth: 1))
     }
 
     private var petHeader: some View {
@@ -94,12 +517,14 @@ struct PetStudioView: View {
                 }
                 .frame(maxWidth: 520)
 
-                Text(viewModel.statusMessage)
-                    .font(.callout)
-                    .foregroundStyle(StudioPalette.muted)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 720)
+                if !viewModel.statusMessage.isEmpty {
+                    Text(viewModel.statusMessage)
+                        .font(.callout)
+                        .foregroundStyle(StudioPalette.muted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 720)
+                }
             }
             .padding(18)
             .frame(maxWidth: .infinity)
@@ -139,6 +564,8 @@ struct PetStudioView: View {
         VStack(alignment: .leading, spacing: 14) {
             panelTitle("形象小屋", subtitle: "上传照片，生成一张可以继续做动作视频的正面形象。", icon: "pawprint.fill")
 
+            accountSyncPanel
+
             HStack(spacing: 10) {
                 ImagePreview(title: "原始照片", url: viewModel.sourceImageURL, style: .tile)
                 ImagePreview(title: "正面形象", url: viewModel.generatedFrontImageURL, style: .tile)
@@ -150,19 +577,6 @@ struct PetStudioView: View {
                 Label("上传宠物照片", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(StudioButtonStyle(kind: .primary))
-
-            Button {
-                viewModel.syncFromWebStudio()
-            } label: {
-                if viewModel.isSyncingDesktopBundle {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Label("同步网页生成素材", systemImage: "arrow.triangle.2.circlepath")
-                }
-            }
-            .buttonStyle(StudioButtonStyle(kind: .success))
-            .disabled(viewModel.isSyncingDesktopBundle)
 
             HStack(spacing: 8) {
                 Button {
@@ -206,6 +620,66 @@ struct PetStudioView: View {
         .padding(16)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(StudioPalette.panel)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(StudioPalette.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var accountSyncPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: viewModel.isSignedIn ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.questionmark")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(viewModel.isSignedIn ? StudioPalette.mint : StudioPalette.muted)
+                    .frame(width: 28, height: 28)
+                    .background((viewModel.isSignedIn ? StudioPalette.mint : StudioPalette.field).opacity(0.18))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("账号同步")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(StudioPalette.muted)
+                    Text(viewModel.accountDisplayName)
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    Text(viewModel.accountDetail)
+                        .font(.caption)
+                        .foregroundStyle(StudioPalette.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            HStack(spacing: 8) {
+                if viewModel.isSignedIn {
+                    Button("退出") {
+                        viewModel.signOutAccount()
+                    }
+                    .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+                } else {
+                    Button("登录") {
+                        viewModel.signInAccount()
+                    }
+                    .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+                }
+
+                Button {
+                    viewModel.syncFromWebStudio()
+                } label: {
+                    if viewModel.isSyncingDesktopBundle {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("同步网页素材", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+                .buttonStyle(StudioButtonStyle(kind: .success, compact: true))
+                .disabled(viewModel.isSyncingDesktopBundle || !viewModel.isSignedIn)
+            }
+        }
+        .padding(12)
+        .background(StudioPalette.field.opacity(0.55))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(StudioPalette.line, lineWidth: 1)

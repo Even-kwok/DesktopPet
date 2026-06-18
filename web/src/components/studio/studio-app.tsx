@@ -1,27 +1,36 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  buildSlotPrompt,
-  defaultVideoGenerationSettings,
-  videoFpsOptions,
-  videoRatioOptions,
-  videoResolutionOptions,
-  type VideoGenerationSettings
-} from "@/lib/generation-settings";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { buildDesktopPetBundle } from "@/lib/desktop-bundle";
 import {
   createActionVideoJob,
+  createPet,
+  deletePet,
   getGenerationJob,
+  getStudioBootstrap,
   publishDesktopPetBundle,
   recallPet,
+  savePetMaterial,
   sendHostingRequest,
+  updateAccountProfile,
   updateHostingRequest,
+  updatePetName,
   uploadSourceImage
 } from "@/lib/api-client";
-import { materialGroups, type MaterialGroup, type MaterialSlot } from "@/lib/material-slots";
+import { materialGroups, type MaterialSlot } from "@/lib/material-slots";
+import { canDeletePetForAccount } from "@/lib/pet-permissions";
+import {
+  accountNameEditControlCopy,
+  assetStatusAfterGenerationFailure,
+  jobDisplayName,
+  jobGeneratedAtLabel,
+  jobGeneratedVideoApplyAction,
+  materialCardPreviewState,
+  petNameEditControlCopy,
+  petPanelImageUrl,
+  petPanelStats
+} from "@/lib/studio-layout";
 import type {
-  BackendStatus,
   CurrentUser,
   GenerationJob,
   HostingRequest,
@@ -47,19 +56,21 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [hostingRequests, setHostingRequests] = useState<HostingRequest[]>(
     initialData.hostingRequests
   );
-  const [jobs, setJobs] = useState<GenerationJob[]>([]);
+  const [jobs, setJobs] = useState<GenerationJob[]>(initialData.jobs);
   const [selectedPetId, setSelectedPetId] = useState(initialData.pets[0]?.id ?? "");
   const [activeTab, setActiveTab] = useState<StudioTab>("materials");
   const [selectedFileName, setSelectedFileName] = useState("");
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const [sourcePublicUrl, setSourcePublicUrl] = useState<string | null>(null);
-  const [videoSettings, setVideoSettings] = useState<VideoGenerationSettings>(
-    defaultVideoGenerationSettings
-  );
-  const [promptPreviewSlotId, setPromptPreviewSlotId] = useState(
-    initialData.materialSlots[0]?.id ?? ""
-  );
-  const [message, setMessage] = useState<StatusMessage>({
+  const [isCreatingPet, setIsCreatingPet] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileNameDraft, setProfileNameDraft] = useState(initialData.user.name);
+  const [submittingSlotKeys, setSubmittingSlotKeys] = useState<Set<string>>(() => new Set());
+  const [applyingJobIds, setApplyingJobIds] = useState<Set<string>>(() => new Set());
+  const [generationErrorsBySlot, setGenerationErrorsBySlot] = useState<Record<string, string>>({});
+  const submittingSlotKeysRef = useRef(new Set<string>());
+  const [, setMessage] = useState<StatusMessage>({
     tone: "info",
     text: "上传一张绿幕正面坐姿图后，就可以直接作为动作视频的首尾帧。"
   });
@@ -82,8 +93,39 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     };
   }, [sourcePreviewUrl]);
 
+  useEffect(() => {
+    if (!isEditingProfile) {
+      setProfileNameDraft(user.name);
+    }
+  }, [isEditingProfile, user.name]);
+
+  useEffect(() => {
+    const activeJobs = initialData.jobs.filter(
+      (job) => job.status === "queued" || job.status === "running"
+    );
+
+    activeJobs.forEach((job) => {
+      void pollJob(job)
+        .then(finishGenerationJob)
+        .catch((error: unknown) => {
+          const errorText = error instanceof Error ? error.message : "恢复生成任务失败。";
+
+          if (job.slot) {
+            setSlotGenerationError(job.petId, job.slot, errorText);
+            setAssetStatus(job.petId, job.slot, "failed");
+          }
+          setMessage({
+            tone: "error",
+            text: errorText
+          });
+        });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const readyCount = selectedPetAssets.filter((asset) => asset.status === "ready").length;
   const hasFrameImage = selectedPet ? Boolean(selectedPet.frontImageUrl || selectedPet.sourceImageUrl) : false;
+  const accountEditControlCopy = accountNameEditControlCopy(user.name);
 
   function setPetPatch(petId: string, patch: Partial<Pet>) {
     setPets((currentPets) =>
@@ -91,29 +133,142 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     );
   }
 
-  function setAssetPatch(petId: string, slot: string, patch: Partial<PetAsset>) {
+  function setAssetStatus(petId: string, slot: string, status: PetAssetStatus) {
     setAssets((currentAssets) =>
       currentAssets.map((asset) =>
-        asset.petId === petId && asset.slot === slot ? { ...asset, ...patch } : asset
+        asset.petId === petId && asset.slot === slot
+          ? {
+              ...asset,
+              status: status === "failed" ? assetStatusAfterGenerationFailure(asset) : status
+            }
+          : asset
       )
     );
   }
 
-  function setAssetStatus(petId: string, slot: string, status: PetAssetStatus) {
-    setAssetPatch(petId, slot, { status });
+  function assetsWithSavedAsset(currentAssets: PetAsset[], savedAsset: PetAsset) {
+    const index = currentAssets.findIndex(
+      (asset) => asset.petId === savedAsset.petId && asset.slot === savedAsset.slot
+    );
+
+    if (index < 0) {
+      return [...currentAssets, savedAsset];
+    }
+
+    return currentAssets.map((asset, assetIndex) =>
+      assetIndex === index ? savedAsset : asset
+    );
+  }
+
+  function petsWithReadyCounts(currentPets: Pet[], nextAssets: PetAsset[]) {
+    return currentPets.map((pet) => ({
+      ...pet,
+      materialsReady: nextAssets.filter(
+        (asset) => asset.petId === pet.id && asset.status === "ready"
+      ).length
+    }));
+  }
+
+  function setSlotGenerationError(petId: string, slot: string, message: string | null) {
+    const key = generationSlotKey(petId, slot);
+
+    setGenerationErrorsBySlot((currentErrors) => {
+      const nextErrors = { ...currentErrors };
+
+      if (message) {
+        nextErrors[key] = message;
+      } else {
+        delete nextErrors[key];
+      }
+
+      return nextErrors;
+    });
+  }
+
+  function retireLocalActiveJobsForPetSourceChange(petId: string) {
+    setJobs((currentJobs) =>
+      currentJobs.map((job) =>
+        job.petId === petId &&
+        job.type === "action_video" &&
+        (job.status === "queued" || job.status === "running")
+          ? {
+              ...job,
+              status: "expired",
+              progress: 100,
+              message: "源图已更新，本次任务已作废。"
+            }
+          : job
+      )
+    );
+    setAssets((currentAssets) =>
+      currentAssets.map((asset) =>
+        asset.petId === petId &&
+        !asset.videoUrl &&
+        (asset.status === "queued" || asset.status === "generating")
+          ? {
+              ...asset,
+              status: "failed"
+            }
+          : asset
+      )
+    );
   }
 
   function assetFor(slot: string) {
     return selectedPetAssets.find((asset) => asset.slot === slot);
   }
 
+  function generationErrorForSlot(slot: string) {
+    return selectedPet ? generationErrorsBySlot[generationSlotKey(selectedPet.id, slot)] : undefined;
+  }
+
   async function publishDesktopSyncBundle(nextPets: Pet[], nextAssets: PetAsset[]) {
     return publishDesktopPetBundle(
       buildDesktopPetBundle({
+        account: user,
+        backendMode: initialData.backend.mode,
         pets: nextPets,
         assets: nextAssets
       })
     );
+  }
+
+  async function publishDesktopSyncBundleForBootstrap(data: StudioBootstrap) {
+    return publishDesktopPetBundle(
+      buildDesktopPetBundle({
+        account: data.user,
+        backendMode: data.backend.mode,
+        pets: data.pets,
+        assets: data.assets
+      })
+    );
+  }
+
+  async function publishDesktopSyncBundleForAccount(account: CurrentUser) {
+    return publishDesktopPetBundle(
+      buildDesktopPetBundle({
+        account,
+        backendMode: initialData.backend.mode,
+        pets,
+        assets
+      })
+    );
+  }
+
+  async function refreshStudioData() {
+    const data = await getStudioBootstrap();
+
+    setUser(data.user);
+    setPets(data.pets);
+    setAssets(data.assets);
+    setHostingRequests(data.hostingRequests);
+    setJobs(data.jobs);
+
+    if (!data.pets.some((pet) => pet.id === selectedPetId)) {
+      setSelectedPetId(data.pets[0]?.id ?? "");
+    }
+
+    return data;
   }
 
   function jobForSlot(slot: string) {
@@ -123,6 +278,50 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         job.slot === slot &&
         (job.status === "queued" || job.status === "running")
     );
+  }
+
+  function generationSlotKey(petId: string, slot: string) {
+    return `${petId}:${slot}`;
+  }
+
+  function isSubmittingSlot(slot: string) {
+    return selectedPet ? submittingSlotKeys.has(generationSlotKey(selectedPet.id, slot)) : false;
+  }
+
+  function setSlotSubmitting(petId: string, slot: string, isSubmitting: boolean) {
+    const key = generationSlotKey(petId, slot);
+
+    if (isSubmitting) {
+      submittingSlotKeysRef.current.add(key);
+    } else {
+      submittingSlotKeysRef.current.delete(key);
+    }
+
+    setSubmittingSlotKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys);
+
+      if (isSubmitting) {
+        nextKeys.add(key);
+      } else {
+        nextKeys.delete(key);
+      }
+
+      return nextKeys;
+    });
+  }
+
+  function setJobApplying(jobId: string, isApplying: boolean) {
+    setApplyingJobIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (isApplying) {
+        nextIds.add(jobId);
+      } else {
+        nextIds.delete(jobId);
+      }
+
+      return nextIds;
+    });
   }
 
   async function pollJob(job: GenerationJob) {
@@ -190,6 +389,55 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     return latestJob;
   }
 
+  async function finishGenerationJob(job: GenerationJob) {
+    const slot = initialData.materialSlots.find((item) => item.id === job.slot);
+
+    if (job.status === "succeeded") {
+      if (!job.resultUrl) {
+        if (job.slot) {
+          setSlotGenerationError(job.petId, job.slot, "任务完成但没有返回视频地址。");
+          setAssetStatus(job.petId, job.slot, "missing");
+        }
+        setMessage({
+          tone: "error",
+          text: `「${slot?.name ?? job.slot ?? "素材"}」任务完成但没有返回视频地址，未写入已生成素材。`
+        });
+        return;
+      }
+
+      const refreshedData = await refreshStudioData();
+      if (job.slot) {
+        setSlotGenerationError(job.petId, job.slot, null);
+      }
+      let desktopPublishMessage = "";
+
+      try {
+        const publishResult = await publishDesktopSyncBundleForBootstrap(refreshedData);
+        desktopPublishMessage =
+          publishResult.mode === "supabase" ? "已发布到桌面同步包。" : "已更新桌面同步包 mock。";
+      } catch (error) {
+        desktopPublishMessage =
+          error instanceof Error ? `桌面同步包发布失败：${error.message}` : "桌面同步包发布失败。";
+      }
+
+      setMessage({
+        tone: desktopPublishMessage.includes("失败") ? "error" : "success",
+        text: `「${slot?.name ?? job.slot ?? "素材"}」已生成，视频地址已保存。${desktopPublishMessage}`
+      });
+    } else if (job.status === "failed" || job.status === "expired") {
+      const errorText = job.message ?? `「${slot?.name ?? job.slot ?? "素材"}」生成失败或超时。`;
+
+      if (job.slot) {
+        setSlotGenerationError(job.petId, job.slot, errorText);
+        setAssetStatus(job.petId, job.slot, "failed");
+      }
+      setMessage({
+        tone: "error",
+        text: errorText
+      });
+    }
+  }
+
   async function handleImageSelected(file: File | undefined) {
     if (!file || !selectedPet) {
       return;
@@ -206,7 +454,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       });
       const nextPets = pets.map((pet) =>
         pet.id === selectedPet.id
-          ? {
+          ? upload.pet ?? {
               ...pet,
               sourceImageUrl: upload.publicUrl,
               frontImageUrl: upload.publicUrl,
@@ -217,6 +465,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
       setSourcePublicUrl(upload.publicUrl);
       setPets(nextPets);
+      retireLocalActiveJobsForPetSourceChange(selectedPet.id);
       void publishDesktopSyncBundle(nextPets, assets).catch((error) => {
         console.warn("Desktop bundle publish after image upload failed", error);
       });
@@ -224,7 +473,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         tone: "success",
         text:
           upload.mode === "supabase"
-            ? `猫咪形象图已上传：${upload.bucket}/${upload.storagePath}。现在会直接作为首尾帧生成动作视频。`
+            ? `猫咪形象图已上传：${upload.bucket}/${upload.storagePath}。后续生成会使用这张图作为首尾帧。`
             : "图片已进入 mock 上传流程。本地先显示预览；配置 Supabase 后会真正写入 Storage。"
       });
     } catch (error) {
@@ -245,73 +494,105 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       return;
     }
 
+    const slotKey = generationSlotKey(selectedPet.id, slot.id);
+    const activeJob = jobForSlot(slot.id);
+
+    if (submittingSlotKeysRef.current.has(slotKey) || activeJob) {
+      setMessage({ tone: "info", text: `「${slot.name}」已有生成任务进行中。` });
+      return;
+    }
+
     try {
+      setSlotSubmitting(selectedPet.id, slot.id, true);
+      setSlotGenerationError(selectedPet.id, slot.id, null);
       setAssetStatus(selectedPet.id, slot.id, "generating");
       const job = await createActionVideoJob({
         petId: selectedPet.id,
         slot: slot.id,
         sourceImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined,
-        lastImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined,
-        settings: {
-          ...videoSettings,
-          durationSeconds: slot.durationSeconds
-        }
+        lastImageUrl: selectedPet.frontImageUrl ?? selectedPet.sourceImageUrl ?? sourcePublicUrl ?? undefined
       });
-      setJobs((currentJobs) => [job, ...currentJobs]);
-      setUser((currentUser) => ({
-        ...currentUser,
-        credits: Math.max(currentUser.credits - job.cost, 0)
-      }));
+      const isAlreadyTracked = jobs.some((item) => item.jobId === job.jobId);
+
+      setJobs((currentJobs) =>
+        currentJobs.some((item) => item.jobId === job.jobId) ? currentJobs : [job, ...currentJobs]
+      );
+      setSlotSubmitting(selectedPet.id, slot.id, false);
+
+      if (!isAlreadyTracked) {
+        setUser((currentUser) => ({
+          ...currentUser,
+          credits: Math.max(currentUser.credits - job.cost, 0)
+        }));
+      }
+
       setMessage({ tone: "info", text: `「${slot.name}」生成任务已创建。` });
 
       const finishedJob = await pollJob(job);
-
-      if (finishedJob.status === "succeeded") {
-        const nextAssets = assets.map((asset) =>
-          asset.petId === selectedPet.id && asset.slot === slot.id
-            ? {
-                ...asset,
-                status: "ready" as const,
-                videoUrl: finishedJob.resultUrl ?? null
-              }
-            : asset
-        );
-        const nextPets = pets.map((pet) =>
-          pet.id === selectedPet.id ? { ...pet, materialsReady: readyCount + 1 } : pet
-        );
-        let desktopPublishMessage = "";
-
-        setAssets(nextAssets);
-        setPets(nextPets);
-
-        try {
-          const publishResult = await publishDesktopSyncBundle(nextPets, nextAssets);
-          desktopPublishMessage =
-            publishResult.mode === "supabase" ? "已发布到桌面同步包。" : "已更新桌面同步包 mock。";
-        } catch (error) {
-          desktopPublishMessage =
-            error instanceof Error ? `桌面同步包发布失败：${error.message}` : "桌面同步包发布失败。";
-        }
-
-        setMessage({
-          tone: desktopPublishMessage.includes("失败") ? "error" : "success",
-          text: finishedJob.resultUrl
-            ? `「${slot.name}」已生成，视频地址已返回。${desktopPublishMessage}`
-            : `「${slot.name}」已生成，占位素材已加入素材库。${desktopPublishMessage}`
-        });
-      } else if (finishedJob.status === "failed" || finishedJob.status === "expired") {
-        setAssetStatus(selectedPet.id, slot.id, "failed");
-        setMessage({
-          tone: "error",
-          text: finishedJob.message ?? `「${slot.name}」生成失败或超时。`
-        });
-      }
+      await finishGenerationJob(finishedJob);
     } catch (error) {
+      const errorText = error instanceof Error ? error.message : `「${slot.name}」生成失败。`;
+
+      setSlotGenerationError(selectedPet.id, slot.id, errorText);
       setAssetStatus(selectedPet.id, slot.id, "failed");
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : `「${slot.name}」生成失败。`
+        text: errorText
       });
+    } finally {
+      setSlotSubmitting(selectedPet.id, slot.id, false);
+    }
+  }
+
+  async function handleApplyGeneratedVideo(job: GenerationJob) {
+    if (job.type !== "action_video" || !job.slot || !job.resultUrl) {
+      return;
+    }
+
+    const pet = pets.find((item) => item.id === job.petId);
+    const slot = initialData.materialSlots.find((item) => item.id === job.slot);
+
+    if (!pet) {
+      setMessage({ tone: "error", text: "原猫咪已删除，无法应用到动作包。" });
+      return;
+    }
+
+    setJobApplying(job.jobId, true);
+    setMessage({ tone: "info", text: `正在把「${slot?.name ?? job.slot}」应用到「${pet.name}」的动作包。` });
+
+    try {
+      const response = await savePetMaterial({
+        petId: job.petId,
+        slot: job.slot,
+        videoUrl: job.resultUrl
+      });
+      const nextAssets = assetsWithSavedAsset(assets, response.asset);
+      const nextPets = petsWithReadyCounts(pets, nextAssets);
+
+      setAssets(nextAssets);
+      setPets(nextPets);
+
+      let desktopPublishMessage = "";
+      try {
+        const publishResult = await publishDesktopSyncBundle(nextPets, nextAssets);
+        desktopPublishMessage =
+          publishResult.mode === "supabase" ? "已发布到桌面同步包。" : "已更新桌面同步包 mock。";
+      } catch (error) {
+        desktopPublishMessage =
+          error instanceof Error ? `桌面同步包发布失败：${error.message}` : "桌面同步包发布失败。";
+      }
+
+      setMessage({
+        tone: desktopPublishMessage.includes("失败") ? "error" : "success",
+        text: `已把旧生成视频应用到「${pet.name}」的「${slot?.name ?? job.slot}」。${desktopPublishMessage}`
+      });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "应用生成视频失败。"
+      });
+    } finally {
+      setJobApplying(job.jobId, false);
     }
   }
 
@@ -380,6 +661,133 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     }
   }
 
+  async function handleDeletePet(pet: Pet) {
+    const confirmation = window.prompt(
+      `删除「${pet.name}」后，这只猫咪和它已生成/上传的所有素材都会从账号素材库中删除，不可恢复。\n\n请输入「永久删除」确认。`
+    );
+
+    if (confirmation !== "永久删除") {
+      setMessage({ tone: "info", text: "已取消删除。" });
+      return;
+    }
+
+    try {
+      const result = await deletePet({
+        petId: pet.id,
+        confirmation
+      });
+      const nextPets = pets.filter((item) => item.id !== result.deletedPetId);
+      const nextAssets = assets.filter((asset) => asset.petId !== result.deletedPetId);
+
+      setPets(nextPets);
+      setAssets(nextAssets);
+      setSelectedPetId((currentPetId) =>
+        currentPetId === result.deletedPetId ? nextPets[0]?.id ?? "" : currentPetId
+      );
+      setMessage({
+        tone: "success",
+        text: `已删除「${pet.name}」和 ${result.deletedAssets} 个素材记录。`
+      });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "删除猫咪失败。"
+      });
+    }
+  }
+
+  function handleSelectPet(petId: string) {
+    setSelectedPetId(petId);
+    setSourcePreviewUrl(null);
+    setSelectedFileName("");
+    setSourcePublicUrl(null);
+  }
+
+  async function handleCreatePet() {
+    if (isCreatingPet) {
+      return;
+    }
+
+    setIsCreatingPet(true);
+    setMessage({ tone: "info", text: "正在添加新猫咪..." });
+
+    try {
+      const response = await createPet();
+      const nextPets = [...pets, response.pet];
+
+      setPets(nextPets);
+      handleSelectPet(response.pet.id);
+      setActiveTab("materials");
+      setMessage({ tone: "success", text: `已添加「${response.pet.name}」，可以上传猫咪形象图。` });
+      void publishDesktopSyncBundle(nextPets, assets).catch((error) => {
+        console.warn("Desktop bundle publish after pet create failed", error);
+      });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "添加宠物失败。"
+      });
+    } finally {
+      setIsCreatingPet(false);
+    }
+  }
+
+  async function handleRenamePet(petId: string, name: string) {
+    try {
+      const response = await updatePetName({ petId, name });
+      const nextPets = pets.map((pet) => (pet.id === response.pet.id ? response.pet : pet));
+
+      setPets(nextPets);
+      setMessage({ tone: "success", text: `已将猫咪改名为「${response.pet.name}」。` });
+      void publishDesktopSyncBundle(nextPets, assets).catch((error) => {
+        console.warn("Desktop bundle publish after pet rename failed", error);
+      });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "猫咪改名失败。"
+      });
+      throw error;
+    }
+  }
+
+  async function handleProfileNameSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const nextName = profileNameDraft.trim();
+
+    if (!nextName) {
+      setMessage({ tone: "error", text: "账号名称不能为空。" });
+      return;
+    }
+
+    if (nextName === user.name) {
+      setIsEditingProfile(false);
+      return;
+    }
+
+    setIsSavingProfile(true);
+
+    try {
+      const response = await updateAccountProfile({ name: nextName });
+
+      setUser(response.user);
+      setProfileNameDraft(response.user.name);
+      setIsEditingProfile(false);
+      setMessage({ tone: "success", text: "账号名称已更新。" });
+      void publishDesktopSyncBundleForAccount(response.user).catch((error) => {
+        console.warn("Desktop bundle publish after profile update failed", error);
+      });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : "账号名称更新失败。"
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -387,20 +795,62 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
           <div className="brand-mark">🐱</div>
           <div>
             <h1>DesktopPet Studio</h1>
-            <p>网页负责账号、积分、素材生成；Mac App 负责陪伴、播放和托管管理。</p>
-            <span className={initialData.backend.mode === "supabase" ? "backend-pill live" : "backend-pill"}>
-              {initialData.backend.mode === "supabase" ? "Supabase 已连接" : "Mock 后端"}
-            </span>
           </div>
         </div>
 
         <div className="account-card">
           <div className="avatar">{user.name.slice(0, 1)}</div>
-          <div>
-            <strong>{user.name}</strong>
+          <div className="account-identity">
+            {isEditingProfile ? (
+              <form className="profile-name-form" onSubmit={(event) => void handleProfileNameSubmit(event)}>
+                <input
+                  aria-label="账号名称"
+                  className="input profile-name-input"
+                  maxLength={30}
+                  value={profileNameDraft}
+                  onChange={(event) => setProfileNameDraft(event.target.value)}
+                />
+                <button className="button tiny" disabled={isSavingProfile} type="submit">
+                  {isSavingProfile ? "保存中" : "保存"}
+                </button>
+                <button
+                  className="button ghost tiny"
+                  disabled={isSavingProfile}
+                  type="button"
+                  onClick={() => {
+                    setProfileNameDraft(user.name);
+                    setIsEditingProfile(false);
+                  }}
+                >
+                  取消
+                </button>
+              </form>
+            ) : (
+              <div className="account-name-row">
+                <strong>{user.name}</strong>
+                <button
+                  aria-label={accountEditControlCopy.ariaLabel}
+                  className="button ghost tiny account-edit-button"
+                  title={accountEditControlCopy.ariaLabel}
+                  type="button"
+                  onClick={() => setIsEditingProfile(true)}
+                >
+                  <span aria-hidden="true">{accountEditControlCopy.icon}</span>
+                </button>
+              </div>
+            )}
             <p>{user.email}</p>
           </div>
-          <button className="button secondary">登录 / 注册</button>
+          <div className="account-credits" aria-label={`积分余额 ${user.credits}`}>
+            <span>积分</span>
+            <strong>{user.credits}</strong>
+          </div>
+          <form action="/api/auth/logout" method="post">
+            <input type="hidden" name="next" value="/" />
+            <button className="button secondary" type="submit">
+              退出
+            </button>
+          </form>
         </div>
       </header>
 
@@ -410,67 +860,20 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             pet={selectedPet}
             pets={pets}
             readyCount={readyCount}
-            totalCount={initialData.materialSlots.length}
-            credits={user.credits}
+            selectedFileName={selectedFileName}
+            sourcePreviewUrl={sourcePreviewUrl}
+            isCreatingPet={isCreatingPet}
             onSelectPet={(petId) => {
-              setSelectedPetId(petId);
+              handleSelectPet(petId);
               setActiveTab("materials");
             }}
+            onCreatePet={handleCreatePet}
+            onImageSelected={handleImageSelected}
+            onRenamePet={handleRenamePet}
           />
-
-          <section className="panel auth-panel">
-            <PanelTitle icon="🔐" title="账号入口" subtitle="后续接 Supabase Auth，支持邮箱验证码和第三方登录。" />
-            <div className="field-stack">
-              <input className="input" placeholder="邮箱 / 手机号" />
-              <button className="button">发送登录验证码</button>
-            </div>
-          </section>
-
-          <BackendPanel backend={initialData.backend} />
-
-          <section className="panel workflow-panel">
-            <PanelTitle icon="🪄" title="生成流程" subtitle="每一步都会记录任务、扣积分和保存素材。" />
-            <div className="workflow-steps">
-              <Step number="1" title="上传绿幕形象图" text="猫咪正面坐姿图，直接存入 source-images。" />
-              <Step number="2" title="生成动作视频" text="上传图同时作为 Seedance 首帧和尾帧。" />
-              <Step number="3" title="预览和筛选" text="不满意可以调整提示词或参数后重试。" />
-              <Step number="4" title="下载素材包" text="Mac App 导入本地播放，云端保留备份。" />
-            </div>
-          </section>
         </aside>
 
         <section className="main-board">
-          <section className="panel hero-panel">
-            <div className="hero-copy">
-              <h2>给你的桌宠制作一整套动作素材</h2>
-              <p>网页端先做创作工坊，之后接入订阅、积分、生成任务和云端素材库。Mac App 保持轻量，只同步账号和下载素材。</p>
-              <div className="hero-actions">
-                <label className="button file-button">
-                  上传猫咪形象图
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={(event) => void handleImageSelected(event.target.files?.[0])}
-                  />
-                </label>
-                <button className="button ghost" onClick={() => setActiveTab("jobs")}>
-                  查看任务队列
-                </button>
-              </div>
-              {selectedFileName ? <p className="small-note">已选择：{selectedFileName}</p> : null}
-              <p className="small-note">
-                图片要求：纯绿幕背景，猫咪正面坐着，身体完整，居中清晰，光线均匀；不要裁切耳朵尾巴，不要文字、水印、食盆、玩具或绿色项圈。
-              </p>
-            </div>
-            <div className="credit-pill">
-              <span>当前余额</span>
-              <strong>{user.credits}</strong>
-              <span>积分</span>
-            </div>
-          </section>
-
-          <StatusBanner message={message} />
-
           <nav className="tabs" aria-label="Studio sections">
             <TabButton active={activeTab === "materials"} onClick={() => setActiveTab("materials")}>
               动作素材
@@ -493,18 +896,23 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             <MaterialsTab
               slots={initialData.materialSlots}
               hasFrameImage={hasFrameImage}
-              videoSettings={videoSettings}
-              promptPreviewSlotId={promptPreviewSlotId}
-              onPromptPreviewSlotChange={setPromptPreviewSlotId}
-              onVideoSettingsChange={setVideoSettings}
               assetFor={assetFor}
+              generationErrorForSlot={generationErrorForSlot}
+              isSubmittingAction={isSubmittingSlot}
               jobForSlot={jobForSlot}
               onGenerateAction={handleGenerateAction}
             />
           ) : null}
 
           {activeTab === "pets" ? (
-            <PetsTab pets={pets} selectedPetId={selectedPet?.id} onSelectPet={setSelectedPetId} onRecallPet={handleRecallPet} />
+            <PetsTab
+              currentUser={user}
+              pets={pets}
+              selectedPetId={selectedPet?.id}
+              onDeletePet={handleDeletePet}
+              onSelectPet={handleSelectPet}
+              onRecallPet={handleRecallPet}
+            />
           ) : null}
 
           {activeTab === "friends" ? (
@@ -516,7 +924,15 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             />
           ) : null}
 
-          {activeTab === "jobs" ? <JobsTab jobs={jobs} /> : null}
+          {activeTab === "jobs" ? (
+            <JobsTab
+              applyingJobIds={applyingJobIds}
+              jobs={jobs}
+              pets={pets}
+              slots={initialData.materialSlots}
+              onApplyGeneratedVideo={handleApplyGeneratedVideo}
+            />
+          ) : null}
 
           {activeTab === "billing" ? <BillingTab user={user} jobs={jobs} /> : null}
         </section>
@@ -529,94 +945,150 @@ function PetPanel({
   pet,
   pets,
   readyCount,
-  totalCount,
-  credits,
-  onSelectPet
+  selectedFileName,
+  sourcePreviewUrl,
+  isCreatingPet,
+  onSelectPet,
+  onCreatePet,
+  onImageSelected,
+  onRenamePet
 }: {
   pet: Pet | undefined;
   pets: Pet[];
   readyCount: number;
-  totalCount: number;
-  credits: number;
+  selectedFileName: string;
+  sourcePreviewUrl: string | null;
+  isCreatingPet: boolean;
   onSelectPet: (petId: string) => void;
+  onCreatePet: () => void;
+  onImageSelected: (file: File | undefined) => void;
+  onRenamePet: (petId: string, name: string) => Promise<void>;
 }) {
+  const imageUrl = petPanelImageUrl(pet, sourcePreviewUrl);
+  petPanelStats({ readyCount });
+  const [editingPetId, setEditingPetId] = useState<string | null>(null);
+  const [petNameDraft, setPetNameDraft] = useState("");
+  const [isSavingPetName, setIsSavingPetName] = useState(false);
+
+  function beginPetNameEdit(item: Pet) {
+    setEditingPetId(item.id);
+    setPetNameDraft(item.name);
+  }
+
+  async function handlePetNameSubmit(event: FormEvent<HTMLFormElement>, item: Pet) {
+    event.preventDefault();
+
+    const nextName = petNameDraft.trim();
+
+    if (!nextName) {
+      return;
+    }
+
+    if (nextName === item.name) {
+      setEditingPetId(null);
+      return;
+    }
+
+    setIsSavingPetName(true);
+
+    try {
+      await onRenamePet(item.id, nextName);
+      setEditingPetId(null);
+    } finally {
+      setIsSavingPetName(false);
+    }
+  }
+
   return (
     <section className="panel pet-card">
       <div className="pet-stage">
         <div className="pet-portrait">
-          {pet?.frontImageUrl || pet?.sourceImageUrl ? (
+          {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt={pet.name} src={pet.frontImageUrl ?? pet.sourceImageUrl ?? ""} />
+            <img alt={pet?.name ?? "猫咪形象图"} src={imageUrl} />
           ) : (
             "🐈"
           )}
         </div>
       </div>
 
+      <div className="pet-upload-block">
+        <label className="button file-button pet-upload-button">
+          上传猫咪形象图
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => void onImageSelected(event.target.files?.[0])}
+          />
+        </label>
+        {selectedFileName ? <p className="small-note">已选择：{selectedFileName}</p> : null}
+        <p className="small-note">要求：纯绿幕背景，正面坐姿，身体完整清晰。</p>
+      </div>
+
       <div className="pet-selector">
-        {pets.map((item) => (
-          <button
-            className={item.id === pet?.id ? "pet-chip active" : "pet-chip"}
-            key={item.id}
-            onClick={() => onSelectPet(item.id)}
-          >
-            {item.name}
-          </button>
-        ))}
+        {pets.map((item) => {
+          const isSelectedPet = item.id === pet?.id;
+          const editControlCopy = isSelectedPet ? petNameEditControlCopy(item.name) : null;
+
+          return editingPetId === item.id ? (
+            <form
+              className="pet-name-form"
+              key={item.id}
+              onSubmit={(event) => void handlePetNameSubmit(event, item)}
+            >
+              <input
+                aria-label="猫咪名字"
+                className="input pet-name-input"
+                disabled={isSavingPetName}
+                maxLength={30}
+                required
+                value={petNameDraft}
+                onChange={(event) => setPetNameDraft(event.target.value)}
+              />
+              <button className="button tiny" disabled={isSavingPetName} type="submit">
+                {isSavingPetName ? "保存中" : "保存"}
+              </button>
+              <button
+                className="button ghost tiny"
+                disabled={isSavingPetName}
+                type="button"
+                onClick={() => setEditingPetId(null)}
+              >
+                取消
+              </button>
+            </form>
+          ) : (
+            <div className={isSelectedPet ? "pet-chip-row editable" : "pet-chip-row"} key={item.id}>
+              <button
+                className={isSelectedPet ? "pet-chip active" : "pet-chip"}
+                onClick={() => onSelectPet(item.id)}
+              >
+                {item.name}
+              </button>
+              {editControlCopy ? (
+                <button
+                  aria-label={editControlCopy.ariaLabel}
+                  className="button ghost tiny pet-rename-button"
+                  title={editControlCopy.ariaLabel}
+                  type="button"
+                  onClick={() => beginPetNameEdit(item)}
+                >
+                  <span aria-hidden="true">{editControlCopy.icon}</span>
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+        <button
+          aria-label="添加宠物"
+          className="pet-chip pet-add-chip"
+          disabled={isCreatingPet}
+          title="添加宠物"
+          onClick={onCreatePet}
+        >
+          {isCreatingPet ? "..." : "+"}
+        </button>
       </div>
-
-      <h2>{pet?.name ?? "未选择宠物"}</h2>
-      <p>{pet?.status ?? "选择一只宠物开始制作素材"}，今天心情：{pet?.mood ?? "未知"}</p>
-
-      <div className="stats-grid">
-        <div className="stat">
-          <strong>{credits}</strong>
-          <span>积分</span>
-        </div>
-        <div className="stat">
-          <strong>{readyCount}</strong>
-          <span>已完成</span>
-        </div>
-        <div className="stat">
-          <strong>{totalCount}</strong>
-          <span>动作位</span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BackendPanel({ backend }: { backend: BackendStatus }) {
-  const isLive = backend.mode === "supabase";
-
-  return (
-    <section className="panel backend-panel">
-      <PanelTitle
-        icon={isLive ? "🟢" : "🧪"}
-        title="后端状态"
-        subtitle={isLive ? "真实 Supabase 存储已启用。" : "当前使用 mock 数据，不会写入云端。"}
-      />
-      <div className="backend-grid">
-        <div>
-          <span>模式</span>
-          <strong>{isLive ? "Supabase" : "Mock"}</strong>
-        </div>
-        <div>
-          <span>原图 bucket</span>
-          <strong>{backend.sourceImageBucket}</strong>
-        </div>
-        <div>
-          <span>服务端密钥</span>
-          <strong>{backend.serviceRoleLooksValid ? "service_role" : backend.serviceRoleRole ?? "未识别"}</strong>
-        </div>
-      </div>
-      {!backend.serviceRoleLooksValid && backend.serviceRoleConfigured ? (
-        <p className="backend-warning">SUPABASE_SERVICE_ROLE_KEY 已填写，但不是 service_role key。</p>
-      ) : backend.missingEnv.length > 0 ? (
-        <p className="backend-warning">待配置：{backend.missingEnv.join(" / ")}</p>
-      ) : (
-        <p className="backend-ok">环境变量已就绪，可以开始写入 Supabase。</p>
-      )}
     </section>
   );
 }
@@ -624,34 +1096,22 @@ function BackendPanel({ backend }: { backend: BackendStatus }) {
 function MaterialsTab({
   slots,
   hasFrameImage,
-  videoSettings,
-  promptPreviewSlotId,
-  onPromptPreviewSlotChange,
-  onVideoSettingsChange,
   assetFor,
+  generationErrorForSlot,
+  isSubmittingAction,
   jobForSlot,
   onGenerateAction
 }: {
   slots: MaterialSlot[];
   hasFrameImage: boolean;
-  videoSettings: VideoGenerationSettings;
-  promptPreviewSlotId: string;
-  onPromptPreviewSlotChange: (slotId: string) => void;
-  onVideoSettingsChange: (settings: VideoGenerationSettings) => void;
   assetFor: (slot: string) => PetAsset | undefined;
+  generationErrorForSlot: (slot: string) => string | undefined;
+  isSubmittingAction: (slot: string) => boolean;
   jobForSlot: (slot: string) => GenerationJob | undefined;
   onGenerateAction: (slot: MaterialSlot) => void;
 }) {
   return (
     <>
-      <GenerationDebugPanel
-        slots={slots}
-        settings={videoSettings}
-        promptPreviewSlotId={promptPreviewSlotId}
-        onPromptPreviewSlotChange={onPromptPreviewSlotChange}
-        onSettingsChange={onVideoSettingsChange}
-      />
-
       {materialGroups.map((group) => {
         const groupSlots = slots.filter((slot) => slot.group === group.id);
         const completeCount = groupSlots.filter((slot) => assetFor(slot.id)?.status === "ready").length;
@@ -673,9 +1133,10 @@ function MaterialsTab({
                 <MaterialCard
                   asset={assetFor(slot.id)}
                   activeJob={jobForSlot(slot.id)}
+                  generationError={generationErrorForSlot(slot.id)}
                   hasFrameImage={hasFrameImage}
+                  isSubmitting={isSubmittingAction(slot.id)}
                   key={slot.id}
-                  settings={videoSettings}
                   slot={slot}
                   onGenerate={() => onGenerateAction(slot)}
                 />
@@ -692,54 +1153,71 @@ function MaterialCard({
   slot,
   asset,
   activeJob,
+  generationError,
   hasFrameImage,
-  settings,
+  isSubmitting,
   onGenerate
 }: {
   slot: MaterialSlot;
   asset: PetAsset | undefined;
   activeJob: GenerationJob | undefined;
+  generationError: string | undefined;
   hasFrameImage: boolean;
-  settings: VideoGenerationSettings;
+  isSubmitting: boolean;
   onGenerate: () => void;
 }) {
-  const isGenerating = Boolean(activeJob);
+  const isGenerating = Boolean(activeJob) || isSubmitting || asset?.status === "queued" || asset?.status === "generating";
   const status = isGenerating ? "generating" : asset?.status ?? "missing";
   const isReady = status === "ready";
-  const prompt = buildSlotPrompt(slot.id);
+  const previewState = materialCardPreviewState({
+    asset,
+    hasActiveJob: Boolean(activeJob),
+    isSubmitting
+  });
+  const [videoRatio, setVideoRatio] = useState<number | null>(null);
+  const cardStyle = videoRatio
+    ? ({ "--asset-video-ratio": String(videoRatio) } as CSSProperties & Record<"--asset-video-ratio", string>)
+    : undefined;
 
   return (
-    <article className={isReady ? "card ready-card" : "card"}>
+    <article className={isReady ? "card material-card ready-card" : "card material-card"} style={cardStyle}>
       <div className="preview">
-        {asset?.videoUrl ? (
-          <video className="preview-video" src={asset.videoUrl} controls loop muted playsInline />
-        ) : (
-          <span className="preview-icon">{isGenerating ? "⏳" : slot.icon}</span>
-        )}
+        {previewState.kind === "video" ? (
+          <video
+            className="preview-video"
+            src={previewState.videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget;
+
+              if (video.videoHeight > 0) {
+                setVideoRatio(video.videoWidth / video.videoHeight);
+              }
+            }}
+          />
+        ) : previewState.kind === "icon" ? (
+          <span className="preview-icon">{previewState.icon}</span>
+        ) : null}
       </div>
       <div className="card-body">
         <div className="card-title-row">
           <div>
             <h4>{slot.name}</h4>
-            <p>{slot.trigger}</p>
           </div>
           <span className={badgeClassForAsset(status)}>{labelForAsset(status)}</span>
         </div>
-        <span className="slot-key">{slot.id}</span>
         {activeJob ? <JobProgress job={activeJob} compact /> : null}
-        <details className="prompt-details">
-          <summary>查看提示词和参数</summary>
-          <div className="prompt-meta">
-            <span>{slot.durationSeconds}s</span>
-            <span>{settings.resolution}</span>
-            <span>{settings.ratio}</span>
-            <span>{settings.framesPerSecond} FPS</span>
-          </div>
-          <pre>{prompt}</pre>
-        </details>
+        {generationError ? (
+          <p className="material-error-note" title={generationError}>
+            {asset?.videoUrl ? "新生成失败，旧素材已保留" : `生成失败：${generationError}`}
+          </p>
+        ) : null}
         <div className="card-actions">
           <button className="button" disabled={!hasFrameImage || isGenerating} onClick={onGenerate}>
-            {isGenerating ? "生成中" : `生成 ${slot.cost} 分`}
+            {isSubmitting ? "提交中" : isGenerating ? "生成中" : isReady ? `重新生成 ${slot.cost} 分` : `生成 ${slot.cost} 分`}
           </button>
           <a
             className={isReady && asset?.videoUrl ? "button secondary" : "button secondary disabled-link"}
@@ -755,165 +1233,18 @@ function MaterialCard({
   );
 }
 
-function GenerationDebugPanel({
-  slots,
-  settings,
-  promptPreviewSlotId,
-  onPromptPreviewSlotChange,
-  onSettingsChange
-}: {
-  slots: MaterialSlot[];
-  settings: VideoGenerationSettings;
-  promptPreviewSlotId: string;
-  onPromptPreviewSlotChange: (slotId: string) => void;
-  onSettingsChange: (settings: VideoGenerationSettings) => void;
-}) {
-  const previewSlot = slots.find((slot) => slot.id === promptPreviewSlotId) ?? slots[0];
-  const prompt = buildSlotPrompt(previewSlot?.id ?? "");
-
-  function patchSettings(patch: Partial<VideoGenerationSettings>) {
-    onSettingsChange({ ...settings, ...patch });
-  }
-
-  return (
-    <section className="panel generation-debug-panel">
-      <div className="debug-head">
-        <PanelTitle
-          icon="🧪"
-          title="生成调试面板"
-          subtitle="开发阶段先公开显示请求参数和提示词；上线前再按需要折叠。"
-        />
-        <span className="badge sky">官方无实时百分比，进度为估算</span>
-      </div>
-
-      <div className="settings-grid">
-        <label className="setting-field">
-          <span>画幅</span>
-          <select
-            className="input"
-            value={settings.ratio}
-            onChange={(event) =>
-              patchSettings({ ratio: event.target.value as VideoGenerationSettings["ratio"] })
-            }
-          >
-            {videoRatioOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="setting-field">
-          <span>清晰度</span>
-          <select
-            className="input"
-            value={settings.resolution}
-            onChange={(event) =>
-              patchSettings({ resolution: event.target.value as VideoGenerationSettings["resolution"] })
-            }
-          >
-            {videoResolutionOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="setting-field">
-          <span>帧率</span>
-          <select
-            className="input"
-            value={settings.framesPerSecond}
-            onChange={(event) =>
-              patchSettings({ framesPerSecond: Number(event.target.value) as 24 })
-            }
-          >
-            {videoFpsOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="toggle-grid">
-        <Toggle
-          checked={settings.generateAudio}
-          label="生成声音"
-          onChange={(checked) => patchSettings({ generateAudio: checked })}
-        />
-        <Toggle
-          checked={settings.watermark}
-          label="加水印"
-          onChange={(checked) => patchSettings({ watermark: checked })}
-        />
-        <Toggle
-          checked={settings.returnLastFrame}
-          label="返回尾帧图"
-          onChange={(checked) => patchSettings({ returnLastFrame: checked })}
-        />
-      </div>
-
-      <div className="debug-info-grid">
-        <div className="debug-note">
-          <strong>当前输出</strong>
-          <p>格式：MP4。当前模型支持 480p / 720p、24 FPS。时长由每个动作卡片内置，范围固定为 4-15 秒。</p>
-        </div>
-        <div className="debug-note">
-          <strong>首尾帧</strong>
-          <p>上传图会同时传给 `first_frame` / `last_frame`。固定镜头通过提示词约束，不发送 `camera_fixed` 字段。</p>
-        </div>
-      </div>
-
-      <div className="prompt-preview-box">
-        <label className="setting-field">
-          <span>查看动作提示词</span>
-          <select
-            className="input"
-            value={previewSlot?.id ?? ""}
-            onChange={(event) => onPromptPreviewSlotChange(event.target.value)}
-          >
-            {slots.map((slot) => (
-              <option key={slot.id} value={slot.id}>
-                {slot.name} / {slot.id}
-              </option>
-            ))}
-          </select>
-        </label>
-        <pre>{prompt}</pre>
-      </div>
-    </section>
-  );
-}
-
-function Toggle({
-  checked,
-  label,
-  onChange
-}: {
-  checked: boolean;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="toggle-pill">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      <span>{label}</span>
-    </label>
-  );
-}
-
 function PetsTab({
+  currentUser,
   pets,
   selectedPetId,
+  onDeletePet,
   onSelectPet,
   onRecallPet
 }: {
+  currentUser: CurrentUser;
   pets: Pet[];
   selectedPetId: string | undefined;
+  onDeletePet: (pet: Pet) => void;
   onSelectPet: (petId: string) => void;
   onRecallPet: () => void;
 }) {
@@ -931,6 +1262,11 @@ function PetsTab({
             <button className="button secondary" onClick={() => onSelectPet(pet.id)}>
               选择
             </button>
+            {canDeletePetForAccount(currentUser, pet) ? (
+              <button className="button danger" onClick={() => onDeletePet(pet)}>
+                删除
+              </button>
+            ) : null}
             {pet.host === "friend" ? (
               <button className="button" onClick={() => void onRecallPet()}>
                 召回
@@ -995,7 +1331,19 @@ function FriendsTab({
   );
 }
 
-function JobsTab({ jobs }: { jobs: GenerationJob[] }) {
+function JobsTab({
+  applyingJobIds,
+  jobs,
+  pets,
+  slots,
+  onApplyGeneratedVideo
+}: {
+  applyingJobIds: Set<string>;
+  jobs: GenerationJob[];
+  pets: Pet[];
+  slots: MaterialSlot[];
+  onApplyGeneratedVideo: (job: GenerationJob) => void;
+}) {
   return (
     <section className="panel management-panel">
       <PanelTitle icon="📦" title="任务队列" subtitle="方舟查询接口只返回阶段状态，百分比是页面估算。" />
@@ -1003,38 +1351,54 @@ function JobsTab({ jobs }: { jobs: GenerationJob[] }) {
         <div className="empty-state">还没有生成任务。上传绿幕形象图或点击动作卡片开始。</div>
       ) : (
         <div className="job-list">
-          {jobs.map((job) => (
-            <div className="job-row" key={job.jobId}>
-              <div>
-                <strong>{job.type === "front_image" ? "形象图任务" : job.slot}</strong>
-                <p>{job.jobId}</p>
-              </div>
-              <span className={job.status === "succeeded" ? "badge" : "badge sky"}>
-                {labelForJobStatus(job.status)}
-              </span>
-              <JobProgress job={job} />
-              {job.settings ? (
-                <div className="job-settings">
-                  <span>{job.settings.durationSeconds}s</span>
-                  <span>{job.settings.resolution}</span>
-                  <span>{job.settings.ratio}</span>
-                  <span>{job.settings.framesPerSecond} FPS</span>
-                  <span>{job.settings.generateAudio ? "有声" : "无声"}</span>
+          {jobs.map((job) => {
+            const generatedAtLabel = jobGeneratedAtLabel(job);
+            const applyAction = jobGeneratedVideoApplyAction(job, pets);
+            const isApplying = applyingJobIds.has(job.jobId);
+
+            return (
+              <div className="job-row" key={job.jobId}>
+                <div>
+                  <strong>{jobDisplayName(job, slots)}</strong>
+                  {generatedAtLabel ? <p>{generatedAtLabel}</p> : null}
                 </div>
-              ) : null}
-              {job.resultUrl ? (
-                <a className="result-link" href={job.resultUrl} rel="noreferrer" target="_blank">
-                  打开生成视频
-                </a>
-              ) : null}
-              {job.prompt ? (
-                <details className="prompt-details job-prompt">
-                  <summary>查看本次提示词</summary>
-                  <pre>{job.prompt}</pre>
-                </details>
-              ) : null}
-            </div>
-          ))}
+                <span className={job.status === "succeeded" ? "badge" : "badge sky"}>
+                  {labelForJobStatus(job.status)}
+                </span>
+                <JobProgress job={job} />
+                {job.settings ? (
+                  <div className="job-settings">
+                    <span>{job.settings.durationSeconds}s</span>
+                    <span>{job.settings.resolution}</span>
+                    <span>{job.settings.ratio}</span>
+                    <span>{job.settings.framesPerSecond} FPS</span>
+                    <span>{job.settings.generateAudio ? "有声" : "无声"}</span>
+                  </div>
+                ) : null}
+                {applyAction.kind !== "hidden" ? (
+                  <button
+                    className={
+                      applyAction.kind === "available"
+                        ? "button secondary job-apply-button"
+                        : "button ghost job-apply-button"
+                    }
+                    disabled={applyAction.kind !== "available" || isApplying}
+                    title={applyAction.kind === "unavailable" ? applyAction.reason : undefined}
+                    type="button"
+                    onClick={() => onApplyGeneratedVideo(job)}
+                  >
+                    {isApplying ? "应用中" : applyAction.label}
+                  </button>
+                ) : null}
+                {job.prompt ? (
+                  <details className="prompt-details job-prompt">
+                    <summary>查看本次提示词</summary>
+                    <pre>{job.prompt}</pre>
+                  </details>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
@@ -1063,10 +1427,6 @@ function BillingTab({ user, jobs }: { user: CurrentUser; jobs: GenerationJob[] }
       </div>
     </section>
   );
-}
-
-function StatusBanner({ message }: { message: StatusMessage }) {
-  return <div className={`status-banner ${message.tone}`}>{message.text}</div>;
 }
 
 function JobProgress({ job, compact = false }: { job: GenerationJob; compact?: boolean }) {
@@ -1117,26 +1477,6 @@ function PanelTitle({
       <div>
         <h3>{title}</h3>
         <p>{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
-function Step({
-  number,
-  title,
-  text
-}: {
-  number: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="step">
-      <span className="step-number">{number}</span>
-      <div>
-        <strong>{title}</strong>
-        <p>{text}</p>
       </div>
     </div>
   );

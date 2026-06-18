@@ -179,11 +179,12 @@ final class StatusBarController: NSObject {
 
         let renameItem = NSMenuItem(title: "重命名宠物", action: nil, keyEquivalent: "")
         renameItem.submenu = makeRenamePetMenu()
+        renameItem.isEnabled = settingsStore.petCount > 0
         menu.addItem(renameItem)
 
         let removeItem = NSMenuItem(title: "删除宠物", action: nil, keyEquivalent: "")
         removeItem.submenu = makeRemovePetMenu()
-        removeItem.isEnabled = settingsStore.petCount > 1
+        removeItem.isEnabled = settingsStore.petCount > 0
         menu.addItem(removeItem)
 
         return menu

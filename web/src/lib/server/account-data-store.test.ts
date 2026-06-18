@@ -1,0 +1,637 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import * as accountDataState from "../account-data-state.ts";
+import {
+  addFriendToState,
+  adjustUserCreditsInState,
+  createGenerationJobInState,
+  createMockAccountDataState,
+  createPetInState,
+  deletePetFromState,
+  findActiveGenerationJobInState,
+  loadMockAccountDataSnapshot,
+  normalizePetAssets,
+  removeFriendFromState,
+  updateGenerationJobInState,
+  updatePetImagesInState,
+  updatePetNameInState,
+  updateUserProfileInState
+} from "../account-data-state.ts";
+import type { CurrentUser, Pet, PetAsset } from "../types.ts";
+
+const account: CurrentUser = {
+  id: "user_demo",
+  name: "栗子主人",
+  email: "demo@desktop.pet",
+  credits: 10120
+};
+
+const friendAccount: CurrentUser = {
+  id: "friend_1",
+  name: "Mika",
+  email: "mika@desktop.pet",
+  credits: 0
+};
+
+const ownPet: Pet = {
+  id: "pet_orange",
+  petNumber: "CAT-20260616-0001",
+  ownerUserId: "user_demo",
+  currentHostUserId: "user_demo",
+  name: "栗子",
+  type: "cat",
+  status: "在我的桌面",
+  materialsReady: 0,
+  mood: "好奇",
+  host: "me",
+  ownership: "owned",
+  locationStatus: "at_owner_desktop",
+  sourceImageUrl: null,
+  frontImageUrl: null
+};
+
+const hostedPet: Pet = {
+  id: "pet_hosted",
+  petNumber: "CAT-20260616-0002",
+  ownerUserId: "friend_1",
+  currentHostUserId: "user_demo",
+  name: "奶盖",
+  type: "cat",
+  status: "寄养在我的桌面",
+  materialsReady: 0,
+  mood: "开心",
+  host: "me",
+  ownership: "hosted",
+  locationStatus: "at_owner_desktop",
+  sourceImageUrl: null,
+  frontImageUrl: null
+};
+
+const otherPet: Pet = {
+  id: "pet_other",
+  petNumber: "CAT-20260616-0003",
+  ownerUserId: "other_user",
+  currentHostUserId: "other_user",
+  name: "路过猫",
+  type: "cat",
+  status: "不属于当前账号",
+  materialsReady: 0,
+  mood: "安静",
+  host: "me",
+  ownership: "owned",
+  locationStatus: "at_owner_desktop",
+  sourceImageUrl: null,
+  frontImageUrl: null
+};
+
+test("mock account snapshot only exposes owned or hosted pets", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet, hostedPet, otherPet],
+    assets: [
+      {
+        petId: "pet_orange",
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/orange-idle.mp4"
+      },
+      {
+        petId: "pet_hosted",
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/hosted-idle.mp4"
+      },
+      {
+        petId: "pet_other",
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/other-idle.mp4"
+      }
+    ]
+  });
+
+  const snapshot = loadMockAccountDataSnapshot(account, state);
+
+  assert.deepEqual(
+    snapshot.pets.map((pet) => pet.id),
+    ["pet_orange", "pet_hosted"]
+  );
+  assert.deepEqual(
+    snapshot.assets.map((asset) => asset.petId),
+    ["pet_orange", "pet_hosted"]
+  );
+});
+
+test("updateUserProfileInState persists the display name in account snapshots", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: []
+  });
+
+  const updatedUser = updateUserProfileInState(state, account, {
+    name: "  自定义主人  "
+  });
+  const snapshot = loadMockAccountDataSnapshot(account, state);
+
+  assert.equal(updatedUser.name, "自定义主人");
+  assert.equal(snapshot.user.name, "自定义主人");
+  assert.throws(
+    () => updateUserProfileInState(state, account, { name: "   " }),
+    /DISPLAY_NAME_REQUIRED/
+  );
+});
+
+test("adjustUserCreditsInState applies signed admin deltas and keeps balances nonnegative", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [],
+    assets: []
+  });
+
+  const added = adjustUserCreditsInState(state, {
+    userId: account.id,
+    amount: 100,
+    reason: "客服补偿"
+  });
+  const deducted = adjustUserCreditsInState(state, {
+    userId: account.id,
+    amount: -20000,
+    reason: "异常扣回"
+  });
+
+  assert.equal(added.previousBalance, 10120);
+  assert.equal(added.balance, 10220);
+  assert.equal(added.amount, 100);
+  assert.equal(added.reason, "客服补偿");
+  assert.equal(deducted.previousBalance, 10220);
+  assert.equal(deducted.balance, 0);
+  assert.equal(state.users[0]?.credits, 0);
+});
+
+test("adjustUserCreditsInState validates user, amount, and reason", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [],
+    assets: []
+  });
+
+  assert.throws(
+    () => adjustUserCreditsInState(state, { userId: "missing", amount: 10, reason: "补偿" }),
+    /USER_NOT_FOUND/
+  );
+  assert.throws(
+    () => adjustUserCreditsInState(state, { userId: account.id, amount: 0, reason: "补偿" }),
+    /CREDIT_ADJUSTMENT_AMOUNT_REQUIRED/
+  );
+  assert.throws(
+    () => adjustUserCreditsInState(state, { userId: account.id, amount: 10, reason: "   " }),
+    /CREDIT_ADJUSTMENT_REASON_REQUIRED/
+  );
+});
+
+test("deletePetFromState cascades pet assets and protects other accounts", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet, hostedPet, otherPet],
+    assets: [
+      { petId: "pet_orange", slot: "idle_loop", status: "ready", videoUrl: "https://example.com/idle.mp4" },
+      { petId: "pet_orange", slot: "sleep_loop", status: "ready", videoUrl: "https://example.com/sleep.mp4" },
+      { petId: "pet_other", slot: "idle_loop", status: "ready", videoUrl: "https://example.com/other.mp4" }
+    ]
+  });
+
+  const result = deletePetFromState(state, account, "pet_orange");
+
+  assert.deepEqual(result, { deletedPetId: "pet_orange", deletedAssets: 2 });
+  assert.deepEqual(
+    state.pets.map((pet) => pet.id),
+    ["pet_hosted", "pet_other"]
+  );
+  assert.deepEqual(
+    state.assets.map((asset) => asset.petId),
+    ["pet_other"]
+  );
+
+  assert.throws(() => deletePetFromState(state, account, "pet_other"), /PET_NOT_FOUND/);
+});
+
+test("updatePetNameInState persists owned pet names in account snapshots", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet, hostedPet, otherPet],
+    assets: []
+  });
+
+  const updatedPet = updatePetNameInState(state, account, {
+    petId: ownPet.id,
+    name: "  豆沙  "
+  });
+  const snapshot = loadMockAccountDataSnapshot(account, state);
+
+  assert.equal(updatedPet.name, "豆沙");
+  assert.equal(snapshot.pets.find((pet) => pet.id === ownPet.id)?.name, "豆沙");
+  assert.throws(
+    () => updatePetNameInState(state, account, { petId: ownPet.id, name: "   " }),
+    /PET_NAME_REQUIRED/
+  );
+  assert.throws(
+    () => updatePetNameInState(state, account, { petId: hostedPet.id, name: "不能改" }),
+    /PET_NOT_FOUND/
+  );
+});
+
+test("createPetInState adds an owned desktop pet with the next account name and pet number", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: []
+  });
+
+  const pet = createPetInState(state, account, {
+    id: "pet_new",
+    now: new Date("2026-06-17T00:00:00.000Z")
+  });
+
+  assert.equal(pet.id, "pet_new");
+  assert.equal(pet.petNumber, "CAT-20260617-0001");
+  assert.equal(pet.name, "猫咪 2");
+  assert.equal(pet.ownerUserId, account.id);
+  assert.equal(pet.currentHostUserId, account.id);
+  assert.equal(pet.status, "在我的桌面");
+  assert.equal(state.pets.at(-1)?.id, "pet_new");
+});
+
+test("addFriendToState adds a friend by email and counts pets hosted by that friend", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [
+      ownPet,
+      {
+        ...ownPet,
+        id: "pet_hosted_by_friend",
+        petNumber: "CAT-20260617-0002",
+        currentHostUserId: friendAccount.id
+      }
+    ],
+    assets: [],
+    friends: []
+  });
+
+  const friend = addFriendToState(state, account, " MIKA@desktop.pet ");
+
+  assert.deepEqual(friend, {
+    id: friendAccount.id,
+    name: "Mika",
+    status: "离线",
+    hostedPets: 1
+  });
+  assert.equal(state.friends.length, 1);
+  assert.equal(addFriendToState(state, account, "mika@desktop.pet").id, friendAccount.id);
+  assert.equal(state.friends.length, 1);
+});
+
+test("removeFriendFromState deletes the friend relation", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [],
+    assets: [],
+    friends: [{ id: friendAccount.id, name: "Mika", status: "离线", hostedPets: 0 }]
+  });
+
+  assert.deepEqual(removeFriendFromState(state, friendAccount.id), {
+    deletedFriendId: friendAccount.id
+  });
+  assert.deepEqual(state.friends, []);
+  assert.throws(() => removeFriendFromState(state, friendAccount.id), /FRIEND_NOT_FOUND/);
+});
+
+test("normalizePetAssets only marks ready assets that have a real video URL", () => {
+  const assets: PetAsset[] = normalizePetAssets([
+    { petId: "pet_orange", slot: "idle_loop", status: "ready", videoUrl: "https://example.com/idle.mp4" },
+    { petId: "pet_orange", slot: "sleep_loop", status: "ready", videoUrl: null },
+    { petId: "pet_orange", slot: "click_react", status: "generating", videoUrl: null }
+  ]);
+
+  assert.deepEqual(
+    assets.map((asset) => [asset.slot, asset.status]),
+    [
+      ["idle_loop", "ready"],
+      ["sleep_loop", "missing"],
+      ["click_react", "generating"]
+    ]
+  );
+});
+
+test("updating a pet source image preserves ready assets and retires active jobs", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet, otherPet],
+    assets: [
+      { petId: ownPet.id, slot: "idle_loop", status: "ready", videoUrl: "https://example.com/old-idle.mp4" },
+      { petId: ownPet.id, slot: "sleep_loop", status: "ready", videoUrl: "https://example.com/old-sleep.mp4" },
+      { petId: otherPet.id, slot: "idle_loop", status: "ready", videoUrl: "https://example.com/other-idle.mp4" }
+    ],
+    generationJobs: [
+      {
+        jobId: "jimeng_running",
+        type: "action_video",
+        status: "running",
+        cost: 18,
+        petId: ownPet.id,
+        slot: "idle_loop",
+        resultUrl: null
+      },
+      {
+        jobId: "jimeng_done",
+        type: "action_video",
+        status: "succeeded",
+        cost: 14,
+        petId: ownPet.id,
+        slot: "sleep_loop",
+        resultUrl: "https://example.com/old-sleep.mp4"
+      }
+    ]
+  });
+
+  const updatedPet = updatePetImagesInState(state, account, {
+    petId: ownPet.id,
+    imageUrl: "https://example.com/new-source.png"
+  });
+
+  assert.equal(updatedPet.frontImageUrl, "https://example.com/new-source.png");
+  assert.deepEqual(state.assets, [
+    { petId: ownPet.id, slot: "idle_loop", status: "ready", videoUrl: "https://example.com/old-idle.mp4" },
+    { petId: ownPet.id, slot: "sleep_loop", status: "ready", videoUrl: "https://example.com/old-sleep.mp4" },
+    { petId: otherPet.id, slot: "idle_loop", status: "ready", videoUrl: "https://example.com/other-idle.mp4" }
+  ]);
+  assert.equal(state.generationJobs[0]?.status, "expired");
+  assert.equal(state.generationJobs[1]?.status, "succeeded");
+  assert.equal(
+    findActiveGenerationJobInState(state, account, {
+      petId: ownPet.id,
+      slot: "idle_loop",
+      type: "action_video"
+    }),
+    null
+  );
+
+  const newJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_new_source",
+    type: "action_video",
+    status: "queued",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    resultUrl: null,
+    sourceImageUrl: "https://example.com/new-source.png"
+  });
+
+  assert.equal(newJob.jobId, "jimeng_new_source");
+});
+
+test("active generation jobs are reused for the same pet slot", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: []
+  });
+  const firstJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_first",
+    type: "action_video",
+    status: "queued",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 0,
+    resultUrl: null,
+    createdAt: "2026-06-17T00:00:00.000Z"
+  });
+  const secondJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_second",
+    type: "action_video",
+    status: "queued",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 0,
+    resultUrl: null,
+    createdAt: "2026-06-17T00:00:01.000Z"
+  });
+
+  assert.equal(secondJob.jobId, firstJob.jobId);
+  assert.equal(state.generationJobs.length, 1);
+  assert.equal(state.users[0]?.credits, 10102);
+  assert.deepEqual(state.assets, [
+    {
+      petId: ownPet.id,
+      slot: "idle_loop",
+      status: "generating",
+      videoUrl: null
+    }
+  ]);
+});
+
+test("stale active generation jobs expire and release the material slot", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: []
+  });
+  const runningJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_stale",
+    type: "action_video",
+    status: "queued",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 0,
+    resultUrl: null,
+    createdAt: "2026-06-18T01:00:00.000Z"
+  });
+
+  assert.equal(typeof accountDataState.expireStaleGenerationJobsInState, "function");
+
+  const expiredJobs = accountDataState.expireStaleGenerationJobsInState(state, account, {
+    now: new Date("2026-06-18T01:16:00.000Z"),
+    timeoutMs: 15 * 60 * 1000
+  });
+
+  assert.deepEqual(expiredJobs.map((job) => job.jobId), [runningJob.jobId]);
+  assert.equal(state.generationJobs[0]?.status, "expired");
+  assert.equal(state.generationJobs[0]?.progress, 100);
+  assert.match(state.generationJobs[0]?.message ?? "", /超时/);
+  assert.equal(state.users[0]?.credits, account.credits);
+  assert.deepEqual(state.assets, [
+    {
+      petId: ownPet.id,
+      slot: "idle_loop",
+      status: "failed",
+      videoUrl: null
+    }
+  ]);
+  assert.equal(
+    findActiveGenerationJobInState(state, account, {
+      petId: ownPet.id,
+      slot: "idle_loop",
+      type: "action_video"
+    }),
+    null
+  );
+});
+
+test("default provider generation timeout allows longer paid video jobs", () => {
+  assert.equal(accountDataState.defaultGenerationJobTimeoutMs, 30 * 60 * 1000);
+});
+
+test("default provider generation timeout does not expire ten-minute video jobs", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: []
+  });
+  createGenerationJobInState(state, account, {
+    jobId: "jimeng_recent",
+    type: "action_video",
+    status: "running",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 94,
+    resultUrl: null,
+    createdAt: "2026-06-18T01:00:00.000Z"
+  });
+
+  const expiredJobs = accountDataState.expireStaleGenerationJobsInState(state, account, {
+    now: new Date("2026-06-18T01:11:00.000Z")
+  });
+
+  assert.deepEqual(expiredJobs, []);
+  assert.equal(state.generationJobs[0]?.status, "running");
+  assert.equal(state.users[0]?.credits, account.credits - 18);
+});
+
+test("late provider success can recover an expired material without another debit", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: [
+      {
+        petId: ownPet.id,
+        slot: "idle_loop",
+        status: "failed",
+        videoUrl: null
+      }
+    ]
+  });
+  const expiredJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_late_success",
+    type: "action_video",
+    status: "running",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 94,
+    resultUrl: null,
+    createdAt: "2026-06-18T01:00:00.000Z"
+  });
+
+  updateGenerationJobInState(state, account, {
+    ...expiredJob,
+    status: "expired",
+    message: "Timed out"
+  });
+  const refundedCredits = state.users[0]?.credits;
+
+  updateGenerationJobInState(state, account, {
+    ...expiredJob,
+    status: "succeeded",
+    progress: 100,
+    resultUrl: "https://example.com/recovered.mp4",
+    message: "Recovered after timeout"
+  });
+
+  assert.equal(state.generationJobs[0]?.status, "succeeded");
+  assert.equal(state.assets[0]?.status, "ready");
+  assert.equal(state.assets[0]?.videoUrl, "https://example.com/recovered.mp4");
+  assert.equal(state.users[0]?.credits, refundedCredits);
+});
+
+test("failed active generation jobs refund the debited credits once", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: []
+  });
+  const runningJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_failed",
+    type: "action_video",
+    status: "queued",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 0,
+    resultUrl: null,
+    createdAt: "2026-06-18T01:00:00.000Z"
+  });
+
+  assert.equal(state.users[0]?.credits, account.credits - 18);
+
+  updateGenerationJobInState(state, account, {
+    ...runningJob,
+    status: "failed",
+    message: "Provider failed"
+  });
+  updateGenerationJobInState(state, account, {
+    ...runningJob,
+    status: "failed",
+    message: "Provider failed again"
+  });
+
+  assert.equal(state.users[0]?.credits, account.credits);
+});
+
+test("failed regeneration preserves the previously ready material", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [ownPet],
+    assets: [
+      {
+        petId: ownPet.id,
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/old-idle.mp4"
+      }
+    ]
+  });
+
+  const runningJob = createGenerationJobInState(state, account, {
+    jobId: "jimeng_retry",
+    type: "action_video",
+    status: "queued",
+    cost: 18,
+    petId: ownPet.id,
+    slot: "idle_loop",
+    progress: 0,
+    resultUrl: null,
+    createdAt: "2026-06-17T00:00:00.000Z"
+  });
+
+  assert.equal(state.assets[0]?.videoUrl, "https://example.com/old-idle.mp4");
+  assert.equal(state.assets[0]?.status, "ready");
+
+  updateGenerationJobInState(state, account, {
+    ...runningJob,
+    status: "failed",
+    message: "参考图不符合要求"
+  });
+
+  assert.deepEqual(state.assets, [
+    {
+      petId: ownPet.id,
+      slot: "idle_loop",
+      status: "ready",
+      videoUrl: "https://example.com/old-idle.mp4"
+    }
+  ]);
+});

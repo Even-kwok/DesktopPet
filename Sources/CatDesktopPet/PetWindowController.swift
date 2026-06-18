@@ -69,6 +69,23 @@ final class PetWindowController: NSObject, NSWindowDelegate {
         apply(state: stateMachine.state)
     }
 
+    func prepareForSystemSleep() {
+        stopMouseMonitor()
+        stopSleepTimer()
+        stopIdleActionTimer()
+        petView?.videoPlayerView.prepareForSystemSleep()
+    }
+
+    func resumeAfterSystemWake() {
+        guard isVisible else {
+            return
+        }
+
+        panel?.orderFrontRegardless()
+        apply(state: stateMachine.state)
+        petView?.videoPlayerView.resumeAfterSystemWake()
+    }
+
     func bringToFront() {
         panel?.orderFrontRegardless()
     }

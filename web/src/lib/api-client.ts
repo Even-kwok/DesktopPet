@@ -1,12 +1,17 @@
 import type {
   BackendStatus,
+  CurrentUser,
   DesktopPetBundle,
   DesktopPetBundlePublishResponse,
   GenerationJob,
+  Pet,
+  PetCreateResponse,
+  PetDeleteResponse,
+  PetMaterialSaveResponse,
   SourceImageUploadResponse,
+  StudioBootstrap,
   UploadUrlResponse
 } from "@/lib/types";
-import type { VideoGenerationSettings } from "@/lib/generation-settings";
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -85,6 +90,15 @@ export function getBackendStatus() {
   return requestJSON<BackendStatus>("/api/backend/status");
 }
 
+export function updateAccountProfile(input: {
+  name: string;
+}) {
+  return requestJSON<{ user: CurrentUser }>("/api/account/profile", {
+    method: "PATCH",
+    body: input
+  });
+}
+
 export function createFrontImageJob(input: {
   petId: string;
   sourceImageUrl: string;
@@ -100,7 +114,6 @@ export function createActionVideoJob(input: {
   slot: string;
   sourceImageUrl?: string;
   lastImageUrl?: string;
-  settings?: VideoGenerationSettings;
 }) {
   return requestJSON<GenerationJob>("/api/generation/action-video", {
     method: "POST",
@@ -112,11 +125,63 @@ export function getGenerationJob(jobId: string) {
   return requestJSON<GenerationJob>(`/api/jobs/${encodeURIComponent(jobId)}`);
 }
 
+export function getStudioBootstrap() {
+  return requestJSON<StudioBootstrap>("/api/studio/bootstrap");
+}
+
 export function publishDesktopPetBundle(bundle: DesktopPetBundle) {
   return requestJSON<DesktopPetBundlePublishResponse>("/api/desktop/pets", {
     method: "POST",
     body: bundle
   });
+}
+
+export function createPet(input: { name?: string } = {}) {
+  return requestJSON<PetCreateResponse>("/api/pets", {
+    method: "POST",
+    body: input
+  });
+}
+
+export function deletePet(input: {
+  petId: string;
+  confirmation: "永久删除";
+}) {
+  return requestJSON<PetDeleteResponse>(`/api/pets/${encodeURIComponent(input.petId)}`, {
+    method: "DELETE",
+    body: {
+      confirmation: input.confirmation
+    }
+  });
+}
+
+export function updatePetName(input: {
+  petId: string;
+  name: string;
+}) {
+  return requestJSON<{ pet: Pet }>(`/api/pets/${encodeURIComponent(input.petId)}`, {
+    method: "PATCH",
+    body: {
+      name: input.name
+    }
+  });
+}
+
+export function savePetMaterial(input: {
+  petId: string;
+  slot: string;
+  videoUrl: string;
+}) {
+  return requestJSON<PetMaterialSaveResponse>(
+    `/api/pets/${encodeURIComponent(input.petId)}/materials`,
+    {
+      method: "PATCH",
+      body: {
+        slot: input.slot,
+        videoUrl: input.videoUrl
+      }
+    }
+  );
 }
 
 export function sendHostingRequest(input: {

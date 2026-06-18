@@ -123,6 +123,26 @@ final class VideoPlayerView: NSView {
         startDisplayTimerIfNeeded()
     }
 
+    func prepareForSystemSleep() {
+        player?.pause()
+        displayTimer?.invalidate()
+        displayTimer = nil
+    }
+
+    func resumeAfterSystemWake() {
+        guard let currentURL else {
+            return
+        }
+
+        let url = currentURL
+        let mode = playbackMode
+        let playbackEnded = onPlaybackEnded
+
+        stopCurrentVideo()
+        loadVideo(from: url, mode: mode, onPlaybackEnded: playbackEnded)
+        play()
+    }
+
     func pause() {
         player?.pause()
         displayTimer?.invalidate()

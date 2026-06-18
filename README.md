@@ -34,8 +34,11 @@ Open `http://localhost:3000`.
 Current web MVP includes:
 
 - Game-like material studio UI with selectable pets, portrait preview, material cards, jobs, friends, and billing mock panels.
+- User login page at `/login` and admin login page at `/admin/login`, with Supabase Auth when configured and signed mock cookies for local preview.
 - Pet material slot cards matching the Mac app slots.
 - Interactive mock upload, credit deduction, generation polling, friend hosting, and pet recall flows.
+- Desktop account sync bundle with account summary, pet numbers, owner/host fields, display state, and ready material URLs.
+- Mock admin overview API for users, pets, materials, credits, recharge records, friendships, hosting requests, and editable grouped material configuration.
 - Mock API routes under `web/src/app/api` with a typed client in `web/src/lib/api-client.ts`.
 - Backend status detection for mock vs Supabase mode, plus a source-image upload route ready for Supabase Storage.
 - Supabase adapter placeholder for the next backend step.
@@ -55,7 +58,8 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
   - 重置位置
   - 退出
 - Transparent borderless floating cat panel.
-- Native material studio window for image upload, front-image confirmation, and state-video generation placeholders.
+- Compact native account window for placeholder login, web sync, pet switching, friend hosting, and recall.
+- Local state-video selection stays in the status bar menu for desktop playback testing.
 - Fixed initial panel size: `150x150`.
 - Looping video playback.
 - Simple green-screen removal using a Core Image color cube threshold.
@@ -80,12 +84,16 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
 - `ChromaKeyRenderer`: Core Image green-screen removal.
 - `PetStateMachine`: MVP state transitions.
 - `SettingsStore`: UserDefaults persistence and video bookmarks.
+- `DesktopAccountSessionStore`: local placeholder account session used before Supabase Auth is wired into the Mac app.
+- `DesktopPetSyncClient`: account-aware desktop bundle fetch, ready video download, and local material registration.
 
 ## Notes
 
 - Click-through mode lets mouse events pass to apps behind the pet window. Turn it off from the menu to click the pet again.
-- The native material studio stays intentionally simple. Registration, login, credits, subscriptions, image generation, and video generation now belong to the web studio.
-- The web studio is still mock-first: front-image generation and state-video generation show progress and deduct local prototype credits, but do not call external APIs yet.
+- The native window stays intentionally small. Registration, credits, subscriptions, image generation, and video generation belong to the web studio.
+- The Mac app currently uses an account placeholder. Click `登录`, then `同步` to pull the desktop sync bundle. `退出` clears only the placeholder account and keeps local video references.
+- The web studio is still mock-first when Supabase env vars are missing. Use `demo@desktop.pet / 123456` for the user workspace and `admin@desktop.pet / 123456` for the admin page. Real deployments should use Supabase Auth; admin access comes from Supabase `app_metadata.role = admin` or the server-only `ADMIN_EMAILS` allowlist.
+- Front-image generation and state-video generation show progress and deduct local prototype credits, but do not call external APIs yet unless provider env vars are configured.
 - Future web API wiring points:
   - `/api/upload-url`: create a signed upload URL in Supabase Storage.
   - `/api/source-images`: upload original pet images into Supabase Storage.
@@ -94,12 +102,15 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
   - `/api/jobs/[jobId]`: poll queued generation jobs.
   - `/api/pets/[petId]/materials`: register generated or uploaded videos for a pet.
   - `/api/hosting/*`: friend hosting request, accept/decline/return, and recall flows.
+  - `/api/admin/overview`: admin data overview for future back-office pages.
 - Future Mac sync points:
   - Download confirmed web-generated videos into local app storage.
   - Register downloaded videos with `SettingsStore.saveVideoURL(_:for:petIndex:)`.
+  - Only display pets whose desktop bundle `displayState` is `active`; pets hosted away can stay in the account data without appearing locally.
   - Use desktop-side friend/hosting UI only for pet placement and sync, not payments or generation.
+- Every cloud pet should have a stable UUID and a human-facing `pet_number` for support/admin lookup. Ownership is split into permanent owner and current host.
 - The chroma key is intentionally simple for the MVP. Edge cleanup and feathering can be added later.
-- `选择状态视频` contains separate upload slots for the current pet slots.
+- `选择状态视频` contains separate upload slots for the current pet slots and is intentionally unchanged for testing.
 - `删除状态视频` clears a selected slot from the app without deleting the original video file.
 - Each pet has its own state videos. Menu labels are Chinese, and the internal keys are:
   - `idle_loop`: 待机循环
