@@ -21,6 +21,9 @@ enum PetActionSlot: String, CaseIterable, Codable {
     case clingy = "clingy"
     case aloof = "aloof"
     case bellyUp = "belly_up"
+    case lookAtCamera = "look_at_camera"
+    case salaryCatStinkyDance = "salary_cat_stinky_dance"
+    case headBobDance = "head_bob_dance"
     case dragLoop = "drag_loop"
     case sleepLoop = "sleep_loop"
 
@@ -64,6 +67,12 @@ enum PetActionSlot: String, CaseIterable, Codable {
             "高冷"
         case .bellyUp:
             "躺下翻肚皮"
+        case .lookAtCamera:
+            "看镜头"
+        case .salaryCatStinkyDance:
+            "跳月薪喵散屁舞"
+        case .headBobDance:
+            "摇头晃脑舞"
         case .dragLoop:
             "拖拽循环（备用）"
         case .sleepLoop:
@@ -100,7 +109,10 @@ enum PetActionSlot: String, CaseIterable, Codable {
         .hungryMeow,
         .clingy,
         .aloof,
-        .bellyUp
+        .bellyUp,
+        .lookAtCamera,
+        .salaryCatStinkyDance,
+        .headBobDance
     ]
 
     static func nearbyPetInteractionSlots(for side: PetInteractionSide) -> [PetActionSlot] {

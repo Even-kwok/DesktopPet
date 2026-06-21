@@ -140,12 +140,13 @@ button:disabled {
 }
 
 .account-name-row {
-  position: relative;
   width: fit-content;
-  padding-right: 22px;
+  max-width: 100%;
 }
 
 .account-name-row strong {
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -153,20 +154,7 @@ button:disabled {
 }
 
 .account-edit-button {
-  position: absolute;
-  top: -5px;
-  right: 0;
-  width: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  padding: 0;
-  border: 2px solid var(--panel);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--accent);
-  font-size: 12px;
-  line-height: 1;
-  box-shadow: 0 5px 14px rgba(255, 91, 113, 0.2);
+  margin-top: 1px;
 }
 
 .profile-name-input {
@@ -286,6 +274,40 @@ button:disabled {
 .button.ghost {
   background: transparent;
   color: var(--muted);
+}
+
+.icon-edit-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 22px;
+  inline-size: 22px;
+  block-size: 22px;
+  min-inline-size: 22px;
+  min-block-size: 22px;
+  padding: 0;
+  border: 2px solid var(--panel);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  box-shadow: 0 5px 14px rgba(255, 91, 113, 0.2);
+}
+
+.icon-edit-button:hover {
+  background: #fff7f8;
+  color: var(--accent-strong);
+}
+
+.icon-edit-button:focus-visible {
+  outline: 3px solid rgba(255, 104, 120, 0.28);
+  outline-offset: 2px;
+}
+
+.icon-edit-button span {
+  line-height: 1;
+  transform: translateY(-0.5px);
 }
 
 .signed-out-board {
@@ -446,7 +468,7 @@ button:disabled {
 }
 
 .pet-chip-row.editable {
-  margin-right: 4px;
+  margin-right: 0;
 }
 
 .pet-chip {
@@ -464,20 +486,7 @@ button:disabled {
 }
 
 .pet-rename-button {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  width: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  padding: 0;
-  border: 2px solid var(--panel);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--accent);
-  font-size: 12px;
-  line-height: 1;
-  box-shadow: 0 5px 14px rgba(255, 91, 113, 0.2);
+  margin-left: -2px;
 }
 
 .pet-name-input {
@@ -1434,6 +1443,53 @@ select.input {
   gap: 16px;
 }
 
+.admin-material-create-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafffd;
+}
+
+.admin-material-create-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-material-create-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.admin-material-create-grid {
+  display: grid;
+  grid-template-columns: 130px 150px 140px 82px 92px 92px minmax(280px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.admin-material-create-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.admin-material-create-grid .input {
+  width: 100%;
+}
+
+.admin-material-create-prompt textarea {
+  min-height: 42px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
 .admin-material-group {
   display: grid;
   gap: 10px;
@@ -1482,7 +1538,7 @@ select.input {
 
 .admin-material-edit-table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 1260px;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -1581,7 +1637,7 @@ select.input {
 .admin-material-row-actions {
   display: grid;
   gap: 6px;
-  min-width: 76px;
+  min-width: 88px;
 }
 
 .admin-save-state {
@@ -1693,6 +1749,15 @@ select.input {
 
   .admin-material-facts {
     grid-template-columns: 1fr;
+  }
+
+  .admin-material-create-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-material-create-prompt,
+  .admin-material-create-grid .button {
+    grid-column: 1 / -1;
   }
 
   .admin-backend-grid {

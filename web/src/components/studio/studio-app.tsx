@@ -830,7 +830,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
                 <strong>{user.name}</strong>
                 <button
                   aria-label={accountEditControlCopy.ariaLabel}
-                  className="button ghost tiny account-edit-button"
+                  className={`${accountEditControlCopy.className} account-edit-button`}
                   title={accountEditControlCopy.ariaLabel}
                   type="button"
                   onClick={() => setIsEditingProfile(true)}
@@ -1068,7 +1068,7 @@ function PetPanel({
               {editControlCopy ? (
                 <button
                   aria-label={editControlCopy.ariaLabel}
-                  className="button ghost tiny pet-rename-button"
+                  className={`${editControlCopy.className} pet-rename-button`}
                   title={editControlCopy.ariaLabel}
                   type="button"
                   onClick={() => beginPetNameEdit(item)}

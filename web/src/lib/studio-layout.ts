@@ -17,6 +17,7 @@ export function petPanelStats(_input: { readyCount: number }): PetPanelStat[] {
 function nameEditControlCopy(label: string, name: string) {
   return {
     ariaLabel: `${label}：${name}`,
+    className: "icon-edit-button",
     icon: "✎"
   };
 }

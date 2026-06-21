@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentAuthContext } from "@/lib/server/auth";
-import { updateAdminMaterialConfig } from "@/lib/server/material-library-store";
+import {
+  deleteAdminMaterialConfig,
+  MaterialLibraryMutationError,
+  updateAdminMaterialConfig
+} from "@/lib/server/material-library-store";
 import { materialGroups } from "@/lib/material-slots";
 
 export const runtime = "nodejs";
@@ -56,4 +60,36 @@ export async function PATCH(
   }
 
   return NextResponse.json(updated);
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  const auth = await getCurrentAuthContext();
+
+  if (!auth.user || !auth.isAdmin) {
+    return NextResponse.json(
+      { error: auth.user ? "ADMIN_REQUIRED" : "AUTH_REQUIRED" },
+      { status: auth.user ? 403 : 401 }
+    );
+  }
+
+  const { code } = await params;
+
+  try {
+    const deleted = await deleteAdminMaterialConfig(code);
+
+    if (!deleted) {
+      return NextResponse.json({ error: "MATERIAL_CONFIG_NOT_FOUND" }, { status: 404 });
+    }
+
+    return NextResponse.json(deleted);
+  } catch (error) {
+    if (error instanceof MaterialLibraryMutationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    return NextResponse.json({ error: "MATERIAL_CONFIG_DELETE_FAILED" }, { status: 500 });
+  }
 }

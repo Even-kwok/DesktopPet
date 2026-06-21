@@ -48,6 +48,16 @@ export type MaterialLibraryUpdate = {
   enabled?: boolean;
 };
 
+export type MaterialLibraryCreate = {
+  code: string;
+  name: string;
+  groupId: MaterialGroupId;
+  durationSeconds: number;
+  creditsPerSecond: number;
+  promptContent: string;
+  enabled?: boolean;
+};
+
 const defaultUpdatedAt = "2026-06-16T00:00:00.000Z";
 
 export function buildMaterialLibraryConfigs(
@@ -104,6 +114,55 @@ export function updateMaterialLibraryConfig(
     enabled: typeof patch.enabled === "boolean" ? patch.enabled : current.enabled,
     updatedAt: new Date().toISOString()
   });
+}
+
+export function createAdminMaterialLibraryConfig(
+  input: MaterialLibraryCreate,
+  groups: MaterialGroup[],
+  updatedAt = new Date().toISOString()
+): MaterialLibraryConfig {
+  const code = normalizeMaterialCode(input.code);
+  const name = cleanEditableText(input.name);
+  const promptContent = cleanPrompt(input.promptContent);
+
+  if (!code) {
+    throw new Error("INVALID_MATERIAL_CODE");
+  }
+
+  if (!name) {
+    throw new Error("INVALID_MATERIAL_NAME");
+  }
+
+  if (!promptContent) {
+    throw new Error("INVALID_MATERIAL_PROMPT");
+  }
+
+  return createMaterialLibraryConfig({
+    code,
+    name,
+    icon: "🐾",
+    group: groupForId(input.groupId, groups),
+    triggerLabel: triggerLabelForGroup(input.groupId),
+    durationSeconds: input.durationSeconds,
+    creditsPerSecond: input.creditsPerSecond,
+    promptContent,
+    enabled: input.enabled ?? false,
+    updatedAt
+  });
+}
+
+export function deleteMaterialLibraryConfig(configs: MaterialLibraryConfig[], code: string) {
+  const normalizedCode = normalizeMaterialCode(code);
+  const deleted = configs.find((config) => config.code === normalizedCode);
+
+  if (!deleted) {
+    return null;
+  }
+
+  return {
+    deleted,
+    configs: configs.filter((config) => config.code !== normalizedCode)
+  };
 }
 
 export function groupMaterialLibraryConfigs(
@@ -189,6 +248,34 @@ function groupForId(groupId: MaterialGroupId, groups: MaterialGroup[]) {
     name: group?.title ?? groupId,
     description: group?.description ?? ""
   };
+}
+
+export function normalizeMaterialCode(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_");
+
+  return normalized || null;
+}
+
+function triggerLabelForGroup(groupId: MaterialGroupId) {
+  switch (groupId) {
+    case "core":
+      return "默认循环";
+    case "pointer":
+      return "鼠标经过宠物";
+    case "nearbyPet":
+      return "另一只宠物靠近";
+    case "idleLife":
+      return "待机随机";
+    case "feeding":
+      return "条件触发";
+    case "reserved":
+      return "备用";
+  }
 }
 
 function rateForCost(costCredits: number, durationSeconds: number) {

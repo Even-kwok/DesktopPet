@@ -1,9 +1,13 @@
 import {
   buildMaterialLibraryConfigs,
+  createAdminMaterialLibraryConfig,
   createMaterialLibraryConfig,
+  deleteMaterialLibraryConfig,
+  normalizeMaterialCode,
   toPublicMaterialSlot,
   updateMaterialLibraryConfig,
   type MaterialLibraryConfig,
+  type MaterialLibraryCreate,
   type MaterialLibraryUpdate
 } from "@/lib/material-library-config";
 import { materialGroups, materialSlots, type MaterialGroupId } from "@/lib/material-slots";
@@ -21,6 +25,16 @@ type MaterialSlotDefinitionRow = {
   is_enabled: boolean;
   updated_at: string;
 };
+
+export class MaterialLibraryMutationError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "MaterialLibraryMutationError";
+  }
+}
 
 let mockMaterialLibraryConfigs: MaterialLibraryConfig[] | null = null;
 
@@ -78,12 +92,110 @@ export async function updateAdminMaterialConfig(code: string, patch: MaterialLib
   return updated;
 }
 
+export async function createAdminMaterialConfig(input: MaterialLibraryCreate) {
+  const backend = getBackendStatus();
+
+  if (backend.mode === "supabase") {
+    const created = await createSupabaseMaterialConfig(input);
+
+    if (created) {
+      return created;
+    }
+  }
+
+  const configs = getMockMaterialLibraryConfigs();
+  const created = buildAdminMaterialConfig(input);
+
+  if (configs.some((config) => config.code === created.code)) {
+    throw new MaterialLibraryMutationError("MATERIAL_CONFIG_ALREADY_EXISTS", 409);
+  }
+
+  mockMaterialLibraryConfigs = [...configs, created];
+
+  return created;
+}
+
+export async function deleteAdminMaterialConfig(code: string) {
+  const backend = getBackendStatus();
+
+  if (backend.mode === "supabase") {
+    const deleted = await deleteSupabaseMaterialConfig(code);
+
+    if (deleted) {
+      return deleted;
+    }
+  }
+
+  const deleted = deleteMaterialLibraryConfig(getMockMaterialLibraryConfigs(), code);
+
+  if (!deleted) {
+    return null;
+  }
+
+  mockMaterialLibraryConfigs = deleted.configs;
+
+  return { deletedCode: deleted.deleted.code };
+}
+
 function getMockMaterialLibraryConfigs() {
   if (!mockMaterialLibraryConfigs) {
     mockMaterialLibraryConfigs = buildMaterialLibraryConfigs(materialSlots, materialGroups);
   }
 
   return mockMaterialLibraryConfigs;
+}
+
+async function createSupabaseMaterialConfig(input: MaterialLibraryCreate) {
+  const supabase = getSupabaseAdminClient();
+  const configs = await listAdminMaterialLibraryConfigs();
+  const created = buildAdminMaterialConfig(input);
+
+  if (!supabase) {
+    return null;
+  }
+
+  if (configs.some((config) => config.code === created.code)) {
+    throw new MaterialLibraryMutationError("MATERIAL_CONFIG_ALREADY_EXISTS", 409);
+  }
+
+  const { data, error } = await supabase
+    .from("material_slot_definitions")
+    .insert({
+      slot: created.code,
+      name: created.name,
+      group_id: created.group.id,
+      trigger_label: created.trigger.label,
+      trigger_is_editable: false,
+      duration_seconds: created.durationSeconds,
+      credit_rate_per_second: created.creditsPerSecond,
+      prompt_template: created.promptContent,
+      generation_settings: created.generationSettings,
+      is_enabled: created.enabled,
+      sort_order: configs.length,
+      updated_at: created.updatedAt
+    })
+    .select(
+      "slot,name,group_id,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
+    )
+    .single();
+
+  if (error) {
+    throw new MaterialLibraryMutationError(error.message, 500);
+  }
+
+  return data ? materialConfigFromRow(data as MaterialSlotDefinitionRow) : null;
+}
+
+function buildAdminMaterialConfig(input: MaterialLibraryCreate) {
+  try {
+    return createAdminMaterialLibraryConfig(input, materialGroups);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("INVALID_MATERIAL_")) {
+      throw new MaterialLibraryMutationError(error.message, 400);
+    }
+
+    throw error;
+  }
 }
 
 async function loadSupabaseMaterialLibraryConfigs() {
@@ -142,6 +254,45 @@ async function updateSupabaseMaterialConfig(code: string, patch: MaterialLibrary
   }
 
   return materialConfigFromRow(data as MaterialSlotDefinitionRow);
+}
+
+async function deleteSupabaseMaterialConfig(code: string) {
+  const supabase = getSupabaseAdminClient();
+  const normalizedCode = normalizeMaterialCode(code);
+
+  if (!supabase || !normalizedCode) {
+    return null;
+  }
+
+  const current = await getAdminMaterialConfig(normalizedCode);
+
+  if (!current) {
+    return null;
+  }
+
+  const { count, error: countError } = await supabase
+    .from("pet_assets")
+    .select("id", { count: "exact", head: true })
+    .eq("slot", normalizedCode);
+
+  if (countError) {
+    throw new MaterialLibraryMutationError(countError.message, 500);
+  }
+
+  if ((count ?? 0) > 0) {
+    throw new MaterialLibraryMutationError("MATERIAL_CONFIG_IN_USE", 409);
+  }
+
+  const { error } = await supabase
+    .from("material_slot_definitions")
+    .delete()
+    .eq("slot", normalizedCode);
+
+  if (error) {
+    throw new MaterialLibraryMutationError(error.message, 500);
+  }
+
+  return { deletedCode: normalizedCode };
 }
 
 function materialConfigFromRow(row: MaterialSlotDefinitionRow): MaterialLibraryConfig {

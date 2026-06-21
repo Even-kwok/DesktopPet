@@ -56,7 +56,8 @@ extension PetActionSlot {
             .pointer
         case .headRubLeft, .headRubRight, .angrySwipeLeft, .angrySwipeRight:
             .nearbyPet
-        case .yawn, .lickBelly, .lickBack, .stretch, .happy, .disgusted, .clingy, .aloof, .bellyUp:
+        case .yawn, .lickBelly, .lickBack, .stretch, .happy, .disgusted, .clingy, .aloof, .bellyUp,
+             .lookAtCamera, .salaryCatStinkyDance, .headBobDance:
             .idleLife
         case .fullWashFace, .hungryMeow:
             .feeding
@@ -77,7 +78,8 @@ extension PetActionSlot {
             "鼠标经过宠物"
         case .headRubLeft, .headRubRight, .angrySwipeLeft, .angrySwipeRight:
             "另一只宠物靠近"
-        case .yawn, .lickBelly, .lickBack, .stretch, .happy, .disgusted, .clingy, .aloof, .bellyUp:
+        case .yawn, .lickBelly, .lickBack, .stretch, .happy, .disgusted, .clingy, .aloof, .bellyUp,
+             .lookAtCamera, .salaryCatStinkyDance, .headBobDance:
             "待机随机"
         case .fullWashFace:
             "吃饱后触发"

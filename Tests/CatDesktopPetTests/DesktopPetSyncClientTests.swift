@@ -94,6 +94,54 @@ final class DesktopPetSyncClientTests: XCTestCase {
         XCTAssertEqual(bundle.pets.first?.hasIdleLoopMaterial, false)
     }
 
+    func testDecodesLatestActionLibrarySlots() throws {
+        let json = """
+        {
+          "version": 1,
+          "generatedAt": "2026-06-21T08:00:00.000Z",
+          "pets": [
+            {
+              "id": "pet_orange",
+              "name": "栗子",
+              "type": "cat",
+              "avatarUrl": null,
+              "materials": [
+                {
+                  "slot": "look_at_camera",
+                  "name": "看镜头",
+                  "videoUrl": "https://example.com/look.mp4",
+                  "status": "ready"
+                },
+                {
+                  "slot": "salary_cat_stinky_dance",
+                  "name": "跳月薪喵散屁舞",
+                  "videoUrl": "https://example.com/dance.mp4",
+                  "status": "ready"
+                },
+                {
+                  "slot": "head_bob_dance",
+                  "name": "摇头晃脑舞",
+                  "videoUrl": "https://example.com/head-bob.mp4",
+                  "status": "ready"
+                }
+              ]
+            }
+          ]
+        }
+        """
+
+        let bundle = try JSONDecoder.desktopPetSync.decode(
+            DesktopPetBundle.self,
+            from: Data(json.utf8)
+        )
+        let slots = bundle.pets.first?.materials.map(\.slot)
+
+        XCTAssertEqual(slots, [.lookAtCamera, .salaryCatStinkyDance, .headBobDance])
+        XCTAssertEqual(PetActionSlot.lookAtCamera.displayName, "看镜头")
+        XCTAssertEqual(PetActionSlot.salaryCatStinkyDance.materialGroup, .idleLife)
+        XCTAssertEqual(PetActionSlot.headBobDance.triggerDescription, "待机随机")
+    }
+
     func testUnavailablePetIsNotDisplayableOnDesktopEvenWithIdleLoop() throws {
         let json = """
         {

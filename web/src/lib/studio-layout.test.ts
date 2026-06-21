@@ -43,6 +43,7 @@ test("pet panel does not render summary stat cards", () => {
 test("pet name edit control uses a compact pencil glyph with an accessible label", () => {
   assert.deepEqual(petNameEditControlCopy("栗子"), {
     ariaLabel: "编辑猫咪名字：栗子",
+    className: "icon-edit-button",
     icon: "✎"
   });
 });
@@ -50,6 +51,7 @@ test("pet name edit control uses a compact pencil glyph with an accessible label
 test("account name edit control uses a compact pencil glyph with an accessible label", () => {
   assert.deepEqual(accountNameEditControlCopy("栗子主人"), {
     ariaLabel: "编辑账号名称：栗子主人",
+    className: "icon-edit-button",
     icon: "✎"
   });
 });

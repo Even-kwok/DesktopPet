@@ -3,13 +3,25 @@
 import { useMemo, useState } from "react";
 import { materialCostLabel } from "@/lib/admin-material-table";
 import type { MaterialLibraryConfig } from "@/lib/material-library-config";
-import type { MaterialGroup } from "@/lib/material-slots";
+import type { MaterialGroup, MaterialGroupId } from "@/lib/material-slots";
 
 type SaveState = {
   code: string;
   tone: "saving" | "saved" | "error";
   text: string;
 } | null;
+
+type CreateMaterialDraft = {
+  code: string;
+  name: string;
+  groupId: MaterialGroupId;
+  durationSeconds: number;
+  creditsPerSecond: number;
+  promptContent: string;
+  enabled: boolean;
+};
+
+const libraryStateCode = "__library__";
 
 export function MaterialLibraryEditor({
   groups,
@@ -19,6 +31,7 @@ export function MaterialLibraryEditor({
   initialMaterials: MaterialLibraryConfig[];
 }) {
   const [materials, setMaterials] = useState(initialMaterials);
+  const [createDraft, setCreateDraft] = useState(() => createEmptyMaterialDraft(groups));
   const [saveState, setSaveState] = useState<SaveState>(null);
   const groupedMaterials = useMemo(
     () =>
@@ -35,6 +48,37 @@ export function MaterialLibraryEditor({
         material.code === code ? { ...material, ...patch } : material
       )
     );
+  }
+
+  function updateCreateDraft(patch: Partial<CreateMaterialDraft>) {
+    setCreateDraft((currentDraft) => ({ ...currentDraft, ...patch }));
+  }
+
+  async function createMaterial() {
+    setSaveState({ code: libraryStateCode, tone: "saving", text: "新增中" });
+
+    const response = await fetch("/api/admin/material-library", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(createDraft)
+    });
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setSaveState({
+        code: libraryStateCode,
+        tone: "error",
+        text: materialMutationMessage(payload?.error, "新增失败")
+      });
+      return;
+    }
+
+    const created = payload as MaterialLibraryConfig;
+    setMaterials((currentMaterials) => [...currentMaterials, created]);
+    setCreateDraft(createEmptyMaterialDraft(groups));
+    setSaveState({ code: libraryStateCode, tone: "saved", text: "已新增" });
   }
 
   async function saveMaterial(material: MaterialLibraryConfig) {
@@ -72,8 +116,135 @@ export function MaterialLibraryEditor({
     setSaveState({ code: material.code, tone: "saved", text: "已保存" });
   }
 
+  async function deleteMaterial(material: MaterialLibraryConfig) {
+    const confirmed = window.confirm(
+      `删除「${material.name}」后，用户端将不再看到这个素材配置。\n\n确定删除？`
+    );
+
+    if (!confirmed) {
+      setSaveState({ code: material.code, tone: "saved", text: "已取消" });
+      return;
+    }
+
+    setSaveState({ code: material.code, tone: "saving", text: "删除中" });
+
+    const response = await fetch(`/api/admin/material-library/${encodeURIComponent(material.code)}`, {
+      method: "DELETE"
+    });
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setSaveState({
+        code: material.code,
+        tone: "error",
+        text: materialMutationMessage(payload?.error, "删除失败")
+      });
+      return;
+    }
+
+    setMaterials((currentMaterials) =>
+      currentMaterials.filter((item) => item.code !== material.code)
+    );
+    setSaveState({ code: libraryStateCode, tone: "saved", text: "已删除" });
+  }
+
   return (
     <div className="admin-material-groups">
+      <section className="admin-material-create-panel">
+        <div className="admin-material-create-head">
+          <h3>新增素材</h3>
+          {saveState?.code === libraryStateCode ? (
+            <span className={`admin-save-state ${saveState.tone}`}>{saveState.text}</span>
+          ) : null}
+        </div>
+        <div className="admin-material-create-grid">
+          <label>
+            <span>Code</span>
+            <input
+              className="input"
+              placeholder="custom_action"
+              value={createDraft.code}
+              onChange={(event) => updateCreateDraft({ code: event.target.value })}
+            />
+          </label>
+          <label>
+            <span>名字</span>
+            <input
+              className="input"
+              placeholder="新动作"
+              value={createDraft.name}
+              onChange={(event) => updateCreateDraft({ name: event.target.value })}
+            />
+          </label>
+          <label>
+            <span>分组</span>
+            <select
+              className="input"
+              value={createDraft.groupId}
+              onChange={(event) =>
+                updateCreateDraft({ groupId: event.target.value as MaterialGroupId })
+              }
+            >
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>时长</span>
+            <input
+              className="input"
+              max={15}
+              min={4}
+              type="number"
+              value={createDraft.durationSeconds}
+              onChange={(event) =>
+                updateCreateDraft({ durationSeconds: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label>
+            <span>积分/秒</span>
+            <input
+              className="input"
+              min={0}
+              step={0.01}
+              type="number"
+              value={createDraft.creditsPerSecond}
+              onChange={(event) =>
+                updateCreateDraft({ creditsPerSecond: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label>
+            <span>状态</span>
+            <select
+              className="input"
+              value={createDraft.enabled ? "true" : "false"}
+              onChange={(event) =>
+                updateCreateDraft({ enabled: event.target.value === "true" })
+              }
+            >
+              <option value="false">停用</option>
+              <option value="true">启用</option>
+            </select>
+          </label>
+          <label className="admin-material-create-prompt">
+            <span>提示词</span>
+            <textarea
+              className="input"
+              placeholder="固定摄像机视角..."
+              value={createDraft.promptContent}
+              onChange={(event) => updateCreateDraft({ promptContent: event.target.value })}
+            />
+          </label>
+          <button className="button success" type="button" onClick={() => void createMaterial()}>
+            新增
+          </button>
+        </div>
+      </section>
       {groupedMaterials.map((group) => (
         <section className="admin-material-group" key={group.id}>
           <div className="admin-material-group-head">
@@ -203,6 +374,13 @@ export function MaterialLibraryEditor({
                         <button className="button" onClick={() => void saveMaterial(material)}>
                           保存
                         </button>
+                        <button
+                          className="button danger"
+                          type="button"
+                          onClick={() => void deleteMaterial(material)}
+                        >
+                          删除
+                        </button>
                         {saveState?.code === material.code ? (
                           <span className={`admin-save-state ${saveState.tone}`}>{saveState.text}</span>
                         ) : null}
@@ -217,4 +395,34 @@ export function MaterialLibraryEditor({
       ))}
     </div>
   );
+}
+
+function createEmptyMaterialDraft(groups: MaterialGroup[]): CreateMaterialDraft {
+  const defaultGroup = groups.find((group) => group.id === "idleLife") ?? groups[0];
+
+  return {
+    code: "",
+    name: "",
+    groupId: defaultGroup?.id ?? "reserved",
+    durationSeconds: 6,
+    creditsPerSecond: 1.66,
+    promptContent: "",
+    enabled: false
+  };
+}
+
+function materialMutationMessage(error: unknown, fallback: string) {
+  if (error === "MATERIAL_CONFIG_ALREADY_EXISTS") {
+    return "Code 已存在";
+  }
+
+  if (error === "MATERIAL_CONFIG_IN_USE") {
+    return "已有猫咪素材引用，不能删除";
+  }
+
+  if (error === "MATERIAL_CONFIG_NOT_FOUND") {
+    return "素材不存在";
+  }
+
+  return typeof error === "string" && error ? error : fallback;
 }
