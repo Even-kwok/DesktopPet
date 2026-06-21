@@ -426,23 +426,9 @@ struct PetStudioView: View {
                 .fill(StudioPalette.sky.opacity(0.16))
 
             if let avatarURL = pet.avatarURL {
-                AsyncImage(url: avatarURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    default:
-                        Image(systemName: "pawprint.fill")
-                            .font(.system(size: size * 0.36, weight: .bold))
-                            .foregroundStyle(StudioPalette.placeholder)
-                    }
-                }
-                .clipShape(Circle())
+                RemotePetAvatarImage(url: avatarURL, size: size)
             } else {
-                Image(systemName: "pawprint.fill")
-                    .font(.system(size: size * 0.36, weight: .bold))
-                    .foregroundStyle(StudioPalette.placeholder)
+                PetAvatarPlaceholder(size: size)
             }
         }
         .frame(width: size, height: size)
@@ -833,6 +819,57 @@ struct PetStudioView: View {
             .background(color.opacity(0.15))
             .foregroundStyle(color)
             .clipShape(Capsule())
+    }
+}
+
+private struct RemotePetAvatarImage: View {
+    let url: URL
+    let size: CGFloat
+
+    @State private var image: NSImage?
+    @State private var isLoading = false
+
+    private let loader = RemoteImageLoader()
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                PetAvatarPlaceholder(size: size)
+                    .opacity(isLoading ? 0.58 : 1)
+            }
+        }
+        .clipShape(Circle())
+        .task(id: url) {
+            await loadAvatar()
+        }
+    }
+
+    @MainActor
+    private func loadAvatar() async {
+        image = nil
+        isLoading = true
+
+        do {
+            image = try await loader.loadImage(from: url)
+        } catch {
+            NSLog("Failed to load synced pet avatar \(url.absoluteString): \(error.localizedDescription)")
+        }
+
+        isLoading = false
+    }
+}
+
+private struct PetAvatarPlaceholder: View {
+    let size: CGFloat
+
+    var body: some View {
+        Image(systemName: "pawprint.fill")
+            .font(.system(size: size * 0.36, weight: .bold))
+            .foregroundStyle(StudioPalette.placeholder)
     }
 }
 

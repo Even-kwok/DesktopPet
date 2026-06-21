@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import UniformTypeIdentifiers
 
-struct DesktopSyncedPetCard: Identifiable, Equatable {
+struct DesktopSyncedPetCard: Identifiable, Equatable, Codable {
     let id: String
     let petNumber: String
     let name: String
@@ -48,6 +48,8 @@ struct DesktopFriendCard: Identifiable, Decodable, Equatable {
 final class PetStudioViewModel: ObservableObject {
     private enum Keys {
         static let creditBalance = "studio.creditBalance"
+        static let syncedPetCards = "studio.syncedPetCards"
+        static let selectedSyncedPetID = "studio.selectedSyncedPetID"
 
         static func sourceImagePath(for petIndex: Int) -> String {
             "studio.pet.\(petIndex).sourceImagePath"
@@ -73,6 +75,8 @@ final class PetStudioViewModel: ObservableObject {
     private let accountSessionStore: DesktopAccountSessionStore
     private let onLibraryChanged: () -> Void
     private let frontImageCreditCost = 10
+    private let cacheEncoder = JSONEncoder()
+    private let cacheDecoder = JSONDecoder()
 
     @Published private(set) var currentAccount: DesktopAccountSession?
     @Published var loginEmail = "demo@desktop.pet"
@@ -117,6 +121,7 @@ final class PetStudioViewModel: ObservableObject {
         let savedBalance = defaults.object(forKey: Keys.creditBalance) as? Int
         creditBalance = savedBalance ?? 120
 
+        restoreSyncedPetCache()
         refreshPetList()
         loadSelectedPetDraft()
     }
@@ -262,15 +267,14 @@ final class PetStudioViewModel: ObservableObject {
     func signOutAccount() {
         accountSessionStore.signOut()
         currentAccount = nil
-        syncedPetCards = []
-        selectedSyncedPetID = nil
         friendCards = []
         friendEmailDraft = ""
-        statusMessage = "已退出账号。本地导入的视频素材已保留。"
+        statusMessage = "已退出账号。本地已同步的猫咪资料和视频素材已保留。"
     }
 
     func selectSyncedPet(_ petID: String) {
         selectedSyncedPetID = petID
+        persistSyncedPetCache()
     }
 
     func requestHosting(to friend: DesktopFriendCard) {
@@ -698,15 +702,18 @@ final class PetStudioViewModel: ObservableObject {
 
         guard !cards.isEmpty else {
             selectedSyncedPetID = nil
+            persistSyncedPetCache()
             return
         }
 
         if let selectedSyncedPetID,
            cards.contains(where: { $0.id == selectedSyncedPetID }) {
+            persistSyncedPetCache()
             return
         }
 
         selectedSyncedPetID = cards.first?.id
+        persistSyncedPetCache()
     }
 
     private func applySyncedAccount(from bundle: DesktopPetBundle, fallbackToken: String) {
@@ -770,6 +777,56 @@ final class PetStudioViewModel: ObservableObject {
                 materialCount: pet.materialCount
             )
         }
+        persistSyncedPetCache()
+    }
+
+    private func restoreSyncedPetCache() {
+        guard let data = defaults.data(forKey: Keys.syncedPetCards),
+              let cards = try? cacheDecoder.decode([DesktopSyncedPetCard].self, from: data) else {
+            syncedPetCards = []
+            selectedSyncedPetID = nil
+            return
+        }
+
+        syncedPetCards = cards
+        selectedSyncedPetID = defaults.string(forKey: Keys.selectedSyncedPetID)
+        normalizeSelectedSyncedPetID()
+    }
+
+    private func persistSyncedPetCache() {
+        normalizeSelectedSyncedPetID()
+
+        guard !syncedPetCards.isEmpty else {
+            defaults.removeObject(forKey: Keys.syncedPetCards)
+            defaults.removeObject(forKey: Keys.selectedSyncedPetID)
+            return
+        }
+
+        guard let data = try? cacheEncoder.encode(syncedPetCards) else {
+            return
+        }
+
+        defaults.set(data, forKey: Keys.syncedPetCards)
+
+        if let selectedSyncedPetID {
+            defaults.set(selectedSyncedPetID, forKey: Keys.selectedSyncedPetID)
+        } else {
+            defaults.removeObject(forKey: Keys.selectedSyncedPetID)
+        }
+    }
+
+    private func normalizeSelectedSyncedPetID() {
+        guard !syncedPetCards.isEmpty else {
+            selectedSyncedPetID = nil
+            return
+        }
+
+        if let selectedSyncedPetID,
+           syncedPetCards.contains(where: { $0.id == selectedSyncedPetID }) {
+            return
+        }
+
+        selectedSyncedPetID = syncedPetCards.first?.id
     }
 
     private func persistSelectedPetDraft() {
