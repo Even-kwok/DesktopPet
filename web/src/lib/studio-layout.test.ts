@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   accountNameEditControlCopy,
+  buildClientPlatformCards,
+  buildMaterialWorkflowSteps,
   jobGeneratedVideoApplyAction,
   materialCardPreviewState,
   petNameEditControlCopy,
@@ -62,6 +64,93 @@ test("account name edit control uses a compact pencil glyph with an accessible l
     className: "icon-edit-button",
     icon: "✎"
   });
+});
+
+test("client platform cards expose Mac priority and future platform states", () => {
+  assert.deepEqual(buildClientPlatformCards(null), [
+    {
+      id: "mac",
+      title: "Mac 端",
+      description: "桌面宠物主客户端，同步账号内已生成动作。",
+      statusLabel: "优先入口",
+      actionLabel: "安装包准备中",
+      actionUrl: null,
+      isEnabled: false
+    },
+    {
+      id: "windows",
+      title: "Windows 端",
+      description: "未来支持 Windows 桌面宠物展示与同步。",
+      statusLabel: "即将开放",
+      actionLabel: "即将开放",
+      actionUrl: null,
+      isEnabled: false
+    },
+    {
+      id: "ios",
+      title: "iOS / iPadOS",
+      description: "未来支持移动端账号管理与轻量预览。",
+      statusLabel: "即将开放",
+      actionLabel: "即将开放",
+      actionUrl: null,
+      isEnabled: false
+    },
+    {
+      id: "android",
+      title: "Android",
+      description: "未来支持移动端账号管理与轻量预览。",
+      statusLabel: "即将开放",
+      actionLabel: "即将开放",
+      actionUrl: null,
+      isEnabled: false
+    }
+  ]);
+
+  const [mac] = buildClientPlatformCards("https://example.com/CatDesktopPet.dmg");
+
+  assert.deepEqual(mac, {
+    id: "mac",
+    title: "Mac 端",
+    description: "桌面宠物主客户端，同步账号内已生成动作。",
+    statusLabel: "可下载",
+    actionLabel: "下载 Mac 版",
+    actionUrl: "https://example.com/CatDesktopPet.dmg",
+    isEnabled: true
+  });
+});
+
+test("material workflow steps describe the current generation path", () => {
+  assert.deepEqual(
+    buildMaterialWorkflowSteps({
+      hasFrameImage: false,
+      basicReadyCount: 0,
+      basicTotalCount: 4,
+      totalReadyCount: 0,
+      hasMacDownload: false
+    }),
+    [
+      { title: "上传绿幕图", state: "待上传" },
+      { title: "补齐基础版", state: "0/4" },
+      { title: "准备客户端", state: "安装包准备中" },
+      { title: "同步到桌面", state: "待动作" }
+    ]
+  );
+
+  assert.deepEqual(
+    buildMaterialWorkflowSteps({
+      hasFrameImage: true,
+      basicReadyCount: 4,
+      basicTotalCount: 4,
+      totalReadyCount: 6,
+      hasMacDownload: true
+    }),
+    [
+      { title: "上传绿幕图", state: "已就位" },
+      { title: "补齐基础版", state: "4/4" },
+      { title: "准备客户端", state: "Mac 可下载" },
+      { title: "同步到桌面", state: "可同步" }
+    ]
+  );
 });
 
 test("job display name uses the material name instead of slot code or provider id", async () => {

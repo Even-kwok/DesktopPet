@@ -23,6 +23,9 @@ import { canDeletePetForAccount } from "@/lib/pet-permissions";
 import {
   accountNameEditControlCopy,
   assetStatusAfterGenerationFailure,
+  buildClientPlatformCards,
+  buildMaterialWorkflowSteps,
+  type ClientPlatformCard,
   jobDisplayName,
   jobGeneratedAtLabel,
   jobGeneratedVideoApplyAction,
@@ -72,6 +75,9 @@ const materialTierSections: Array<{
     description: "按活动、角色或单独需求解锁的小动作。"
   }
 ];
+
+const macClientDownloadUrl = process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null;
+const clientPlatformCards = buildClientPlatformCards(macClientDownloadUrl);
 
 export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [user, setUser] = useState<CurrentUser>(initialData.user);
@@ -889,6 +895,8 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         </div>
       </header>
 
+      <ClientCenter cards={clientPlatformCards} />
+
       <p
         className={studioStatusMessageClassName(message.tone)}
         role={message.tone === "error" ? "alert" : "status"}
@@ -1054,6 +1062,57 @@ function calculateGreenEdgeRatio(
   return sampledPixels === 0 ? 0 : greenPixels / sampledPixels;
 }
 
+function ClientCenter({ cards }: { cards: ClientPlatformCard[] }) {
+  return (
+    <section className="panel client-center" aria-label="客户端下载中心">
+      <div className="client-center-copy">
+        <span className="eyebrow">客户端中心</span>
+        <h2>把生成好的宠物同步到你的设备</h2>
+        <p>先生成基础动作，再下载安装到设备上。Mac 端优先准备，Windows 和手机端入口先预留。</p>
+      </div>
+      <div className="client-platform-grid">
+        {cards.map((card) => (
+          <article
+            className={[
+              "client-platform-card",
+              card.id === "mac" ? "priority" : "",
+              card.isEnabled ? "enabled" : ""
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            key={card.id}
+          >
+            <span className={card.id === "mac" || card.isEnabled ? "badge success" : "badge muted"}>
+              {card.statusLabel}
+            </span>
+            <div>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+            </div>
+            <ClientAction card={card} />
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ClientAction({ card }: { card: ClientPlatformCard }) {
+  if (card.isEnabled && card.actionUrl) {
+    return (
+      <a className="button client-action" href={card.actionUrl}>
+        {card.actionLabel}
+      </a>
+    );
+  }
+
+  return (
+    <button className="button secondary client-action" disabled type="button">
+      {card.actionLabel}
+    </button>
+  );
+}
+
 function PetPanel({
   pet,
   pets,
@@ -1122,6 +1181,18 @@ function PetPanel({
           ) : (
             "🐈"
           )}
+        </div>
+      </div>
+
+      <div className="pet-summary">
+        <div>
+          <span className="eyebrow">当前宠物</span>
+          <h2>{pet?.name ?? "未选择宠物"}</h2>
+          <p>{pet?.status ?? "添加一只宠物后开始生成动作。"}</p>
+        </div>
+        <div className="pet-ready-stat" aria-label={`已完成素材 ${readyCount}`}>
+          <strong>{readyCount}</strong>
+          <span>已完成</span>
         </div>
       </div>
 
@@ -1288,30 +1359,19 @@ function StarterSteps({
   hasFrameImage: boolean;
   totalReadyCount: number;
 }) {
-  const steps = [
-    {
-      title: "放进绿幕图",
-      state: hasFrameImage ? "已就位" : "待上传"
-    },
-    {
-      title: "补齐基础版",
-      state: `${basicReadyCount}/${basicTotalCount}`
-    },
-    {
-      title: "打开 Mac 同步",
-      state: totalReadyCount > 0 ? "可同步" : "待动作"
-    },
-    {
-      title: "再加高级版",
-      state: "慢慢养"
-    }
-  ];
+  const steps = buildMaterialWorkflowSteps({
+    basicReadyCount,
+    basicTotalCount,
+    hasFrameImage,
+    hasMacDownload: Boolean(macClientDownloadUrl),
+    totalReadyCount
+  });
 
   return (
-    <section className="starter-strip" aria-label="新手路线">
+    <section className="starter-strip" aria-label="生成路线">
       <div>
-        <h3>新手 4 步</h3>
-        <p>先把基础版跑顺，再给小猫慢慢加戏。</p>
+        <h3>生成路线</h3>
+        <p>先跑通基础动作，再下载安装到桌面端同步。</p>
       </div>
       <div className="starter-steps">
         {steps.map((step, index) => (

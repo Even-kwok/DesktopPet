@@ -11,3 +11,4 @@ web/.env.local
 web/.vercel/
 web/*.tsbuildinfo
 .vercel
+.superpowers/
