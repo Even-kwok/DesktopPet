@@ -182,10 +182,46 @@ final class StatusBarController: NSObject {
         renameItem.isEnabled = settingsStore.petCount > 0
         menu.addItem(renameItem)
 
+        let sizeItem = NSMenuItem(title: "调整大小", action: nil, keyEquivalent: "")
+        sizeItem.submenu = makePetSizeMenu()
+        sizeItem.isEnabled = settingsStore.petCount > 0
+        menu.addItem(sizeItem)
+
         let removeItem = NSMenuItem(title: "删除宠物", action: nil, keyEquivalent: "")
         removeItem.submenu = makeRemovePetMenu()
         removeItem.isEnabled = settingsStore.petCount > 0
         menu.addItem(removeItem)
+
+        return menu
+    }
+
+    private func makePetSizeMenu() -> NSMenu {
+        let menu = NSMenu()
+
+        for petIndex in 0..<settingsStore.petCount {
+            let item = makePetMenuItem(for: petIndex)
+            item.submenu = makePetSizeMenu(for: petIndex)
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    private func makePetSizeMenu(for petIndex: Int) -> NSMenu {
+        let menu = NSMenu()
+        let currentScale = settingsStore.petSizeScale(for: petIndex)
+
+        for scale in SettingsStore.petSizeScaleOptions {
+            let item = NSMenuItem(
+                title: petSizeTitle(for: scale),
+                action: #selector(setPetSize(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = petSizeRepresentation(for: petIndex, scale: scale)
+            item.state = abs(currentScale - scale) < 0.001 ? .on : .off
+            menu.addItem(item)
+        }
 
         return menu
     }
@@ -376,6 +412,15 @@ final class StatusBarController: NSObject {
         }
     }
 
+    @objc private func setPetSize(_ sender: NSMenuItem) {
+        guard let selection = petSizeSelection(from: sender) else {
+            return
+        }
+
+        petColonyController.setPetSizeScale(selection.scale, for: selection.petIndex)
+        refreshMenu()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -408,6 +453,10 @@ final class StatusBarController: NSObject {
         "\(petIndex)|\(slot.rawValue)"
     }
 
+    private func petSizeRepresentation(for petIndex: Int, scale: CGFloat) -> String {
+        "\(petIndex)|\(Int(round(scale * 100)))"
+    }
+
     private func slotSelection(from sender: NSMenuItem) -> (petIndex: Int, slot: PetActionSlot)? {
         guard let rawValue = sender.representedObject as? String else {
             return nil
@@ -421,5 +470,26 @@ final class StatusBarController: NSObject {
         }
 
         return (petIndex, slot)
+    }
+
+    private func petSizeSelection(from sender: NSMenuItem) -> (petIndex: Int, scale: CGFloat)? {
+        guard let rawValue = sender.representedObject as? String else {
+            return nil
+        }
+
+        let parts = rawValue.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2,
+              let petIndex = Int(parts[0]),
+              let percent = Int(parts[1]) else {
+            return nil
+        }
+
+        return (petIndex, CGFloat(percent) / 100.0)
+    }
+
+    private func petSizeTitle(for scale: CGFloat) -> String {
+        let percent = Int(round(SettingsStore.clampedPetSizeScale(scale) * 100))
+
+        return percent == 100 ? "最大 100%" : "\(percent)%"
     }
 }

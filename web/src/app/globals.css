@@ -992,11 +992,6 @@ select.input {
   font-size: 11px;
 }
 
-.disabled-link {
-  pointer-events: none;
-  opacity: 0.48;
-}
-
 .prompt-details {
   display: grid;
   gap: 8px;

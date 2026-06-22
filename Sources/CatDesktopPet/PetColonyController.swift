@@ -119,6 +119,16 @@ final class PetColonyController {
         }
     }
 
+    func setPetSizeScale(_ scale: CGFloat, for petIndex: Int) {
+        guard petIndex >= 0, petIndex < settingsStore.petCount else {
+            return
+        }
+
+        ensurePetControllers(upTo: petIndex + 1)
+        petControllers[petIndex].setSizeScale(scale)
+        updateProximityInteractionTimer()
+    }
+
     func refreshPlayback() {
         ensurePetControllers(upTo: settingsStore.petCount)
 

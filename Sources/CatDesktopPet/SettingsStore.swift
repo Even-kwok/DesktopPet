@@ -166,6 +166,10 @@ final class SettingsStore {
             "pet.\(index).name"
         }
 
+        static func petSizeScale(for index: Int) -> String {
+            "pet.\(index).sizeScale"
+        }
+
         static func petFrame(for index: Int) -> String {
             "petFrame.\(index)"
         }
@@ -188,6 +192,11 @@ final class SettingsStore {
     }
 
     private let defaults: UserDefaults
+
+    static let petSizeScaleOptions: [CGFloat] = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
+    static let minPetSizeScale: CGFloat = 0.3
+    static let maxPetSizeScale: CGFloat = 1.0
+    private static let maxPetSize = CGSize(width: 150, height: 150)
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -364,13 +373,30 @@ final class SettingsStore {
         Set(PetActionSlot.allCases.filter { hasSavedVideoReference(for: $0, petIndex: petIndex) })
     }
 
+    func petSizeScale(for index: Int) -> CGFloat {
+        guard defaults.object(forKey: Keys.petSizeScale(for: index)) != nil else {
+            return Self.maxPetSizeScale
+        }
+
+        return Self.clampedPetSizeScale(CGFloat(defaults.double(forKey: Keys.petSizeScale(for: index))))
+    }
+
+    func setPetSizeScale(_ scale: CGFloat, for index: Int) {
+        let clampedScale = Self.clampedPetSizeScale(scale)
+        defaults.set(Double(clampedScale), forKey: Keys.petSizeScale(for: index))
+        setPetFrame(Self.frame(petFrame(for: index), applyingPetSizeScale: clampedScale), for: index)
+    }
+
     func petFrame(for index: Int) -> CGRect {
         let key = Keys.petFrame(for: index)
         let frameString = defaults.string(forKey: key)
             ?? (index == 0 ? defaults.string(forKey: Keys.petFrame) : nil)
 
         guard let frameString else {
-            return Self.defaultPetFrame(for: index)
+            return Self.frame(
+                Self.defaultPetFrame(for: index),
+                applyingPetSizeScale: petSizeScale(for: index)
+            )
         }
 
         let frame = NSRectFromString(frameString)
@@ -413,6 +439,7 @@ final class SettingsStore {
 
     private func copyPetData(from sourceIndex: Int, to targetIndex: Int) {
         copyDefaultValue(from: Keys.petName(for: sourceIndex), to: Keys.petName(for: targetIndex))
+        copyDefaultValue(from: Keys.petSizeScale(for: sourceIndex), to: Keys.petSizeScale(for: targetIndex))
         copyDefaultValue(from: Keys.petFrame(for: sourceIndex), to: Keys.petFrame(for: targetIndex))
 
         if targetIndex == 0 {
@@ -455,6 +482,7 @@ final class SettingsStore {
 
     private func clearPetData(at index: Int) {
         defaults.removeObject(forKey: Keys.petName(for: index))
+        defaults.removeObject(forKey: Keys.petSizeScale(for: index))
         defaults.removeObject(forKey: Keys.petFrame(for: index))
 
         if index == 0 {
@@ -555,7 +583,7 @@ final class SettingsStore {
 
     static func defaultPetFrame(for index: Int) -> CGRect {
         let screenFrame = NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1024, height: 768)
-        let size = CGSize(width: 150, height: 150)
+        let size = maxPetSize
         let columns = max(1, min(6, Int((screenFrame.width - size.width) / 42)))
         let column = max(index, 0) % columns
         let row = max(index, 0) / columns
@@ -563,6 +591,29 @@ final class SettingsStore {
         return CGRect(
             x: screenFrame.midX - size.width / 2 + CGFloat(column) * 34,
             y: screenFrame.midY - size.height / 2 - CGFloat(row) * 34,
+            width: size.width,
+            height: size.height
+        )
+    }
+
+    static func clampedPetSizeScale(_ scale: CGFloat) -> CGFloat {
+        guard scale.isFinite else {
+            return maxPetSizeScale
+        }
+
+        return min(maxPetSizeScale, max(minPetSizeScale, scale))
+    }
+
+    static func frame(_ frame: CGRect, applyingPetSizeScale scale: CGFloat) -> CGRect {
+        let clampedScale = clampedPetSizeScale(scale)
+        let size = CGSize(
+            width: maxPetSize.width * clampedScale,
+            height: maxPetSize.height * clampedScale
+        )
+
+        return CGRect(
+            x: frame.midX - size.width / 2,
+            y: frame.midY - size.height / 2,
             width: size.width,
             height: size.height
         )

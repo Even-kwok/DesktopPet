@@ -98,8 +98,16 @@ final class PetWindowController: NSObject, NSWindowDelegate {
         panel?.ignoresMouseEvents = isClickThrough
     }
 
+    func setSizeScale(_ scale: CGFloat) {
+        settingsStore.setPetSizeScale(scale, for: petIndex)
+        panel?.setFrame(settingsStore.petFrame(for: petIndex), display: true)
+    }
+
     func resetPosition() {
-        let frame = SettingsStore.defaultPetFrame(for: petIndex)
+        let frame = SettingsStore.frame(
+            SettingsStore.defaultPetFrame(for: petIndex),
+            applyingPetSizeScale: settingsStore.petSizeScale(for: petIndex)
+        )
         settingsStore.setPetFrame(frame, for: petIndex)
         panel?.setFrame(frame, display: true)
     }

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   accountNameEditControlCopy,
   jobGeneratedVideoApplyAction,
@@ -223,4 +224,10 @@ test("material cards keep missing previews empty instead of showing slot emoji",
     }),
     { kind: "video", videoUrl: "https://example.com/sleep.mp4" }
   );
+});
+
+test("material cards do not render a separate preview button", () => {
+  const studioSource = readFileSync("src/components/studio/studio-app.tsx", "utf8");
+
+  assert.doesNotMatch(studioSource, /<a[\s\S]*?>\s*预览\s*<\/a>/);
 });

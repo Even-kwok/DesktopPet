@@ -1396,14 +1396,6 @@ function MaterialCard({
           <button className="button" disabled={!hasFrameImage || isGenerating} onClick={onGenerate}>
             {isSubmitting ? "提交中" : isGenerating ? "生成中" : isReady ? `重新生成 ${slot.cost} 分` : `生成 ${slot.cost} 分`}
           </button>
-          <a
-            className={isReady && asset?.videoUrl ? "button secondary" : "button secondary disabled-link"}
-            href={asset?.videoUrl ?? undefined}
-            rel="noreferrer"
-            target="_blank"
-          >
-            预览
-          </a>
         </div>
       </div>
     </article>
