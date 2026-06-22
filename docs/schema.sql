@@ -34,6 +34,7 @@ create table if not exists public.material_slot_definitions (
   slot text primary key,
   name text not null,
   group_id text not null,
+  unlock_tier text not null default 'custom',
   trigger_label text not null,
   trigger_is_editable boolean not null default false,
   duration_seconds integer not null check (duration_seconds between 4 and 15),
@@ -46,6 +47,16 @@ create table if not exists public.material_slot_definitions (
   updated_at timestamptz not null default now()
 );
 
+alter table public.material_slot_definitions
+  add column if not exists unlock_tier text not null default 'custom';
+
+alter table public.material_slot_definitions
+  drop constraint if exists material_slot_definitions_unlock_tier_check;
+
+alter table public.material_slot_definitions
+  add constraint material_slot_definitions_unlock_tier_check
+  check (unlock_tier in ('basic', 'advanced', 'custom'));
+
 create table if not exists public.app_settings (
   key text primary key,
   value jsonb not null default '{}'::jsonb,
@@ -57,6 +68,7 @@ select
   slot,
   name,
   group_id,
+  unlock_tier,
   trigger_label,
   trigger_is_editable,
   duration_seconds,

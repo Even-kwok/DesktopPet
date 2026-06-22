@@ -104,6 +104,41 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
         XCTAssertFalse(awayPet.shouldShowRecallAction(isSelected: false))
     }
 
+    func testHostingActionOnlyAllowsOwnedPetsOnThisDesktop() {
+        let localPet = makeSyncedPetCard(
+            id: "pet_local",
+            ownership: "owned",
+            displayState: "active"
+        )
+        let hostedPet = makeSyncedPetCard(
+            id: "pet_hosted",
+            ownership: "hosted",
+            displayState: "active"
+        )
+        let awayPet = makeSyncedPetCard(
+            id: "pet_away",
+            ownership: "away",
+            displayState: "unavailable"
+        )
+
+        XCTAssertTrue(localPet.canRequestHosting)
+        XCTAssertFalse(hostedPet.canRequestHosting)
+        XCTAssertFalse(awayPet.canRequestHosting)
+    }
+
+    func testGreenScreenImageCanBeConfirmedWithoutGeneratingFrontImage() {
+        settingsDefaults.set("/tmp/cat-green-screen.png", forKey: "studio.pet.0.sourceImagePath")
+        let viewModel = makeViewModel()
+
+        XCTAssertTrue(viewModel.canConfirmFrontImage)
+        XCTAssertFalse(viewModel.canGenerate(slot: .idleLoop))
+
+        viewModel.confirmFrontImage()
+
+        XCTAssertTrue(viewModel.isFrontImageConfirmed)
+        XCTAssertTrue(viewModel.canGenerate(slot: .idleLoop))
+    }
+
     private func makeViewModel(
         accountSessionStore: DesktopAccountSessionStore? = nil,
         desktopSyncClient: DesktopPetSyncClient = DesktopPetSyncClient()

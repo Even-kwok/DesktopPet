@@ -6,6 +6,8 @@ export type MaterialGroupId =
   | "feeding"
   | "reserved";
 
+export type MaterialUnlockTier = "basic" | "advanced" | "custom";
+
 export type MaterialSlot = {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export type MaterialSlot = {
   durationSeconds: number;
   group: MaterialGroupId;
   icon: string;
+  unlockTier: MaterialUnlockTier;
 };
 
 export type MaterialGroup = {
@@ -63,28 +66,28 @@ export const materialGroups: MaterialGroup[] = [
 ];
 
 export const materialSlots: MaterialSlot[] = [
-  { id: "idle_loop", name: "待机循环", trigger: "默认循环", cost: 18, durationSeconds: 10, group: "core", icon: "🐾" },
-  { id: "sleep_loop", name: "睡觉", trigger: "长时间无操作", cost: 14, durationSeconds: 8, group: "core", icon: "💤" },
-  { id: "catch_bug", name: "鼠标经过抓虫子", trigger: "鼠标经过宠物", cost: 12, durationSeconds: 5, group: "pointer", icon: "🪲" },
-  { id: "catch_bug_up", name: "双手抓上方虫子", trigger: "鼠标经过宠物", cost: 12, durationSeconds: 5, group: "pointer", icon: "🙌" },
-  { id: "click_react", name: "点击反应", trigger: "点击宠物", cost: 12, durationSeconds: 4, group: "pointer", icon: "👆" },
-  { id: "head_rub_left", name: "左边头蹭蹭", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "🤍" },
-  { id: "head_rub_right", name: "右边头蹭蹭", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "🤍" },
-  { id: "angry_swipe_left", name: "向左看生气挥一下爪子", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "💢" },
-  { id: "angry_swipe_right", name: "向右看生气挥一下爪子", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "💢" },
-  { id: "yawn", name: "打哈欠", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🥱" },
-  { id: "lick_belly", name: "舔肚子的毛", trigger: "待机随机", cost: 10, durationSeconds: 8, group: "idleLife", icon: "🧼" },
-  { id: "lick_back", name: "舔背部的毛", trigger: "待机随机", cost: 10, durationSeconds: 8, group: "idleLife", icon: "🧽" },
-  { id: "stretch", name: "伸懒腰", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "〰️" },
-  { id: "happy", name: "开心", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "✨" },
-  { id: "disgusted", name: "嫌弃", trigger: "待机随机", cost: 10, durationSeconds: 5, group: "idleLife", icon: "😒" },
-  { id: "clingy", name: "粘人", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🫶" },
-  { id: "aloof", name: "高冷", trigger: "待机随机", cost: 10, durationSeconds: 5, group: "idleLife", icon: "🧊" },
-  { id: "belly_up", name: "躺下翻肚皮", trigger: "待机随机", cost: 10, durationSeconds: 7, group: "idleLife", icon: "☁️" },
-  { id: "look_at_camera", name: "看镜头", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "👀" },
-  { id: "salary_cat_stinky_dance", name: "跳月薪喵散屁舞", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🪩" },
-  { id: "head_bob_dance", name: "摇头晃脑舞", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🎵" },
-  { id: "full_wash_face", name: "吃饱满足洗脸", trigger: "吃饱后触发", cost: 10, durationSeconds: 8, group: "feeding", icon: "🍚" },
-  { id: "hungry_meow", name: "饿了嗷嗷叫", trigger: "饥饿时触发", cost: 10, durationSeconds: 6, group: "feeding", icon: "📣" },
-  { id: "drag_loop", name: "拖拽循环（备用）", trigger: "备用", cost: 8, durationSeconds: 4, group: "reserved", icon: "🤏" }
+  { id: "idle_loop", name: "待机循环", trigger: "默认循环", cost: 18, durationSeconds: 10, group: "core", icon: "🐾", unlockTier: "basic" },
+  { id: "sleep_loop", name: "睡觉", trigger: "长时间无操作", cost: 14, durationSeconds: 8, group: "core", icon: "💤", unlockTier: "basic" },
+  { id: "catch_bug", name: "鼠标经过抓虫子", trigger: "鼠标经过宠物", cost: 12, durationSeconds: 5, group: "pointer", icon: "🪲", unlockTier: "basic" },
+  { id: "catch_bug_up", name: "双手抓上方虫子", trigger: "鼠标经过宠物", cost: 12, durationSeconds: 5, group: "pointer", icon: "🙌", unlockTier: "advanced" },
+  { id: "click_react", name: "点击反应", trigger: "点击宠物", cost: 12, durationSeconds: 4, group: "pointer", icon: "👆", unlockTier: "basic" },
+  { id: "head_rub_left", name: "左边头蹭蹭", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "🤍", unlockTier: "advanced" },
+  { id: "head_rub_right", name: "右边头蹭蹭", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "🤍", unlockTier: "advanced" },
+  { id: "angry_swipe_left", name: "向左看生气挥一下爪子", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "💢", unlockTier: "advanced" },
+  { id: "angry_swipe_right", name: "向右看生气挥一下爪子", trigger: "另一只宠物靠近", cost: 12, durationSeconds: 5, group: "nearbyPet", icon: "💢", unlockTier: "advanced" },
+  { id: "yawn", name: "打哈欠", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🥱", unlockTier: "advanced" },
+  { id: "lick_belly", name: "舔肚子的毛", trigger: "待机随机", cost: 10, durationSeconds: 8, group: "idleLife", icon: "🧼", unlockTier: "advanced" },
+  { id: "lick_back", name: "舔背部的毛", trigger: "待机随机", cost: 10, durationSeconds: 8, group: "idleLife", icon: "🧽", unlockTier: "advanced" },
+  { id: "stretch", name: "伸懒腰", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "〰️", unlockTier: "advanced" },
+  { id: "happy", name: "开心", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "✨", unlockTier: "advanced" },
+  { id: "disgusted", name: "嫌弃", trigger: "待机随机", cost: 10, durationSeconds: 5, group: "idleLife", icon: "😒", unlockTier: "advanced" },
+  { id: "clingy", name: "粘人", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🫶", unlockTier: "advanced" },
+  { id: "aloof", name: "高冷", trigger: "待机随机", cost: 10, durationSeconds: 5, group: "idleLife", icon: "🧊", unlockTier: "advanced" },
+  { id: "belly_up", name: "躺下翻肚皮", trigger: "待机随机", cost: 10, durationSeconds: 7, group: "idleLife", icon: "☁️", unlockTier: "advanced" },
+  { id: "look_at_camera", name: "看镜头", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "👀", unlockTier: "advanced" },
+  { id: "salary_cat_stinky_dance", name: "跳月薪喵散屁舞", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🪩", unlockTier: "advanced" },
+  { id: "head_bob_dance", name: "摇头晃脑舞", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🎵", unlockTier: "advanced" },
+  { id: "full_wash_face", name: "吃饱满足洗脸", trigger: "吃饱后触发", cost: 10, durationSeconds: 8, group: "feeding", icon: "🍚", unlockTier: "advanced" },
+  { id: "hungry_meow", name: "饿了嗷嗷叫", trigger: "饥饿时触发", cost: 10, durationSeconds: 6, group: "feeding", icon: "📣", unlockTier: "advanced" },
+  { id: "drag_loop", name: "拖拽循环（备用）", trigger: "备用", cost: 8, durationSeconds: 4, group: "reserved", icon: "🤏", unlockTier: "custom" }
 ];

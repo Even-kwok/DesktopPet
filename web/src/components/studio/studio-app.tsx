@@ -17,7 +17,8 @@ import {
   updatePetName,
   uploadSourceImage
 } from "@/lib/api-client";
-import { materialGroups, type MaterialSlot } from "@/lib/material-slots";
+import { reviewGreenScreenImage, type GreenScreenImageMetadata } from "@/lib/green-screen-image-validation";
+import type { MaterialSlot, MaterialUnlockTier } from "@/lib/material-slots";
 import { canDeletePetForAccount } from "@/lib/pet-permissions";
 import {
   accountNameEditControlCopy,
@@ -28,7 +29,8 @@ import {
   materialCardPreviewState,
   petNameEditControlCopy,
   petPanelImageUrl,
-  petPanelStats
+  petPanelStats,
+  studioStatusMessageClassName
 } from "@/lib/studio-layout";
 import type {
   CurrentUser,
@@ -48,6 +50,28 @@ type StatusMessage = {
   tone: MessageTone;
   text: string;
 };
+
+const materialTierSections: Array<{
+  id: MaterialUnlockTier;
+  title: string;
+  description: string;
+}> = [
+  {
+    id: "basic",
+    title: "基础版",
+    description: "先让小猫稳定住进桌面的核心动作。"
+  },
+  {
+    id: "advanced",
+    title: "高级版",
+    description: "补上情绪、待机和互动，小猫会更有性格。"
+  },
+  {
+    id: "custom",
+    title: "自定义",
+    description: "按活动、角色或单独需求解锁的小动作。"
+  }
+];
 
 export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [user, setUser] = useState<CurrentUser>(initialData.user);
@@ -70,9 +94,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [applyingJobIds, setApplyingJobIds] = useState<Set<string>>(() => new Set());
   const [generationErrorsBySlot, setGenerationErrorsBySlot] = useState<Record<string, string>>({});
   const submittingSlotKeysRef = useRef(new Set<string>());
-  const [, setMessage] = useState<StatusMessage>({
+  const [message, setMessage] = useState<StatusMessage>({
     tone: "info",
-    text: "上传一张绿幕正面坐姿图后，就可以直接作为动作视频的首尾帧。"
+    text: "上传一张绿幕猫咪图，就可以开始生成会动的小状态。"
   });
 
   const selectedPet = useMemo(
@@ -108,7 +132,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       void pollJob(job)
         .then(finishGenerationJob)
         .catch((error: unknown) => {
-          const errorText = error instanceof Error ? error.message : "恢复生成任务失败。";
+          const errorText = error instanceof Error ? error.message : "恢复生成记录失败。";
 
           if (job.slot) {
             setSlotGenerationError(job.petId, job.slot, errorText);
@@ -195,7 +219,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               ...job,
               status: "expired",
               progress: 100,
-              message: "源图已更新，本次任务已作废。"
+              message: "绿幕形象已更新，这次生成先停下。"
             }
           : job
       )
@@ -395,12 +419,12 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     if (job.status === "succeeded") {
       if (!job.resultUrl) {
         if (job.slot) {
-          setSlotGenerationError(job.petId, job.slot, "任务完成但没有返回视频地址。");
+          setSlotGenerationError(job.petId, job.slot, "动作做好了，但还没拿到视频。");
           setAssetStatus(job.petId, job.slot, "missing");
         }
         setMessage({
           tone: "error",
-          text: `「${slot?.name ?? job.slot ?? "素材"}」任务完成但没有返回视频地址，未写入已生成素材。`
+          text: `「${slot?.name ?? job.slot ?? "素材"}」动作做好了，但还没拿到视频，先没有放进动作包。`
         });
         return;
       }
@@ -414,15 +438,15 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       try {
         const publishResult = await publishDesktopSyncBundleForBootstrap(refreshedData);
         desktopPublishMessage =
-          publishResult.mode === "supabase" ? "已发布到桌面同步包。" : "已更新桌面同步包 mock。";
+          publishResult.mode === "supabase" ? "Mac 端的小窝已备好。" : "预览小窝已更新。";
       } catch (error) {
         desktopPublishMessage =
-          error instanceof Error ? `桌面同步包发布失败：${error.message}` : "桌面同步包发布失败。";
+          error instanceof Error ? `同步到 Mac 端失败：${error.message}` : "同步到 Mac 端失败。";
       }
 
       setMessage({
         tone: desktopPublishMessage.includes("失败") ? "error" : "success",
-        text: `「${slot?.name ?? job.slot ?? "素材"}」已生成，视频地址已保存。${desktopPublishMessage}`
+        text: `「${slot?.name ?? job.slot ?? "素材"}」已做好，动作已放进素材库。${desktopPublishMessage}`
       });
     } else if (job.status === "failed" || job.status === "expired") {
       const errorText = job.message ?? `「${slot?.name ?? job.slot ?? "素材"}」生成失败或超时。`;
@@ -448,6 +472,16 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     setSelectedFileName(file.name);
 
     try {
+      const imageReview = reviewGreenScreenImage(await inspectGreenScreenImage(file));
+
+      if (!imageReview.canUse) {
+        setMessage({
+          tone: "error",
+          text: imageReview.errors.join(" ")
+        });
+        return;
+      }
+
       const upload = await uploadSourceImage({
         petId: selectedPet.id,
         file
@@ -458,7 +492,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               ...pet,
               sourceImageUrl: upload.publicUrl,
               frontImageUrl: upload.publicUrl,
-              status: "首尾帧形象已就绪"
+              status: "绿幕形象已就绪"
             }
           : pet
       );
@@ -470,11 +504,12 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         console.warn("Desktop bundle publish after image upload failed", error);
       });
       setMessage({
-        tone: "success",
+        tone: imageReview.warnings.length > 0 ? "info" : "success",
         text:
-          upload.mode === "supabase"
-            ? `猫咪形象图已上传：${upload.bucket}/${upload.storagePath}。后续生成会使用这张图作为首尾帧。`
-            : "图片已进入 mock 上传流程。本地先显示预览；配置 Supabase 后会真正写入 Storage。"
+          (upload.mode === "supabase"
+            ? "绿幕猫咪图已保存，接下来可以生成动作啦。"
+            : "绿幕猫咪图已放进预览小窝，接下来可以生成动作啦。") +
+          (imageReview.warnings.length > 0 ? ` ${imageReview.warnings.join(" ")}` : "")
       });
     } catch (error) {
       setMessage({
@@ -498,7 +533,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     const activeJob = jobForSlot(slot.id);
 
     if (submittingSlotKeysRef.current.has(slotKey) || activeJob) {
-      setMessage({ tone: "info", text: `「${slot.name}」已有生成任务进行中。` });
+      setMessage({ tone: "info", text: `「${slot.name}」正在制作中，稍等它一下。` });
       return;
     }
 
@@ -526,7 +561,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         }));
       }
 
-      setMessage({ tone: "info", text: `「${slot.name}」生成任务已创建。` });
+      setMessage({ tone: "info", text: `开始给「${slot.name}」做动作了。` });
 
       const finishedJob = await pollJob(job);
       await finishGenerationJob(finishedJob);
@@ -576,20 +611,20 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       try {
         const publishResult = await publishDesktopSyncBundle(nextPets, nextAssets);
         desktopPublishMessage =
-          publishResult.mode === "supabase" ? "已发布到桌面同步包。" : "已更新桌面同步包 mock。";
+          publishResult.mode === "supabase" ? "Mac 端的小窝已备好。" : "预览小窝已更新。";
       } catch (error) {
         desktopPublishMessage =
-          error instanceof Error ? `桌面同步包发布失败：${error.message}` : "桌面同步包发布失败。";
+          error instanceof Error ? `同步到 Mac 端失败：${error.message}` : "同步到 Mac 端失败。";
       }
 
       setMessage({
         tone: desktopPublishMessage.includes("失败") ? "error" : "success",
-        text: `已把旧生成视频应用到「${pet.name}」的「${slot?.name ?? job.slot}」。${desktopPublishMessage}`
+        text: `已把这段动作收进「${pet.name}」的「${slot?.name ?? job.slot}」。${desktopPublishMessage}`
       });
     } catch (error) {
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : "应用生成视频失败。"
+        text: error instanceof Error ? error.message : "这段动作暂时放不进去。"
       });
     } finally {
       setJobApplying(job.jobId, false);
@@ -615,7 +650,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         },
         ...currentRequests
       ]);
-      setMessage({ tone: "success", text: "托管请求已发送。真实接入后会推送到好友的 Mac App。" });
+      setMessage({ tone: "success", text: "托管请求已送出，好友同步后就能看到。" });
     } catch (error) {
       setMessage({
         tone: "error",
@@ -854,6 +889,13 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         </div>
       </header>
 
+      <p
+        className={studioStatusMessageClassName(message.tone)}
+        role={message.tone === "error" ? "alert" : "status"}
+      >
+        {message.text}
+      </p>
+
       <div className="layout-grid">
         <aside className="left-rail">
           <PetPanel
@@ -885,7 +927,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               好友托管
             </TabButton>
             <TabButton active={activeTab === "jobs"} onClick={() => setActiveTab("jobs")}>
-              任务队列
+              生成记录
             </TabButton>
             <TabButton active={activeTab === "billing"} onClick={() => setActiveTab("billing")}>
               账单积分
@@ -939,6 +981,77 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       </div>
     </main>
   );
+}
+
+async function inspectGreenScreenImage(file: File): Promise<GreenScreenImageMetadata> {
+  const image = await loadImageForInspection(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (!context) {
+    throw new Error("图片检查失败，请换一张绿幕图试试。");
+  }
+
+  context.drawImage(image, 0, 0);
+
+  return {
+    contentType: file.type,
+    sizeBytes: file.size,
+    width: image.naturalWidth,
+    height: image.naturalHeight,
+    greenEdgeRatio: calculateGreenEdgeRatio(context, image.naturalWidth, image.naturalHeight)
+  };
+}
+
+function loadImageForInspection(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片打不开，请换一张绿幕图试试。"));
+    };
+    image.src = url;
+  });
+}
+
+function calculateGreenEdgeRatio(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number
+) {
+  const sampleStep = Math.max(1, Math.floor(Math.min(width, height) / 40));
+  const edgeDepth = Math.max(4, Math.floor(Math.min(width, height) * 0.12));
+  let greenPixels = 0;
+  let sampledPixels = 0;
+
+  for (let y = 0; y < height; y += sampleStep) {
+    for (let x = 0; x < width; x += sampleStep) {
+      const isEdge =
+        x < edgeDepth || y < edgeDepth || x > width - edgeDepth || y > height - edgeDepth;
+
+      if (!isEdge) {
+        continue;
+      }
+
+      const [red, green, blue] = context.getImageData(x, y, 1, 1).data;
+      sampledPixels += 1;
+
+      if (green > 110 && green > red * 1.25 && green > blue * 1.25) {
+        greenPixels += 1;
+      }
+    }
+  }
+
+  return sampledPixels === 0 ? 0 : greenPixels / sampledPixels;
 }
 
 function PetPanel({
@@ -1110,26 +1223,41 @@ function MaterialsTab({
   jobForSlot: (slot: string) => GenerationJob | undefined;
   onGenerateAction: (slot: MaterialSlot) => void;
 }) {
+  const basicSlots = slots.filter((slot) => slot.unlockTier === "basic");
+  const basicReadyCount = basicSlots.filter((slot) => assetFor(slot.id)?.status === "ready").length;
+  const totalReadyCount = slots.filter((slot) => assetFor(slot.id)?.status === "ready").length;
+
   return (
     <>
-      {materialGroups.map((group) => {
-        const groupSlots = slots.filter((slot) => slot.group === group.id);
-        const completeCount = groupSlots.filter((slot) => assetFor(slot.id)?.status === "ready").length;
+      <StarterSteps
+        basicReadyCount={basicReadyCount}
+        basicTotalCount={basicSlots.length}
+        hasFrameImage={hasFrameImage}
+        totalReadyCount={totalReadyCount}
+      />
+
+      {materialTierSections.map((section) => {
+        const tierSlots = slots.filter((slot) => slot.unlockTier === section.id);
+        const completeCount = tierSlots.filter((slot) => assetFor(slot.id)?.status === "ready").length;
+
+        if (tierSlots.length === 0) {
+          return null;
+        }
 
         return (
-          <section className="material-section" key={group.id}>
+          <section className="material-section" key={section.id}>
             <div className="section-head">
               <div>
-                <h3>{group.title}</h3>
-                <p>{group.description}</p>
+                <h3>{section.title}</h3>
+                <p>{section.description}</p>
               </div>
               <span className="badge sky">
-                {completeCount}/{groupSlots.length}
+                {completeCount}/{tierSlots.length}
               </span>
             </div>
 
             <div className="materials-grid">
-              {groupSlots.map((slot) => (
+              {tierSlots.map((slot) => (
                 <MaterialCard
                   asset={assetFor(slot.id)}
                   activeJob={jobForSlot(slot.id)}
@@ -1146,6 +1274,55 @@ function MaterialsTab({
         );
       })}
     </>
+  );
+}
+
+function StarterSteps({
+  basicReadyCount,
+  basicTotalCount,
+  hasFrameImage,
+  totalReadyCount
+}: {
+  basicReadyCount: number;
+  basicTotalCount: number;
+  hasFrameImage: boolean;
+  totalReadyCount: number;
+}) {
+  const steps = [
+    {
+      title: "放进绿幕图",
+      state: hasFrameImage ? "已就位" : "待上传"
+    },
+    {
+      title: "补齐基础版",
+      state: `${basicReadyCount}/${basicTotalCount}`
+    },
+    {
+      title: "打开 Mac 同步",
+      state: totalReadyCount > 0 ? "可同步" : "待动作"
+    },
+    {
+      title: "再加高级版",
+      state: "慢慢养"
+    }
+  ];
+
+  return (
+    <section className="starter-strip" aria-label="新手路线">
+      <div>
+        <h3>新手 4 步</h3>
+        <p>先把基础版跑顺，再给小猫慢慢加戏。</p>
+      </div>
+      <div className="starter-steps">
+        {steps.map((step, index) => (
+          <div className="starter-step" key={step.title}>
+            <span>{index + 1}</span>
+            <strong>{step.title}</strong>
+            <em>{step.state}</em>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1250,7 +1427,7 @@ function PetsTab({
 }) {
   return (
     <section className="panel management-panel">
-      <PanelTitle icon="🐾" title="我的宠物" subtitle="网页端管理云端素材，Mac App 后续同步宠物归属和素材包。" />
+      <PanelTitle icon="🐾" title="我的宠物" subtitle="给每只小家伙整理名字、位置和动作包。" />
       <div className="pet-list-grid">
         {pets.map((pet) => (
           <article className={pet.id === selectedPetId ? "pet-list-card active" : "pet-list-card"} key={pet.id}>
@@ -1293,7 +1470,7 @@ function FriendsTab({
   return (
     <section className="friend-board">
       <div className="panel friend-card">
-        <PanelTitle icon="👥" title="好友列表" subtitle="桌面端后续也会有这个列表，用来发起托管。" />
+        <PanelTitle icon="👥" title="好友列表" subtitle="把猫咪临时送去好友桌面玩。" />
         {friends.map((friend) => (
           <div className="friend-row" key={friend.id}>
             <div>
@@ -1308,7 +1485,7 @@ function FriendsTab({
       </div>
 
       <div className="panel friend-card">
-        <PanelTitle icon="🏠" title="托管状态" subtitle="宠物唯一显示位置由服务器决定，Mac App 只同步和渲染。" />
+        <PanelTitle icon="🏠" title="托管状态" subtitle="每只猫同一时间只会出现在一个桌面。" />
         {requests.map((request) => (
           <div className="hosting-state" key={request.id}>
             <strong>{request.petName}</strong>
@@ -1346,9 +1523,9 @@ function JobsTab({
 }) {
   return (
     <section className="panel management-panel">
-      <PanelTitle icon="📦" title="任务队列" subtitle="方舟查询接口只返回阶段状态，百分比是页面估算。" />
+      <PanelTitle icon="📦" title="生成记录" subtitle="动作做好后会自动收进动作包。" />
       {jobs.length === 0 ? (
-        <div className="empty-state">还没有生成任务。上传绿幕形象图或点击动作卡片开始。</div>
+        <div className="empty-state">还没有开始做动作。上传绿幕形象图或点击动作卡片开始。</div>
       ) : (
         <div className="job-list">
           {jobs.map((job) => {
@@ -1410,7 +1587,7 @@ function BillingTab({ user, jobs }: { user: CurrentUser; jobs: GenerationJob[] }
 
   return (
     <section className="panel management-panel">
-      <PanelTitle icon="💳" title="账单积分" subtitle="第一版先做积分流水，之后接订阅和支付。" />
+      <PanelTitle icon="💳" title="账单积分" subtitle="内测期间先用体验积分，正式付费规则后面再接。" />
       <div className="billing-grid">
         <div className="stat large-stat">
           <strong>{user.credits}</strong>
@@ -1418,11 +1595,11 @@ function BillingTab({ user, jobs }: { user: CurrentUser; jobs: GenerationJob[] }
         </div>
         <div className="stat large-stat">
           <strong>{spent}</strong>
-          <span>本次 mock 已消耗</span>
+          <span>本次已消耗</span>
         </div>
         <div className="stat large-stat">
           <strong>{jobs.length}</strong>
-          <span>生成任务</span>
+          <span>生成记录</span>
         </div>
       </div>
     </section>
@@ -1440,7 +1617,7 @@ function JobProgress({ job, compact = false }: { job: GenerationJob; compact?: b
       </div>
       <progress max={100} value={progress} />
       <p>
-        已耗时 {formatElapsed(job.createdAt)} · 官方状态 {job.status} · 百分比为页面估算
+        等了 {formatElapsed(job.createdAt)} · {labelForJobStatus(job.status)} · 小助手估计中
       </p>
     </div>
   );

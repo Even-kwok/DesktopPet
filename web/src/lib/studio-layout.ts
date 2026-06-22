@@ -14,6 +14,12 @@ export function petPanelStats(_input: { readyCount: number }): PetPanelStat[] {
   return [];
 }
 
+export type StudioStatusTone = "info" | "success" | "error";
+
+export function studioStatusMessageClassName(tone: StudioStatusTone) {
+  return `studio-status-message ${tone}`;
+}
+
 function nameEditControlCopy(label: string, name: string) {
   return {
     ariaLabel: `${label}：${name}`,

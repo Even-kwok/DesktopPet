@@ -180,6 +180,50 @@ final class DesktopPetSyncClientTests: XCTestCase {
         XCTAssertEqual(bundle.pets.first?.isDisplayableOnDesktop, false)
     }
 
+    func testBundleDescribesLocalVideosThatWouldBeReplacedBySync() throws {
+        let suiteName = "DesktopPetSyncClientTests.overwrite.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let localVideoURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("local-idle-\(UUID().uuidString).mp4")
+        FileManager.default.createFile(atPath: localVideoURL.path, contents: Data([0x00]))
+
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.saveVideoURL(localVideoURL, for: .idleLoop, petIndex: 0)
+
+        let json = """
+        {
+          "version": 1,
+          "generatedAt": "2026-06-22T08:00:00.000Z",
+          "pets": [
+            {
+              "id": "pet_orange",
+              "name": "栗子",
+              "type": "cat",
+              "displayState": "active",
+              "avatarUrl": null,
+              "materials": [
+                {
+                  "slot": "idle_loop",
+                  "name": "待机循环",
+                  "videoUrl": "https://example.com/idle.mp4",
+                  "status": "ready"
+                }
+              ]
+            }
+          ]
+        }
+        """
+
+        let bundle = try JSONDecoder.desktopPetSync.decode(DesktopPetBundle.self, from: Data(json.utf8))
+        let replacements = bundle.localMaterialReplacementDescriptions(settingsStore: settingsStore)
+
+        XCTAssertEqual(replacements, ["栗子 · 待机循环"])
+    }
+
     func testFetchBundleSendsBearerToken() async throws {
         URLProtocolStub.requestHandler = { request in
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
@@ -384,7 +428,7 @@ final class DesktopPetSyncClientTests: XCTestCase {
         URLProtocolStub.requestHandler = { request in
             XCTAssertEqual(
                 request.url?.absoluteString,
-                "https://web-six-inky-07atkspz3h.vercel.app/api/desktop/auth/login"
+                "https://web-guoyaowens-projects.vercel.app/api/desktop/auth/login"
             )
             XCTAssertEqual(request.httpMethod, "POST")
 

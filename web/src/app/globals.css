@@ -203,6 +203,32 @@ button:disabled {
   color: #167b59;
 }
 
+.studio-status-message {
+  width: fit-content;
+  max-width: 100%;
+  margin: -4px 0 16px;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.studio-status-message.success {
+  border-color: rgba(45, 185, 133, 0.24);
+  background: rgba(45, 185, 133, 0.12);
+  color: #167b59;
+}
+
+.studio-status-message.error {
+  border-color: rgba(224, 85, 97, 0.28);
+  background: #fff0f2;
+  color: var(--danger);
+}
+
 .account-credits {
   display: grid;
   gap: 2px;
@@ -739,6 +765,73 @@ select.input {
 .tab.active {
   background: var(--ink);
   color: #fff;
+}
+
+.starter-strip {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.5fr) minmax(0, 1.5fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.starter-strip h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.starter-strip p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.starter-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.starter-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 7px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(27, 35, 33, 0.08);
+  border-radius: 8px;
+  background: #f6fbfa;
+}
+
+.starter-step span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.starter-step strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.starter-step em {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
 }
 
 .material-section {
@@ -1466,7 +1559,7 @@ select.input {
 
 .admin-material-create-grid {
   display: grid;
-  grid-template-columns: 130px 150px 140px 82px 92px 92px minmax(280px, 1fr) auto;
+  grid-template-columns: 130px 150px 140px 100px 82px 92px 92px minmax(280px, 1fr) auto;
   gap: 8px;
   align-items: end;
 }
@@ -1538,7 +1631,7 @@ select.input {
 
 .admin-material-edit-table {
   width: 100%;
-  min-width: 1260px;
+  min-width: 1360px;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -1598,6 +1691,10 @@ select.input {
 
 .admin-material-select {
   width: 130px;
+}
+
+.admin-material-tier-select {
+  width: 100px;
 }
 
 .admin-material-trigger-input {
@@ -1712,6 +1809,11 @@ select.input {
 
   .topbar {
     align-items: flex-start;
+  }
+
+  .starter-strip,
+  .starter-steps {
+    grid-template-columns: 1fr;
   }
 
   .top-auth-form {

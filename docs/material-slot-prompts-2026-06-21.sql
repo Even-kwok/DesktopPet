@@ -1,10 +1,21 @@
 -- Upsert the current action library prompts into public.material_slot_definitions.
 -- Run with the Supabase SQL editor or a service-role database connection.
 
+alter table public.material_slot_definitions
+  add column if not exists unlock_tier text not null default 'custom';
+
+alter table public.material_slot_definitions
+  drop constraint if exists material_slot_definitions_unlock_tier_check;
+
+alter table public.material_slot_definitions
+  add constraint material_slot_definitions_unlock_tier_check
+  check (unlock_tier in ('basic', 'advanced', 'custom'));
+
 with material_prompts (
   slot,
   name,
   group_id,
+  unlock_tier,
   trigger_label,
   duration_seconds,
   credit_rate_per_second,
@@ -16,6 +27,7 @@ with material_prompts (
       'idle_loop',
       '待机循环',
       'core',
+      'basic',
       '默认循环',
       10,
       1.80,
@@ -26,6 +38,7 @@ with material_prompts (
       'sleep_loop',
       '睡觉',
       'core',
+      'basic',
       '长时间无操作',
       8,
       1.75,
@@ -36,6 +49,7 @@ with material_prompts (
       'catch_bug',
       '鼠标经过抓虫子',
       'pointer',
+      'basic',
       '鼠标经过宠物',
       5,
       2.40,
@@ -46,6 +60,7 @@ with material_prompts (
       'catch_bug_up',
       '双手抓上方虫子',
       'pointer',
+      'advanced',
       '鼠标经过宠物',
       5,
       2.40,
@@ -56,6 +71,7 @@ with material_prompts (
       'click_react',
       '点击反应',
       'pointer',
+      'basic',
       '点击宠物',
       4,
       3.00,
@@ -66,6 +82,7 @@ with material_prompts (
       'head_rub_left',
       '左边头蹭蹭',
       'nearbyPet',
+      'advanced',
       '另一只宠物靠近',
       5,
       2.40,
@@ -76,6 +93,7 @@ with material_prompts (
       'head_rub_right',
       '右边头蹭蹭',
       'nearbyPet',
+      'advanced',
       '另一只宠物靠近',
       5,
       2.40,
@@ -86,6 +104,7 @@ with material_prompts (
       'angry_swipe_left',
       '向左看生气挥一下爪子',
       'nearbyPet',
+      'advanced',
       '另一只宠物靠近',
       5,
       2.40,
@@ -96,6 +115,7 @@ with material_prompts (
       'angry_swipe_right',
       '向右看生气挥一下爪子',
       'nearbyPet',
+      'advanced',
       '另一只宠物靠近',
       5,
       2.40,
@@ -106,6 +126,7 @@ with material_prompts (
       'yawn',
       '打哈欠',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -116,6 +137,7 @@ with material_prompts (
       'lick_belly',
       '舔肚子的毛',
       'idleLife',
+      'advanced',
       '待机随机',
       8,
       1.25,
@@ -126,6 +148,7 @@ with material_prompts (
       'lick_back',
       '舔背部的毛',
       'idleLife',
+      'advanced',
       '待机随机',
       8,
       1.25,
@@ -136,6 +159,7 @@ with material_prompts (
       'stretch',
       '伸懒腰',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -146,6 +170,7 @@ with material_prompts (
       'happy',
       '开心',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -156,6 +181,7 @@ with material_prompts (
       'disgusted',
       '嫌弃',
       'idleLife',
+      'advanced',
       '待机随机',
       5,
       2.00,
@@ -166,6 +192,7 @@ with material_prompts (
       'clingy',
       '粘人',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -176,6 +203,7 @@ with material_prompts (
       'aloof',
       '高冷',
       'idleLife',
+      'advanced',
       '待机随机',
       5,
       2.00,
@@ -186,6 +214,7 @@ with material_prompts (
       'belly_up',
       '躺下翻肚皮',
       'idleLife',
+      'advanced',
       '待机随机',
       7,
       1.42,
@@ -196,6 +225,7 @@ with material_prompts (
       'look_at_camera',
       '看镜头',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -206,6 +236,7 @@ with material_prompts (
       'salary_cat_stinky_dance',
       '跳月薪喵散屁舞',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -216,6 +247,7 @@ with material_prompts (
       'head_bob_dance',
       '摇头晃脑舞',
       'idleLife',
+      'advanced',
       '待机随机',
       6,
       1.66,
@@ -226,6 +258,7 @@ with material_prompts (
       'full_wash_face',
       '吃饱满足洗脸',
       'feeding',
+      'advanced',
       '吃饱后触发',
       8,
       1.25,
@@ -236,6 +269,7 @@ with material_prompts (
       'hungry_meow',
       '饿了嗷嗷叫',
       'feeding',
+      'advanced',
       '饥饿时触发',
       6,
       1.66,
@@ -247,6 +281,7 @@ insert into public.material_slot_definitions (
   slot,
   name,
   group_id,
+  unlock_tier,
   trigger_label,
   trigger_is_editable,
   duration_seconds,
@@ -261,6 +296,7 @@ select
   slot,
   name,
   group_id,
+  unlock_tier,
   trigger_label,
   false,
   duration_seconds,
@@ -284,6 +320,7 @@ from material_prompts
 on conflict (slot) do update set
   name = excluded.name,
   group_id = excluded.group_id,
+  unlock_tier = excluded.unlock_tier,
   trigger_label = excluded.trigger_label,
   trigger_is_editable = excluded.trigger_is_editable,
   duration_seconds = excluded.duration_seconds,
@@ -296,5 +333,6 @@ on conflict (slot) do update set
 
 update public.material_slot_definitions
 set sort_order = 23,
+    unlock_tier = 'custom',
     updated_at = now()
 where slot = 'drag_loop';

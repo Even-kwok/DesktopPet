@@ -7,6 +7,7 @@ import {
   updateAdminMaterialConfig
 } from "@/lib/server/material-library-store";
 import { materialGroups } from "@/lib/material-slots";
+import { materialUnlockTiers } from "@/lib/material-library-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +17,15 @@ const materialGroupIds = materialGroups.map((group) => group.id) as [
   (typeof materialGroups)[number]["id"],
   ...(typeof materialGroups)[number]["id"][]
 ];
+const materialTierIds = materialUnlockTiers.map((tier) => tier.id) as [
+  (typeof materialUnlockTiers)[number]["id"],
+  ...(typeof materialUnlockTiers)[number]["id"][]
+];
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   groupId: z.enum(materialGroupIds).optional(),
+  unlockTier: z.enum(materialTierIds).optional(),
   durationSeconds: z.number().int().min(4).max(15).optional(),
   creditsPerSecond: z.number().min(0).max(100).optional(),
   promptContent: z.string().trim().min(1).max(4000).optional(),

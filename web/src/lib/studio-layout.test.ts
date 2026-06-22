@@ -6,7 +6,8 @@ import {
   materialCardPreviewState,
   petNameEditControlCopy,
   petPanelImageUrl,
-  petPanelStats
+  petPanelStats,
+  studioStatusMessageClassName
 } from "./studio-layout.ts";
 import { materialSlots } from "./material-slots.ts";
 import type { Pet } from "./types.ts";
@@ -18,7 +19,7 @@ const pet: Pet = {
   currentHostUserId: "user_demo",
   name: "栗子",
   type: "cat",
-  status: "首尾帧形象已就绪",
+  status: "绿幕形象已就绪",
   materialsReady: 8,
   mood: "同步",
   host: "me",
@@ -38,6 +39,12 @@ test("pet panel uses local preview before saved image URLs", () => {
 
 test("pet panel does not render summary stat cards", () => {
   assert.deepEqual(petPanelStats({ readyCount: 0 }), []);
+});
+
+test("studio status message uses a visible tone class", () => {
+  assert.equal(studioStatusMessageClassName("info"), "studio-status-message info");
+  assert.equal(studioStatusMessageClassName("success"), "studio-status-message success");
+  assert.equal(studioStatusMessageClassName("error"), "studio-status-message error");
 });
 
 test("pet name edit control uses a compact pencil glyph with an accessible label", () => {

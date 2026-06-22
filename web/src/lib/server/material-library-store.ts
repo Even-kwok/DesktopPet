@@ -10,13 +10,19 @@ import {
   type MaterialLibraryCreate,
   type MaterialLibraryUpdate
 } from "@/lib/material-library-config";
-import { materialGroups, materialSlots, type MaterialGroupId } from "@/lib/material-slots";
+import {
+  materialGroups,
+  materialSlots,
+  type MaterialGroupId,
+  type MaterialUnlockTier
+} from "@/lib/material-slots";
 import { getBackendStatus, getSupabaseAdminClient } from "@/lib/supabase/server";
 
 type MaterialSlotDefinitionRow = {
   slot: string;
   name: string;
   group_id: string;
+  unlock_tier?: string | null;
   trigger_label: string;
   duration_seconds: number;
   credit_rate_per_second: number;
@@ -164,6 +170,7 @@ async function createSupabaseMaterialConfig(input: MaterialLibraryCreate) {
       slot: created.code,
       name: created.name,
       group_id: created.group.id,
+      unlock_tier: created.unlockTier.id,
       trigger_label: created.trigger.label,
       trigger_is_editable: false,
       duration_seconds: created.durationSeconds,
@@ -175,7 +182,7 @@ async function createSupabaseMaterialConfig(input: MaterialLibraryCreate) {
       updated_at: created.updatedAt
     })
     .select(
-      "slot,name,group_id,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
+      "slot,name,group_id,unlock_tier,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
     )
     .single();
 
@@ -209,7 +216,7 @@ async function loadSupabaseMaterialLibraryConfigs() {
   const { data, error } = await supabase
     .from("material_slot_definitions")
     .select(
-      "slot,name,group_id,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
+      "slot,name,group_id,unlock_tier,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
     )
     .order("sort_order", { ascending: true });
 
@@ -236,6 +243,7 @@ async function updateSupabaseMaterialConfig(code: string, patch: MaterialLibrary
     .update({
       name: updated.name,
       group_id: updated.group.id,
+      unlock_tier: updated.unlockTier.id,
       duration_seconds: durationSeconds,
       credit_rate_per_second: creditsPerSecond,
       prompt_template: updated.promptContent,
@@ -245,7 +253,7 @@ async function updateSupabaseMaterialConfig(code: string, patch: MaterialLibrary
     })
     .eq("slot", code)
     .select(
-      "slot,name,group_id,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
+      "slot,name,group_id,unlock_tier,trigger_label,duration_seconds,credit_rate_per_second,prompt_template,generation_settings,is_enabled,updated_at"
     )
     .single();
 
@@ -311,6 +319,7 @@ function materialConfigFromRow(row: MaterialSlotDefinitionRow): MaterialLibraryC
       name: group?.title ?? groupId,
       description: group?.description ?? ""
     },
+    unlockTier: normalizeUnlockTier(row.unlock_tier) ?? seed?.unlockTier ?? "custom",
     triggerLabel: row.trigger_label,
     durationSeconds: row.duration_seconds,
     creditsPerSecond: row.credit_rate_per_second,
@@ -318,4 +327,8 @@ function materialConfigFromRow(row: MaterialSlotDefinitionRow): MaterialLibraryC
     enabled: row.is_enabled,
     updatedAt: row.updated_at
   });
+}
+
+function normalizeUnlockTier(value: string | null | undefined): MaterialUnlockTier | null {
+  return value === "basic" || value === "advanced" || value === "custom" ? value : null;
 }

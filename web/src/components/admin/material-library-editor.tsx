@@ -2,8 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { materialCostLabel } from "@/lib/admin-material-table";
-import type { MaterialLibraryConfig } from "@/lib/material-library-config";
-import type { MaterialGroup, MaterialGroupId } from "@/lib/material-slots";
+import {
+  materialUnlockTiers,
+  unlockTierForId,
+  type MaterialLibraryConfig
+} from "@/lib/material-library-config";
+import type { MaterialGroup, MaterialGroupId, MaterialUnlockTier } from "@/lib/material-slots";
 
 type SaveState = {
   code: string;
@@ -15,6 +19,7 @@ type CreateMaterialDraft = {
   code: string;
   name: string;
   groupId: MaterialGroupId;
+  unlockTier: MaterialUnlockTier;
   durationSeconds: number;
   creditsPerSecond: number;
   promptContent: string;
@@ -92,6 +97,7 @@ export function MaterialLibraryEditor({
       body: JSON.stringify({
         name: material.name,
         groupId: material.group.id,
+        unlockTier: material.unlockTier.id,
         durationSeconds: material.durationSeconds,
         creditsPerSecond: material.creditsPerSecond,
         promptContent: material.promptContent,
@@ -193,6 +199,22 @@ export function MaterialLibraryEditor({
             </select>
           </label>
           <label>
+            <span>版本</span>
+            <select
+              className="input"
+              value={createDraft.unlockTier}
+              onChange={(event) =>
+                updateCreateDraft({ unlockTier: event.target.value as MaterialUnlockTier })
+              }
+            >
+              {materialUnlockTiers.map((tier) => (
+                <option key={tier.id} value={tier.id}>
+                  {tier.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             <span>时长</span>
             <input
               className="input"
@@ -261,6 +283,7 @@ export function MaterialLibraryEditor({
                   <th>素材</th>
                   <th>名字</th>
                   <th>分组</th>
+                  <th>版本</th>
                   <th>触发条件</th>
                   <th>启用</th>
                   <th>时长</th>
@@ -305,6 +328,24 @@ export function MaterialLibraryEditor({
                         {groups.map((option) => (
                           <option key={option.id} value={option.id}>
                             {option.title}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="input admin-material-tier-select"
+                        title={material.unlockTier.description}
+                        value={material.unlockTier.id}
+                        onChange={(event) => {
+                          updateMaterial(material.code, {
+                            unlockTier: unlockTierForId(event.target.value as MaterialUnlockTier)
+                          });
+                        }}
+                      >
+                        {materialUnlockTiers.map((tier) => (
+                          <option key={tier.id} value={tier.id}>
+                            {tier.name}
                           </option>
                         ))}
                       </select>
@@ -404,6 +445,7 @@ function createEmptyMaterialDraft(groups: MaterialGroup[]): CreateMaterialDraft 
     code: "",
     name: "",
     groupId: defaultGroup?.id ?? "reserved",
+    unlockTier: "custom",
     durationSeconds: 6,
     creditsPerSecond: 1.66,
     promptContent: "",

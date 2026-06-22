@@ -79,8 +79,8 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
       <section className="panel signed-out-board">
         <div className="signed-out-copy">
           <span className="panel-icon">🐾</span>
-          <h2>登录后进入你的桌宠工作台</h2>
-          <p>网页端管理账号、积分和素材生成；Mac App 同步后负责显示、陪伴和托管。</p>
+          <h2>登录后把猫咪养进桌面</h2>
+          <p>上传绿幕猫咪图，挑几个动作生成，会动的小家伙就能同步到 Mac 陪你。</p>
         </div>
         <div className="signed-out-preview" aria-hidden="true">
           <strong>🐈</strong>

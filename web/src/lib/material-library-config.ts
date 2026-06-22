@@ -2,7 +2,12 @@ import {
   defaultVideoGenerationSettings,
   type VideoGenerationSettings
 } from "./generation-settings.ts";
-import type { MaterialGroup, MaterialGroupId, MaterialSlot } from "./material-slots";
+import type {
+  MaterialGroup,
+  MaterialGroupId,
+  MaterialSlot,
+  MaterialUnlockTier
+} from "./material-slots";
 
 export type MaterialLibraryConfig = {
   code: string;
@@ -11,6 +16,11 @@ export type MaterialLibraryConfig = {
   icon: string;
   group: {
     id: MaterialGroupId;
+    name: string;
+    description: string;
+  };
+  unlockTier: {
+    id: MaterialUnlockTier;
     name: string;
     description: string;
   };
@@ -44,6 +54,7 @@ export type MaterialLibraryUpdate = {
   groupId?: MaterialGroupId;
   durationSeconds?: number;
   creditsPerSecond?: number;
+  unlockTier?: MaterialUnlockTier;
   promptContent?: string;
   enabled?: boolean;
 };
@@ -52,6 +63,7 @@ export type MaterialLibraryCreate = {
   code: string;
   name: string;
   groupId: MaterialGroupId;
+  unlockTier?: MaterialUnlockTier;
   durationSeconds: number;
   creditsPerSecond: number;
   promptContent: string;
@@ -74,6 +86,7 @@ export function buildMaterialLibraryConfigs(
       name: slot.name,
       icon: slot.icon,
       group,
+      unlockTier: slot.unlockTier,
       triggerLabel: slot.trigger,
       durationSeconds: slot.durationSeconds,
       creditsPerSecond,
@@ -107,6 +120,7 @@ export function updateMaterialLibraryConfig(
     name: cleanEditableText(patch.name) ?? current.name,
     icon: current.icon,
     group,
+    unlockTier: patch.unlockTier ?? current.unlockTier.id,
     triggerLabel: current.trigger.label,
     durationSeconds,
     creditsPerSecond,
@@ -142,6 +156,7 @@ export function createAdminMaterialLibraryConfig(
     name,
     icon: "🐾",
     group: groupForId(input.groupId, groups),
+    unlockTier: input.unlockTier ?? "custom",
     triggerLabel: triggerLabelForGroup(input.groupId),
     durationSeconds: input.durationSeconds,
     creditsPerSecond: input.creditsPerSecond,
@@ -185,7 +200,8 @@ export function toPublicMaterialSlot(config: MaterialLibraryConfig): MaterialSlo
     cost: config.costCredits,
     durationSeconds: config.durationSeconds,
     group: config.group.id,
-    icon: config.icon
+    icon: config.icon,
+    unlockTier: config.unlockTier.id
   };
 }
 
@@ -194,6 +210,7 @@ export function createMaterialLibraryConfig(input: {
   name: string;
   icon: string;
   group: MaterialLibraryConfig["group"];
+  unlockTier: MaterialUnlockTier;
   triggerLabel: string;
   durationSeconds: number;
   creditsPerSecond: number;
@@ -211,6 +228,7 @@ export function createMaterialLibraryConfig(input: {
     nameEditable: true,
     icon: input.icon,
     group: input.group,
+    unlockTier: unlockTierForId(input.unlockTier),
     trigger: {
       label: input.triggerLabel,
       editable: false,
@@ -248,6 +266,28 @@ function groupForId(groupId: MaterialGroupId, groups: MaterialGroup[]) {
     name: group?.title ?? groupId,
     description: group?.description ?? ""
   };
+}
+
+export const materialUnlockTiers: Array<MaterialLibraryConfig["unlockTier"]> = [
+  {
+    id: "basic",
+    name: "基础版",
+    description: "先让猫咪活起来的核心动作。"
+  },
+  {
+    id: "advanced",
+    name: "高级版",
+    description: "更丰富的情绪、待机和互动动作。"
+  },
+  {
+    id: "custom",
+    name: "自定义",
+    description: "后续按需单独解锁或运营配置。"
+  }
+];
+
+export function unlockTierForId(tier: MaterialUnlockTier) {
+  return materialUnlockTiers.find((item) => item.id === tier) ?? materialUnlockTiers[2];
 }
 
 export function normalizeMaterialCode(value: string) {

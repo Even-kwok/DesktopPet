@@ -86,6 +86,41 @@ struct DesktopPetSyncSummary {
     let materialCount: Int
 }
 
+extension DesktopPetBundle {
+    func localMaterialReplacementDescriptions(settingsStore: SettingsStore) -> [String] {
+        let displayablePets = pets.filter(\.isDisplayableOnDesktop)
+        var descriptions: [String] = []
+
+        for (petIndex, pet) in displayablePets.enumerated() {
+            for material in pet.materials where material.status == "ready" {
+                guard let existingURL = settingsStore.restoreVideoURL(
+                    for: material.slot,
+                    petIndex: petIndex
+                ) else {
+                    continue
+                }
+
+                if existingURL.isDesktopPetRemoteMaterialCacheURL {
+                    continue
+                }
+
+                descriptions.append("\(pet.name) · \(material.name)")
+            }
+        }
+
+        return descriptions
+    }
+}
+
+private extension URL {
+    var isDesktopPetRemoteMaterialCacheURL: Bool {
+        let pathComponents = self.pathComponents
+
+        return pathComponents.contains("CatDesktopPet")
+            && pathComponents.contains("RemoteMaterials")
+    }
+}
+
 enum DesktopPetSyncError: LocalizedError, Equatable {
     case invalidResponse
     case loginFailed
@@ -96,7 +131,7 @@ enum DesktopPetSyncError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            "桌面同步接口返回异常。"
+            "桌面同步返回异常。"
         case .loginFailed:
             "登录失败，请检查账号和密码。"
         case .sessionExpired:
@@ -116,7 +151,7 @@ extension JSONDecoder {
 }
 
 final class DesktopPetSyncClient {
-    private static let fallbackWebBaseURL = URL(string: "https://web-six-inky-07atkspz3h.vercel.app")!
+    private static let fallbackWebBaseURL = URL(string: "https://web-guoyaowens-projects.vercel.app")!
 
     private let endpointURL: URL
     private let apiBaseURL: URL

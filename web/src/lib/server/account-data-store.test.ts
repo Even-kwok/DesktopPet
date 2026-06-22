@@ -460,7 +460,7 @@ test("stale active generation jobs expire and release the material slot", () => 
   assert.deepEqual(expiredJobs.map((job) => job.jobId), [runningJob.jobId]);
   assert.equal(state.generationJobs[0]?.status, "expired");
   assert.equal(state.generationJobs[0]?.progress, 100);
-  assert.match(state.generationJobs[0]?.message ?? "", /超时/);
+  assert.match(state.generationJobs[0]?.message ?? "", /停下/);
   assert.equal(state.users[0]?.credits, account.credits);
   assert.deepEqual(state.assets, [
     {

@@ -28,6 +28,10 @@ struct DesktopSyncedPetCard: Identifiable, Equatable, Codable {
         displayState == "unavailable" || ownership == "away"
     }
 
+    var canRequestHosting: Bool {
+        ownership == "owned" && displayState == "active"
+    }
+
     func shouldShowRecallAction(isSelected: Bool) -> Bool {
         isSelected && canRecall
     }
@@ -73,6 +77,7 @@ final class PetStudioViewModel: ObservableObject {
     private let petColonyController: PetColonyController
     private let desktopSyncClient: DesktopPetSyncClient
     private let accountSessionStore: DesktopAccountSessionStore
+    private let confirmMaterialReplacement: @MainActor ([String]) -> Bool
     private let onLibraryChanged: () -> Void
     private let frontImageCreditCost = 10
     private let cacheEncoder = JSONEncoder()
@@ -108,12 +113,14 @@ final class PetStudioViewModel: ObservableObject {
         desktopSyncClient: DesktopPetSyncClient = DesktopPetSyncClient(),
         accountSessionStore: DesktopAccountSessionStore = DesktopAccountSessionStore(),
         defaults: UserDefaults = .standard,
+        confirmMaterialReplacement: @escaping @MainActor ([String]) -> Bool = PetStudioViewModel.presentMaterialReplacementReminder,
         onLibraryChanged: @escaping () -> Void = {}
     ) {
         self.settingsStore = settingsStore
         self.petColonyController = petColonyController
         self.desktopSyncClient = desktopSyncClient
         self.accountSessionStore = accountSessionStore
+        self.confirmMaterialReplacement = confirmMaterialReplacement
         self.defaults = defaults
         self.onLibraryChanged = onLibraryChanged
         currentAccount = accountSessionStore.currentAccount
@@ -164,7 +171,7 @@ final class PetStudioViewModel: ObservableObject {
     }
 
     var canConfirmFrontImage: Bool {
-        generatedFrontImageURL != nil && !isGeneratingFrontImage
+        (sourceImageURL != nil || generatedFrontImageURL != nil) && !isGeneratingFrontImage
     }
 
     var canAddFriend: Bool {
@@ -288,8 +295,8 @@ final class PetStudioViewModel: ObservableObject {
             return
         }
 
-        guard selectedSyncedPetCard.canRecall else {
-            statusMessage = "这只猫已经在我的桌面，不需要召回。"
+        guard selectedSyncedPetCard.canRequestHosting else {
+            statusMessage = "这只猫现在不在我的桌面，先召回再寄养。"
             return
         }
 
@@ -466,7 +473,7 @@ final class PetStudioViewModel: ObservableObject {
         sourceImageURL = url
         generatedFrontImageURL = nil
         isFrontImageConfirmed = false
-        statusMessage = "已选择图片。下一步可以生成正面形象。"
+        statusMessage = "绿幕形象已选好，确认后就能生成动作。"
         persistSelectedPetDraft()
     }
 
@@ -477,17 +484,16 @@ final class PetStudioViewModel: ObservableObject {
 
         isGeneratingFrontImage = true
         isFrontImageConfirmed = false
-        statusMessage = "正在生成正面形象。当前是 UI mock，后续会接 GPT Image API。"
+        statusMessage = "Mac 端不再生成静态图，请直接确认准备好的绿幕图。"
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self else {
                 return
             }
 
-            self.creditBalance -= self.frontImageCreditCost
             self.generatedFrontImageURL = sourceImageURL
             self.isGeneratingFrontImage = false
-            self.statusMessage = "正面形象已生成。当前预览先使用原图占位。"
+            self.statusMessage = "绿幕形象已准备好，确认后就能继续。"
             self.persistCreditBalance()
             self.persistSelectedPetDraft()
         }
@@ -502,8 +508,11 @@ final class PetStudioViewModel: ObservableObject {
             return
         }
 
+        if generatedFrontImageURL == nil {
+            generatedFrontImageURL = sourceImageURL
+        }
         isFrontImageConfirmed = true
-        statusMessage = "正面形象已确认。现在可以生成各个状态视频。"
+        statusMessage = "绿幕形象已确认。现在可以生成或导入动作视频。"
         persistSelectedPetDraft()
     }
 
@@ -520,7 +529,7 @@ final class PetStudioViewModel: ObservableObject {
         }
 
         generatingSlots.insert(slot)
-        statusMessage = "正在生成「\(slot.displayName)」。当前是 UI mock，后续会接即梦视频 API。"
+        statusMessage = "请在网页端生成后同步，或导入已经做好的视频。"
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             guard let self else {
@@ -530,7 +539,7 @@ final class PetStudioViewModel: ObservableObject {
             self.creditBalance -= slot.generationCreditCost
             self.generatingSlots.remove(slot)
             self.generatedSlots.insert(slot)
-            self.statusMessage = "「\(slot.displayName)」生成完成占位。接入 API 后这里会保存返回的视频素材。"
+            self.statusMessage = "「\(slot.displayName)」已记入动作包。"
             self.persistCreditBalance()
             self.persistGeneratedSlots()
         }
@@ -549,19 +558,41 @@ final class PetStudioViewModel: ObservableObject {
             return
         }
 
-        settingsStore.saveVideoURL(url, for: slot, petIndex: selectedPetIndex)
-        localVideoSlots.insert(slot)
+        let targetPetIndex = selectedPetIndex
+        statusMessage = "正在检查「\(slot.displayName)」视频..."
 
-        if slot == .idleLoop {
-            settingsStore.isPetVisible = true
-            petColonyController.showAll()
-        } else {
-            petColonyController.refreshPlayback()
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let review = await inspectPetVideoImport(url: url)
+
+            guard review.canImport else {
+                self.statusMessage = review.blockingMessages.joined(separator: " ")
+                return
+            }
+
+            self.settingsStore.saveVideoURL(url, for: slot, petIndex: targetPetIndex)
+
+            if targetPetIndex == self.selectedPetIndex {
+                self.localVideoSlots.insert(slot)
+            }
+
+            if slot == .idleLoop {
+                self.settingsStore.isPetVisible = true
+                self.petColonyController.showAll()
+            } else {
+                self.petColonyController.refreshPlayback()
+            }
+
+            let warningText = review.warningMessages.isEmpty
+                ? ""
+                : " \(review.warningMessages.joined(separator: " "))"
+            self.statusMessage = "已导入「\(slot.displayName)」本地视频。\(warningText)"
+            self.onLibraryChanged()
+            self.objectWillChange.send()
         }
-
-        statusMessage = "已导入「\(slot.displayName)」本地视频。"
-        onLibraryChanged()
-        objectWillChange.send()
     }
 
     func removeLocalVideo(for slot: PetActionSlot) {
@@ -605,6 +636,17 @@ final class PetStudioViewModel: ObservableObject {
                 let bundle = try await self.desktopSyncClient.fetchBundle(
                     accessToken: currentAccount.accessToken
                 )
+                let replacementDescriptions = bundle.localMaterialReplacementDescriptions(
+                    settingsStore: self.settingsStore
+                )
+
+                if !replacementDescriptions.isEmpty
+                    && !self.confirmMaterialReplacement(replacementDescriptions) {
+                    self.isSyncingDesktopBundle = false
+                    self.statusMessage = "已取消同步，本地动作保持不变。"
+                    return
+                }
+
                 self.applySyncedPetCards(from: bundle)
                 self.applySyncedAccount(from: bundle, fallbackToken: currentAccount.accessToken)
                 if let refreshedToken = self.currentAccount?.accessToken {
@@ -647,7 +689,7 @@ final class PetStudioViewModel: ObservableObject {
         }
 
         if generatedSlots.contains(slot) {
-            return "已生成占位"
+            return "已记入"
         }
 
         return "未生成"
@@ -675,11 +717,11 @@ final class PetStudioViewModel: ObservableObject {
         petNameDraft = settingsStore.petName(for: selectedPetIndex)
 
         if isFrontImageConfirmed {
-            statusMessage = "正面形象已确认，可以继续生成状态视频。"
+            statusMessage = "绿幕形象已确认，可以继续补动作。"
         } else if generatedFrontImageURL != nil {
-            statusMessage = "正面形象已生成，确认后即可生成状态视频。"
+            statusMessage = "绿幕形象已选好，确认后就能生成动作。"
         } else if sourceImageURL != nil {
-            statusMessage = "已选择图片。下一步可以生成正面形象。"
+            statusMessage = "绿幕形象已选好，确认后就能生成动作。"
         } else {
             statusMessage = ""
         }
@@ -842,6 +884,20 @@ final class PetStudioViewModel: ObservableObject {
 
     private func persistCreditBalance() {
         defaults.set(creditBalance, forKey: Keys.creditBalance)
+    }
+
+    private static func presentMaterialReplacementReminder(_ descriptions: [String]) -> Bool {
+        let preview = descriptions.prefix(6).joined(separator: "\n")
+        let extraCount = max(0, descriptions.count - 6)
+        let extraText = extraCount > 0 ? "\n还有 \(extraCount) 个动作也会被替换。" : ""
+        let alert = NSAlert()
+        alert.messageText = "同步会替换本地动作"
+        alert.informativeText = "\(preview)\(extraText)\n\n继续同步后，这些位置会使用网页端最新素材。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "继续同步")
+        alert.addButton(withTitle: "先不覆盖")
+
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func clampedPetIndex(_ index: Int) -> Int {

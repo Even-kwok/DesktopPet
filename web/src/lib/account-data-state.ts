@@ -48,7 +48,7 @@ export type AdminCreditAdjustmentResult = {
 
 export const defaultGenerationJobTimeoutMs = 30 * 60 * 1000;
 export const staleGenerationJobMessage =
-  "生成任务超过等待时间未返回结果，已暂时标记为超时；如 API 已扣费，请刷新任务队列或联系管理员恢复结果。";
+  "这次生成等得有点久，先暂时停下；如果积分已经扣了，请刷新生成记录或联系小助手处理。";
 
 const validAssetStatuses = new Set<PetAssetStatus>([
   "missing",
@@ -552,7 +552,7 @@ export function updatePetImagesInState(
     ...state.pets[petIndex],
     sourceImageUrl: input.imageUrl,
     frontImageUrl: input.imageUrl,
-    status: "首尾帧形象已就绪"
+    status: "绿幕形象已就绪"
   };
   retireActiveActionJobsForPet(state, input.petId);
 
@@ -718,7 +718,7 @@ function retireActiveActionJobsForPet(state: AccountDataState, petId: string) {
         ...job,
         status: "expired",
         progress: 100,
-        message: "源图已更新，本次任务已作废。"
+        message: "绿幕形象已更新，这次生成先停下。"
       };
     }
 

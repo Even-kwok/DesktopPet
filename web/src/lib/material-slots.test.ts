@@ -21,7 +21,8 @@ test("material slots include the latest requested action library additions", () 
     cost: 10,
     durationSeconds: 6,
     group: "idleLife",
-    icon: "👀"
+    icon: "👀",
+    unlockTier: "advanced"
   });
   assert.deepEqual(slotsById.get("salary_cat_stinky_dance"), {
     id: "salary_cat_stinky_dance",
@@ -30,7 +31,8 @@ test("material slots include the latest requested action library additions", () 
     cost: 10,
     durationSeconds: 6,
     group: "idleLife",
-    icon: "🪩"
+    icon: "🪩",
+    unlockTier: "advanced"
   });
   assert.deepEqual(slotsById.get("head_bob_dance"), {
     id: "head_bob_dance",
@@ -39,6 +41,7 @@ test("material slots include the latest requested action library additions", () 
     cost: 10,
     durationSeconds: 6,
     group: "idleLife",
-    icon: "🎵"
+    icon: "🎵",
+    unlockTier: "advanced"
   });
 });

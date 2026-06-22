@@ -386,7 +386,7 @@ struct PetStudioView: View {
                 viewModel.requestHosting(to: friend)
             }
             .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
-            .disabled(viewModel.selectedSyncedPetCard == nil || viewModel.isMutatingFriend)
+            .disabled(viewModel.selectedSyncedPetCard?.canRequestHosting != true || viewModel.isMutatingFriend)
 
             iconActionButton(
                 systemImage: "trash",
@@ -473,7 +473,7 @@ struct PetStudioView: View {
                             .font(.system(size: 27, weight: .heavy, design: .rounded))
                             .lineLimit(1)
 
-                        Text(viewModel.isFrontImageConfirmed ? "形象已确认，可以继续补齐动作素材" : "先上传图片，生成一张可爱的正面形象")
+                        Text(viewModel.isFrontImageConfirmed ? "绿幕形象已确认，可以继续补动作" : "先准备一张绿幕猫咪图")
                             .font(.callout)
                             .foregroundStyle(StudioPalette.muted)
                     }
@@ -548,7 +548,7 @@ struct PetStudioView: View {
 
     private var imageQuestPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            panelTitle("形象小屋", subtitle: "上传照片，生成一张可以继续做动作视频的正面形象。", icon: "pawprint.fill")
+            panelTitle("绿幕形象", subtitle: "选择一张纯绿幕静态图，确认后就能继续做动作。", icon: "pawprint.fill")
 
             accountSyncPanel
 
@@ -560,44 +560,23 @@ struct PetStudioView: View {
             Button {
                 viewModel.chooseSourceImage()
             } label: {
-                Label("上传宠物照片", systemImage: "photo.on.rectangle")
+                Label("选择绿幕图", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(StudioButtonStyle(kind: .primary))
-
-            HStack(spacing: 8) {
-                Button {
-                    viewModel.generateFrontImage()
-                } label: {
-                    if viewModel.isGeneratingFrontImage {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("生成正面")
-                    }
-                }
-                .buttonStyle(StudioButtonStyle(kind: .secondary))
-                .disabled(!viewModel.canGenerateFrontImage)
-
-                Button("重新生成") {
-                    viewModel.regenerateFrontImage()
-                }
-                .buttonStyle(StudioButtonStyle(kind: .secondary))
-                .disabled(!viewModel.canGenerateFrontImage)
-            }
 
             Button {
                 viewModel.confirmFrontImage()
             } label: {
-                Label(viewModel.isFrontImageConfirmed ? "形象已确认" : "确认形象", systemImage: viewModel.isFrontImageConfirmed ? "checkmark.seal.fill" : "checkmark.seal")
+                Label(viewModel.isFrontImageConfirmed ? "绿幕图已确认" : "确认绿幕图", systemImage: viewModel.isFrontImageConfirmed ? "checkmark.seal.fill" : "checkmark.seal")
             }
             .buttonStyle(StudioButtonStyle(kind: viewModel.isFrontImageConfirmed ? .success : .secondary))
             .disabled(!viewModel.canConfirmFrontImage)
 
             VStack(alignment: .leading, spacing: 8) {
-                infoRow(icon: "wand.and.stars", title: "生成正面", detail: "\(viewModel.frontImageCost) 积分 / 次")
-                infoRow(icon: "film.stack", title: "生成动作", detail: "每个状态单独生成")
-                infoRow(icon: "externaldrive", title: "本地素材", detail: "也可以直接导入 MP4 / MOV")
-                infoRow(icon: "icloud.and.arrow.down", title: "网页同步", detail: "拉取网页端已生成的视频")
+                infoRow(icon: "photo", title: "绿幕图", detail: "正面坐姿，身体完整")
+                infoRow(icon: "film.stack", title: "动作包", detail: "每个状态单独补齐")
+                infoRow(icon: "externaldrive", title: "本地视频", detail: "可导入 MP4 / MOV")
+                infoRow(icon: "icloud.and.arrow.down", title: "网页同步", detail: "把生成好的动作带回来")
             }
             .padding(.top, 4)
 
@@ -676,7 +655,7 @@ struct PetStudioView: View {
     private var materialBoard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center) {
-                panelTitle("动作卡册", subtitle: "有素材的动作会进入对应触发池；点击卡片里的预览可查看本地动作视频。", icon: "play.square.stack.fill")
+                panelTitle("动作卡册", subtitle: "有素材的动作会在对应场景出现；点预览看看效果。", icon: "play.square.stack.fill")
 
                 Spacer()
 
@@ -911,28 +890,6 @@ private struct MaterialCard: View {
                     .padding(.vertical, 3)
                     .background(groupTint.opacity(0.12))
                     .clipShape(Capsule())
-            }
-
-            HStack(spacing: 8) {
-                Label("\(slot.generationCreditCost) 分", systemImage: "bolt.fill")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundStyle(StudioPalette.sunText)
-
-                Spacer()
-
-                Button {
-                    viewModel.generate(slot: slot)
-                } label: {
-                    if viewModel.generatingSlots.contains(slot) {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("生成")
-                    }
-                }
-                .buttonStyle(StudioButtonStyle(kind: .primary, compact: true))
-                .disabled(!viewModel.canGenerate(slot: slot))
             }
 
             HStack(spacing: 8) {
