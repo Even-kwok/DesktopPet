@@ -92,7 +92,7 @@ extension DesktopPetBundle {
         var descriptions: [String] = []
 
         for (petIndex, pet) in displayablePets.enumerated() {
-            for material in pet.materials where material.status == "ready" {
+            for material in pet.materials where material.status == "ready" && !material.slot.isDeprecatedMaterialSlot {
                 guard let existingURL = settingsStore.restoreVideoURL(
                     for: material.slot,
                     petIndex: petIndex
@@ -364,7 +364,7 @@ final class DesktopPetSyncClient {
         for (petIndex, pet) in displayablePets.enumerated() {
             settingsStore.setPetName(pet.name, for: petIndex)
 
-            for material in pet.materials where material.status == "ready" {
+            for material in pet.materials where material.status == "ready" && !material.slot.isDeprecatedMaterialSlot {
                 let localURL = try await downloadMaterial(material, petID: pet.id)
                 settingsStore.saveVideoURL(localURL, for: material.slot, petIndex: petIndex)
                 importedMaterialCount += 1

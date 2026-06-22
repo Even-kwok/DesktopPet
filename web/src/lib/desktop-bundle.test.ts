@@ -38,6 +38,12 @@ test("desktop bundle exports only ready materials with video URLs", () => {
       },
       {
         petId: "pet_orange",
+        slot: "drag_loop",
+        status: "ready",
+        videoUrl: "https://example.com/drag.mp4"
+      },
+      {
+        petId: "pet_orange",
         slot: "sleep_loop",
         status: "ready",
         videoUrl: null

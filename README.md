@@ -133,7 +133,6 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
   - `clingy`: 粘人
   - `aloof`: 高冷
   - `belly_up`: 躺下翻肚皮
-  - `drag_loop`: 拖拽循环（备用）
 - `Pets` can add, rename, or remove a selected pet slot. Removing a pet slot clears that pet's saved video references and name from the app, compacts later pet numbers, and does not delete the original video files from disk.
 - Pet submenus show the custom name and a small thumbnail from that pet's `idle_loop` video when available.
 - A pet only appears after its own `Idle Loop` video has been selected.
@@ -143,5 +142,5 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
 - Nearby pet responses are paired by action type: left/right angry-swipe answers with the opposite-direction angry-swipe, and left/right head-rub answers with the opposite-direction head-rub. If the responding pet does not have that exact material, it does not respond.
 - Click interaction randomly chooses from uploaded `click_react`, `happy`, `disgusted`, `clingy`, `aloof`, and `belly_up` videos.
 - Idle random actions run every 12-28 seconds when available and the cursor is not near the pet. They randomly choose from uploaded yawn, licking, stretch, mood, hungry/full, personality, and belly-up videos.
-- `drag_loop` is kept as an action asset slot for future interactions. Mouse-drag movement only repositions the pet window and does not switch to a grabbed animation.
+- Mouse-drag movement only repositions the pet window; there is no separate drag action asset.
 - `sleep_loop` plays once after 60 seconds of idle time when the cursor is not near the pet, then holds on the last frame until the pet wakes. Moving the cursor close to a sleeping pet wakes it back to `idle_loop`.

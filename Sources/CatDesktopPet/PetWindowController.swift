@@ -216,7 +216,7 @@ final class PetWindowController: NSObject, NSWindowDelegate {
             stopIdleActionTimer()
             pendingSocialInteractionSlots = nil
             petView?.setGrabbedAppearance(true)
-            playVideo(for: .dragLoop, fallback: .idleLoop, mode: .loop)
+            playVideo(for: .idleLoop, mode: .loop)
         case .dropped:
             stopMouseMonitor()
             stopSleepTimer()

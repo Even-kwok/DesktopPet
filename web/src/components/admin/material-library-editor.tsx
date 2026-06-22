@@ -462,6 +462,10 @@ function materialMutationMessage(error: unknown, fallback: string) {
     return "已有猫咪素材引用，不能删除";
   }
 
+  if (error === "MATERIAL_CONFIG_DEPRECATED") {
+    return "这个动作已下线";
+  }
+
   if (error === "MATERIAL_CONFIG_NOT_FOUND") {
     return "素材不存在";
   }

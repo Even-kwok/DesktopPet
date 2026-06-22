@@ -142,6 +142,10 @@ final class DesktopPetSyncClientTests: XCTestCase {
         XCTAssertEqual(PetActionSlot.headBobDance.triggerDescription, "待机随机")
     }
 
+    func testActionSlotMenuDoesNotExposeRemovedDragLoopPlaceholder() {
+        XCTAssertFalse(PetActionSlot.allCases.map(\.rawValue).contains("drag_loop"))
+    }
+
     func testUnavailablePetIsNotDisplayableOnDesktopEvenWithIdleLoop() throws {
         let json = """
         {

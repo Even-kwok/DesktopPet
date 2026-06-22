@@ -11,6 +11,7 @@ import {
   type MaterialLibraryUpdate
 } from "@/lib/material-library-config";
 import {
+  isDeprecatedMaterialSlotId,
   materialGroups,
   materialSlots,
   type MaterialGroupId,
@@ -48,10 +49,10 @@ export async function listAdminMaterialLibraryConfigs() {
   const supabaseConfigs = await loadSupabaseMaterialLibraryConfigs();
 
   if (supabaseConfigs) {
-    return supabaseConfigs;
+    return withoutDeprecatedMaterialSlots(supabaseConfigs);
   }
 
-  return getMockMaterialLibraryConfigs();
+  return withoutDeprecatedMaterialSlots(getMockMaterialLibraryConfigs());
 }
 
 export async function listPublicMaterialSlots() {
@@ -112,6 +113,10 @@ export async function createAdminMaterialConfig(input: MaterialLibraryCreate) {
   const configs = getMockMaterialLibraryConfigs();
   const created = buildAdminMaterialConfig(input);
 
+  if (isDeprecatedMaterialSlotId(created.code)) {
+    throw new MaterialLibraryMutationError("MATERIAL_CONFIG_DEPRECATED", 400);
+  }
+
   if (configs.some((config) => config.code === created.code)) {
     throw new MaterialLibraryMutationError("MATERIAL_CONFIG_ALREADY_EXISTS", 409);
   }
@@ -158,6 +163,10 @@ async function createSupabaseMaterialConfig(input: MaterialLibraryCreate) {
 
   if (!supabase) {
     return null;
+  }
+
+  if (isDeprecatedMaterialSlotId(created.code)) {
+    throw new MaterialLibraryMutationError("MATERIAL_CONFIG_DEPRECATED", 400);
   }
 
   if (configs.some((config) => config.code === created.code)) {
@@ -331,4 +340,8 @@ function materialConfigFromRow(row: MaterialSlotDefinitionRow): MaterialLibraryC
 
 function normalizeUnlockTier(value: string | null | undefined): MaterialUnlockTier | null {
   return value === "basic" || value === "advanced" || value === "custom" ? value : null;
+}
+
+function withoutDeprecatedMaterialSlots(configs: MaterialLibraryConfig[]) {
+  return configs.filter((config) => !isDeprecatedMaterialSlotId(config.code));
 }

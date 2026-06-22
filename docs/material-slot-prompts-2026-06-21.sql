@@ -332,7 +332,14 @@ on conflict (slot) do update set
   updated_at = excluded.updated_at;
 
 update public.material_slot_definitions
-set sort_order = 23,
-    unlock_tier = 'custom',
+set is_enabled = false,
     updated_at = now()
 where slot = 'drag_loop';
+
+delete from public.material_slot_definitions
+where slot = 'drag_loop'
+  and not exists (
+    select 1
+    from public.pet_assets
+    where pet_assets.slot = material_slot_definitions.slot
+  );

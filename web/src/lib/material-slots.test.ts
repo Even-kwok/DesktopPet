@@ -11,6 +11,10 @@ test("every material slot has a fixed Seedance duration between 4 and 15 seconds
   }
 });
 
+test("material slots do not include the removed drag loop placeholder", () => {
+  assert.equal(materialSlots.some((slot) => slot.id === "drag_loop"), false);
+});
+
 test("material slots include the latest requested action library additions", () => {
   const slotsById = new Map(materialSlots.map((slot) => [slot.id, slot]));
 

@@ -27,6 +27,32 @@ enum PetActionSlot: String, CaseIterable, Codable {
     case dragLoop = "drag_loop"
     case sleepLoop = "sleep_loop"
 
+    static let allCases: [PetActionSlot] = [
+        .idleLoop,
+        .catchBug,
+        .catchBugUp,
+        .clickReact,
+        .headRubLeft,
+        .headRubRight,
+        .angrySwipeLeft,
+        .angrySwipeRight,
+        .yawn,
+        .lickBelly,
+        .lickBack,
+        .stretch,
+        .happy,
+        .disgusted,
+        .fullWashFace,
+        .hungryMeow,
+        .clingy,
+        .aloof,
+        .bellyUp,
+        .lookAtCamera,
+        .salaryCatStinkyDance,
+        .headBobDance,
+        .sleepLoop
+    ]
+
     var displayName: String {
         switch self {
         case .idleLoop:

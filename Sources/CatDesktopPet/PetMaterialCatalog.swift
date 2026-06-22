@@ -48,6 +48,10 @@ enum PetMaterialGroup: String, CaseIterable, Identifiable {
 }
 
 extension PetActionSlot {
+    var isDeprecatedMaterialSlot: Bool {
+        self == .dragLoop
+    }
+
     var materialGroup: PetMaterialGroup {
         switch self {
         case .idleLoop, .sleepLoop:

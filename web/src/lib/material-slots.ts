@@ -26,6 +26,12 @@ export type MaterialGroup = {
   color: string;
 };
 
+const deprecatedMaterialSlotIds = new Set(["drag_loop"]);
+
+export function isDeprecatedMaterialSlotId(slot: string) {
+  return deprecatedMaterialSlotIds.has(slot);
+}
+
 export const materialGroups: MaterialGroup[] = [
   {
     id: "core",
@@ -88,6 +94,5 @@ export const materialSlots: MaterialSlot[] = [
   { id: "salary_cat_stinky_dance", name: "跳月薪喵散屁舞", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🪩", unlockTier: "advanced" },
   { id: "head_bob_dance", name: "摇头晃脑舞", trigger: "待机随机", cost: 10, durationSeconds: 6, group: "idleLife", icon: "🎵", unlockTier: "advanced" },
   { id: "full_wash_face", name: "吃饱满足洗脸", trigger: "吃饱后触发", cost: 10, durationSeconds: 8, group: "feeding", icon: "🍚", unlockTier: "advanced" },
-  { id: "hungry_meow", name: "饿了嗷嗷叫", trigger: "饥饿时触发", cost: 10, durationSeconds: 6, group: "feeding", icon: "📣", unlockTier: "advanced" },
-  { id: "drag_loop", name: "拖拽循环（备用）", trigger: "备用", cost: 8, durationSeconds: 4, group: "reserved", icon: "🤏", unlockTier: "custom" }
+  { id: "hungry_meow", name: "饿了嗷嗷叫", trigger: "饥饿时触发", cost: 10, durationSeconds: 6, group: "feeding", icon: "📣", unlockTier: "advanced" }
 ];

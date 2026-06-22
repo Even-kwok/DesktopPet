@@ -736,7 +736,7 @@ final class PetStudioViewModel: ObservableObject {
                 ownership: pet.ownership ?? "owned",
                 displayState: pet.displayState ?? "active",
                 avatarURL: pet.avatarUrl,
-                materialCount: pet.materials.count
+                materialCount: pet.materials.filter { !$0.slot.isDeprecatedMaterialSlot }.count
             )
         }
 

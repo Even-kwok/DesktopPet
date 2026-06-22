@@ -1,4 +1,5 @@
 import type { BackendMode, CurrentUser, DesktopPetBundle, Pet, PetAsset } from "@/lib/types";
+import { isDeprecatedMaterialSlotId } from "./material-slots.ts";
 
 export const desktopPetBundleVersion = 1;
 export const desktopPetBundleStoragePath =
@@ -32,8 +33,7 @@ const materialNameBySlot: Record<string, string> = {
   aloof: "高冷",
   belly_up: "躺下翻肚皮",
   full_wash_face: "吃饱满足洗脸",
-  hungry_meow: "饿了嗷嗷叫",
-  drag_loop: "拖拽循环（备用）"
+  hungry_meow: "饿了嗷嗷叫"
 };
 
 export function buildDesktopPetBundle(input: BuildDesktopPetBundleInput): DesktopPetBundle {
@@ -68,7 +68,8 @@ export function buildDesktopPetBundle(input: BuildDesktopPetBundleInput): Deskto
             asset.petId === pet.id &&
             asset.status === "ready" &&
             typeof asset.videoUrl === "string" &&
-            asset.videoUrl.length > 0
+            asset.videoUrl.length > 0 &&
+            !isDeprecatedMaterialSlotId(asset.slot)
         )
         .map((asset) => {
           return {
