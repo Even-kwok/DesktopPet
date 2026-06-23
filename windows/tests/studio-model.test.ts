@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   accountDetail,
   canRequestHosting,
+  resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
   resolveRecallPetTarget,
   shouldShowRecallAction,
@@ -69,5 +70,15 @@ test("validates recall requests against synced pet cards", () => {
   assert.throws(
     () => resolveRecallPetTarget("pet_missing", syncedPetCards),
     /请先同步并选择一只猫咪。/
+  );
+});
+
+test("validates friend removal against known friend cards", () => {
+  const friendCards = [{ id: "friend_1" }];
+
+  assert.deepEqual(resolveFriendRemovalTarget("friend_1", friendCards), { friendId: "friend_1" });
+  assert.throws(
+    () => resolveFriendRemovalTarget("friend_missing", friendCards),
+    /请选择一位好友。/
   );
 });

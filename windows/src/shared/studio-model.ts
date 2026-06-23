@@ -85,3 +85,17 @@ export function resolveRecallPetTarget(
     petId: selectedPet.id
   };
 }
+
+export function resolveFriendRemovalTarget(
+  friendId: string,
+  friendCards: readonly FriendActionState[]
+) {
+  const selectedFriend = friendCards.find((friend) => friend.id === friendId);
+  if (!selectedFriend) {
+    throw new Error("请选择一位好友。");
+  }
+
+  return {
+    friendId: selectedFriend.id
+  };
+}

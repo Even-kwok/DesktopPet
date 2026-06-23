@@ -35,7 +35,11 @@ import {
 import { allPetActionSlots } from "../shared/pet-action-slots.ts";
 import { reviewPetVideoImport } from "../shared/video-import-review.ts";
 import { remoteMaterialDestinationPath, writeRemoteMaterialAtomically } from "../shared/remote-material-cache.ts";
-import { resolveHostingRequestTarget, resolveRecallPetTarget } from "../shared/studio-model.ts";
+import {
+  resolveFriendRemovalTarget,
+  resolveHostingRequestTarget,
+  resolveRecallPetTarget
+} from "../shared/studio-model.ts";
 import type { DesktopPetBundleMaterial } from "../shared/desktop-sync-client.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 
@@ -256,8 +260,9 @@ async function bootstrap() {
     },
     removeFriend: async (friendId) => {
       const account = requireAccount(settingsStore.currentAccount);
-      await desktopSyncClient.removeFriend(friendId, account.accessToken);
-      settingsStore.removeFriendCard(friendId);
+      const target = resolveFriendRemovalTarget(friendId, settingsStore.friendCards);
+      await desktopSyncClient.removeFriend(target.friendId, account.accessToken);
+      settingsStore.removeFriendCard(target.friendId);
       return studioState();
     },
     requestHosting: async (petId, toUserId) => {
