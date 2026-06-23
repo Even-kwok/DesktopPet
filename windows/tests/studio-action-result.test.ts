@@ -4,6 +4,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForRefreshFriendsAction,
+  statusMessageForHostingRequestAction,
   statusMessageForSyncAction,
   statusMessageForActionResult
 } from "../src/renderer/studio/studio-action-result.ts";
@@ -54,4 +55,11 @@ test("uses Mac-parity copy for desktop sync results", () => {
     "已从网页同步 2 只宠物、9 个动作素材。"
   );
   assert.equal(statusMessageForSyncAction({ canceled: true }), "已取消同步，本地动作保持不变。");
+});
+
+test("uses Mac-parity copy for hosting request success", () => {
+  assert.equal(
+    statusMessageForHostingRequestAction("阿雯", "栗子"),
+    "已向 阿雯 发起「栗子」寄养请求。"
+  );
 });

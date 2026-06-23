@@ -17,6 +17,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForRefreshFriendsAction,
+  statusMessageForHostingRequestAction,
   statusMessageForSyncAction,
   statusMessageForActionResult
 } from "./studio-action-result.ts";
@@ -380,7 +381,9 @@ export function StudioApp() {
                       onClick={() =>
                         void runAction(
                           () => bridge?.requestHosting?.(selectedSyncedPet?.id ?? "", friend.id),
-                          `已向 ${friend.name} 发起寄养。`
+                          selectedSyncedPet
+                            ? statusMessageForHostingRequestAction(friend.name, selectedSyncedPet.name)
+                            : `已向 ${friend.name} 发起寄养。`
                         )
                       }
                     >

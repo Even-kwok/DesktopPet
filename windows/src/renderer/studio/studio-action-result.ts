@@ -21,6 +21,10 @@ export function statusMessageForSyncAction(result: unknown) {
   return `已从网页同步 ${summary.petCount} 只宠物、${summary.materialCount} 个动作素材。`;
 }
 
+export function statusMessageForHostingRequestAction(friendName: string, petName: string) {
+  return `已向 ${friendName} 发起「${petName}」寄养请求。`;
+}
+
 export function nextFriendEmailDraftAfterAddFriendAction(currentDraft: string, result: unknown) {
   return nextFriendEmailDraftAfterSuccessfulAction(currentDraft, result);
 }
