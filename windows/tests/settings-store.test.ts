@@ -86,3 +86,44 @@ test("removing a pet compacts later pet data", () => {
     cleanup();
   }
 });
+
+test("persists synced pet cards and friend cards separately from account session", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.saveAccountSession({
+      id: "user_demo",
+      name: "栗子主人",
+      email: "demo@desktop.pet",
+      credits: 120,
+      accessToken: "desktop-token",
+      signedInAt: "2026-06-24T00:00:00.000Z"
+    });
+    store.saveSyncedPetCards([
+      {
+        id: "pet_orange",
+        petNumber: "P1",
+        name: "栗子",
+        ownership: "away",
+        displayState: "unavailable",
+        materialCount: 3
+      }
+    ]);
+    store.upsertFriendCard({ id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 });
+    store.signOut();
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.currentAccount, undefined);
+    assert.equal(reloaded.syncedPetCards[0]?.name, "栗子");
+    assert.equal(reloaded.selectedSyncedPetID, "pet_orange");
+    assert.equal(reloaded.friendCards[0]?.name, "阿雯");
+
+    reloaded.markSyncedPetRecalled("pet_orange");
+    assert.equal(reloaded.syncedPetCards[0]?.displayState, "active");
+    assert.equal(reloaded.syncedPetCards[0]?.ownership, "owned");
+
+    reloaded.removeFriendCard("friend_1");
+    assert.deepEqual(reloaded.friendCards, []);
+  } finally {
+    cleanup();
+  }
+});

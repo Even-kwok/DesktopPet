@@ -1,16 +1,17 @@
 # CatDesktopPet
 
-Native macOS desktop pet MVP built with SwiftUI, AppKit, AVFoundation, and Core Image.
+Native desktop pet MVP with a SwiftUI/AppKit macOS client, an Electron Windows client, and a Next.js web studio.
 
-The repository now contains two product surfaces:
+The repository now contains three product surfaces:
 
 - `Sources/CatDesktopPet`: native macOS desktop pet app.
+- `windows`: Electron + React + TypeScript Windows desktop pet app.
 - `web`: Next.js web studio for accounts, credits, material generation, and cloud asset management.
 
 The intended split is:
 
 - Web handles registration, login, subscription, credits, image upload, image/video generation, and cloud material storage.
-- Mac App stays lightweight: local video import, desktop rendering, transparent windows, pet interaction, and later friend/hosting sync.
+- Desktop Apps stay lightweight: local video import, desktop rendering, transparent windows, pet interaction, account sync, and friend/hosting controls.
 
 ## Run in Xcode
 
@@ -42,6 +43,37 @@ Current web MVP includes:
 - Mock API routes under `web/src/app/api` with a typed client in `web/src/lib/api-client.ts`.
 - Backend status detection for mock vs Supabase mode, plus a source-image upload route ready for Supabase Storage.
 - Supabase adapter placeholder for the next backend step.
+
+## Run Windows Client
+
+```bash
+cd windows
+npm install
+npm run dev
+```
+
+The Windows client opens a compact studio window and a system tray entry. To sync against a local web studio instead of the deployed mock-first endpoint:
+
+```bash
+CAT_DESKTOP_PET_WEB_BASE_URL=http://localhost:3000 npm run dev
+```
+
+Useful checks:
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
+Current Windows MVP includes:
+
+- Tray menu labels and pet material slots aligned with the Mac app.
+- Transparent always-on-top Electron pet windows with click, drag, click-through, saved position, size controls, and sleep/wake recovery hooks.
+- Local MP4/MOV state-video import and per-pet video persistence.
+- Canvas chroma-key rendering for green-screen pet videos.
+- Compact account/studio UI for login, sync, synced pet cards, local materials, friends, hosting, recall, and sign-out.
+- Desktop sync through `/api/desktop/auth/login`, `/api/desktop/pets`, `/api/friends`, and `/api/hosting/*`, including remote material download into a local `RemoteMaterials` cache.
 
 Deployment notes live in `docs/deployment.md`, and the first Supabase schema draft lives in `docs/schema.sql`.
 

@@ -15,6 +15,13 @@ export type MenuTemplateItem = {
   payload?: unknown;
 };
 
+export type BoundMenuTemplateItem = Omit<MenuTemplateItem, "submenu"> & {
+  submenu?: BoundMenuTemplateItem[];
+  click?: () => void;
+};
+
+export type MenuActionHandlers = Record<string, (payload: unknown) => void>;
+
 export type TrayMenuState = {
   petCount: number;
   isVisible: boolean;
@@ -61,6 +68,25 @@ export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] 
     { type: "separator" },
     { label: "退出", action: "quit" }
   ];
+}
+
+export function bindMenuActions(
+  template: MenuTemplateItem[],
+  handlers: MenuActionHandlers
+): BoundMenuTemplateItem[] {
+  return template.map((item) => {
+    const boundItem: BoundMenuTemplateItem = {
+      ...item,
+      submenu: item.submenu ? bindMenuActions(item.submenu, handlers) : undefined
+    };
+
+    const action = item.action;
+    if (action) {
+      boundItem.click = () => handlers[action]?.(item.payload);
+    }
+
+    return boundItem;
+  });
 }
 
 function petSubmenus(

@@ -7,7 +7,9 @@ import {
   DesktopPetSyncClient,
   DesktopPetSyncError,
   displayablePets,
-  localMaterialReplacementDescriptions
+  localMaterialReplacementDescriptions,
+  safeRemoteMaterialPathComponent,
+  syncedPetCardsFromBundle
 } from "../src/shared/desktop-sync-client.ts";
 
 async function withServer(
@@ -171,4 +173,48 @@ test("describes local videos replaced by cloud sync", () => {
   });
 
   assert.deepEqual(replacements, ["栗子 · 待机循环"]);
+});
+
+test("maps bundle pets to cached studio cards", () => {
+  const cards = syncedPetCardsFromBundle({
+    version: 1,
+    generatedAt: "2026-06-24T00:00:00.000Z",
+    pets: [
+      {
+        id: "pet_orange",
+        petNumber: "CAT-001",
+        name: "栗子",
+        type: "cat",
+        ownership: "owned",
+        displayState: "active",
+        materials: [
+          {
+            slot: "idle_loop",
+            name: "待机循环",
+            videoUrl: "https://example.com/idle.mp4",
+            status: "ready"
+          },
+          {
+            slot: "click_react",
+            name: "点击反应",
+            videoUrl: "https://example.com/click.mp4",
+            status: "queued"
+          }
+        ]
+      }
+    ]
+  });
+
+  assert.deepEqual(cards, [
+    {
+      id: "pet_orange",
+      petNumber: "CAT-001",
+      name: "栗子",
+      ownership: "owned",
+      displayState: "active",
+      avatarUrl: undefined,
+      materialCount: 1
+    }
+  ]);
+  assert.equal(safeRemoteMaterialPathComponent("pet/demo:1"), "pet-demo-1");
 });

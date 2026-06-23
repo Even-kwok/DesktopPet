@@ -5,8 +5,14 @@ import {
   petActionSlotDisplayName
 } from "../../shared/pet-action-slots.ts";
 import type { PetActionSlot, PetMaterialGroup } from "../../shared/pet-action-slots.ts";
-import type { DesktopAccountSession } from "../../shared/settings-store.ts";
+import type { DesktopFriendCard } from "../../shared/desktop-sync-client.ts";
+import type { DesktopAccountSession, DesktopSyncedPetCard } from "../../shared/settings-store.ts";
 import type { DesktopPetBridge } from "../../preload/index.ts";
+import {
+  canRequestHosting,
+  shouldShowRecallAction,
+  statusTextForSyncedPet
+} from "../../shared/studio-model.ts";
 
 declare global {
   interface Window {
@@ -17,6 +23,11 @@ declare global {
 type StudioState = {
   account?: DesktopAccountSession;
   petCount: number;
+  petNames: string[];
+  selectedSyncedPetID?: string;
+  syncedPetCards: DesktopSyncedPetCard[];
+  friendCards: DesktopFriendCard[];
+  localVideoSlots: PetActionSlot[][];
   isPetVisible: boolean;
   isClickThrough: boolean;
   isMouseoverCatchEnabled: boolean;
@@ -25,6 +36,11 @@ type StudioState = {
 const defaultStudioState: StudioState = {
   account: undefined,
   petCount: 1,
+  petNames: ["Pet 1"],
+  selectedSyncedPetID: undefined,
+  syncedPetCards: [],
+  friendCards: [],
+  localVideoSlots: [[]],
   isPetVisible: false,
   isClickThrough: false,
   isMouseoverCatchEnabled: true
@@ -46,6 +62,7 @@ export function StudioApp() {
   const [selectedPetIndex, setSelectedPetIndex] = useState(0);
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
+  const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState("");
 
   const bridge = window.desktopPet;
@@ -53,8 +70,14 @@ export function StudioApp() {
   const refreshState = async () => {
     const nextState = (await bridge?.getStudioState?.()) as StudioState | undefined;
     if (nextState) {
-      setState({ ...defaultStudioState, ...nextState });
-      setSelectedPetIndex((current) => Math.min(current, Math.max(nextState.petCount - 1, 0)));
+      const mergedState = { ...defaultStudioState, ...nextState };
+      setState(mergedState);
+      setSelectedPetIndex((current) => {
+        const nextPetIndex = Math.min(current, Math.max(mergedState.petCount - 1, 0));
+        setPetNameDraft(mergedState.petNames[nextPetIndex] ?? `Pet ${nextPetIndex + 1}`);
+        return nextPetIndex;
+      });
+      setSelectedSyncedPetID((current) => current ?? mergedState.selectedSyncedPetID ?? mergedState.syncedPetCards[0]?.id);
     }
   };
 
@@ -82,6 +105,8 @@ export function StudioApp() {
   };
 
   const account = state.account;
+  const selectedSyncedPet =
+    state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
 
   return (
     <main className="studio-app">
@@ -138,10 +163,10 @@ export function StudioApp() {
                 className={index === selectedPetIndex ? "selected" : ""}
                 onClick={() => {
                   setSelectedPetIndex(index);
-                  setPetNameDraft(`Pet ${index + 1}`);
+                  setPetNameDraft(state.petNames[index] ?? `Pet ${index + 1}`);
                 }}
               >
-                Pet {index + 1}
+                {state.petNames[index] ?? `Pet ${index + 1}`}
               </button>
             ))}
           </div>
@@ -189,8 +214,46 @@ export function StudioApp() {
 
         <div className="studio-panel">
           <div className="panel-heading">
+            <h2>同步宠物</h2>
+            <span>{state.syncedPetCards.length} 只</span>
+          </div>
+          <div className="synced-list">
+            {state.syncedPetCards.length === 0 ? (
+              <p className="empty-copy">同步后这里会显示网页端可下发到桌面的猫咪。</p>
+            ) : (
+              state.syncedPetCards.map((pet) => (
+                <button
+                  className={`synced-card ${pet.id === selectedSyncedPet?.id ? "selected" : ""}`}
+                  key={pet.id}
+                  onClick={() => setSelectedSyncedPetID(pet.id)}
+                >
+                  <span>{pet.name}</span>
+                  <small>
+                    {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
+                  </small>
+                </button>
+              ))
+            )}
+          </div>
+          <div className="button-grid">
+            <button
+              disabled={!account || !selectedSyncedPet || !shouldShowRecallAction(selectedSyncedPet, true)}
+              onClick={() =>
+                void runAction(
+                  () => bridge?.recallPet?.(selectedSyncedPet?.id ?? ""),
+                  "已发送召回请求。"
+                )
+              }
+            >
+              召回选中宠物
+            </button>
+          </div>
+        </div>
+
+        <div className="studio-panel">
+          <div className="panel-heading">
             <h2>好友寄养</h2>
-            <span>账号功能</span>
+            <span>{state.friendCards.length} 位</span>
           </div>
           <label>
             好友邮箱
@@ -209,8 +272,43 @@ export function StudioApp() {
             >
               添加好友
             </button>
-            <button disabled={!account}>寄养选中宠物</button>
-            <button disabled={!account}>召回选中宠物</button>
+          </div>
+          <div className="friend-list">
+            {state.friendCards.length === 0 ? (
+              <p className="empty-copy">暂无好友。添加好友后可以把选中的猫咪寄养过去。</p>
+            ) : (
+              state.friendCards.map((friend) => (
+                <div className="friend-row" key={friend.id}>
+                  <div>
+                    <span>{friend.name}</span>
+                    <small>
+                      {friend.status} · 寄养 {friend.hostedPets} 只
+                    </small>
+                  </div>
+                  <div>
+                    <button
+                      disabled={!account || !selectedSyncedPet || !canRequestHosting(selectedSyncedPet)}
+                      onClick={() =>
+                        void runAction(
+                          () => bridge?.requestHosting?.(selectedSyncedPet?.id ?? "", friend.id),
+                          `已向 ${friend.name} 发起寄养。`
+                        )
+                      }
+                    >
+                      寄养
+                    </button>
+                    <button
+                      disabled={!account}
+                      onClick={() =>
+                        void runAction(() => bridge?.removeFriend?.(friend.id), `已删除 ${friend.name}。`)
+                      }
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -225,33 +323,40 @@ export function StudioApp() {
             <section className="material-group" key={group}>
               <h3>{materialGroupTitles[group]}</h3>
               <div className="material-list">
-                {slots.map((slot) => (
-                  <div className="material-row" key={slot}>
-                    <span>{petActionSlotDisplayName(slot)}</span>
-                    <div>
-                      <button
-                        onClick={() =>
-                          void runAction(
-                            () => bridge?.importVideo?.(selectedPetIndex, slot),
-                            `已导入「${petActionSlotDisplayName(slot)}」。`
-                          )
-                        }
-                      >
-                        导入
-                      </button>
-                      <button
-                        onClick={() =>
-                          void runAction(
-                            () => bridge?.removeVideo?.(selectedPetIndex, slot),
-                            `已移除「${petActionSlotDisplayName(slot)}」。`
-                          )
-                        }
-                      >
-                        删除
-                      </button>
+                {slots.map((slot) => {
+                  const hasVideo = state.localVideoSlots[selectedPetIndex]?.includes(slot) ?? false;
+                  return (
+                    <div className="material-row" key={slot}>
+                      <span>
+                        {petActionSlotDisplayName(slot)}
+                        <small>{hasVideo ? "已导入" : "未设置"}</small>
+                      </span>
+                      <div>
+                        <button
+                          onClick={() =>
+                            void runAction(
+                              () => bridge?.importVideo?.(selectedPetIndex, slot),
+                              `已导入「${petActionSlotDisplayName(slot)}」。`
+                            )
+                          }
+                        >
+                          导入
+                        </button>
+                        <button
+                          disabled={!hasVideo}
+                          onClick={() =>
+                            void runAction(
+                              () => bridge?.removeVideo?.(selectedPetIndex, slot),
+                              `已移除「${petActionSlotDisplayName(slot)}」。`
+                            )
+                          }
+                        >
+                          删除
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           ))}

@@ -1,4 +1,5 @@
 import type { PetActionSlot } from "./pet-action-slots.ts";
+import type { DesktopSyncedPetCard } from "./settings-store.ts";
 
 export type DesktopSyncAccount = {
   id: string;
@@ -64,6 +65,11 @@ export type DesktopHostingRequestResponse = {
 export type DesktopRecallResponse = {
   petId: string;
   status: string;
+};
+
+export type DesktopPetSyncSummary = {
+  petCount: number;
+  materialCount: number;
 };
 
 export class DesktopPetSyncError extends Error {
@@ -221,6 +227,22 @@ export function displayablePets(bundle: DesktopPetBundle) {
   });
 }
 
+export function syncedPetCardsFromBundle(bundle: DesktopPetBundle): DesktopSyncedPetCard[] {
+  return bundle.pets.map((pet, index) => ({
+    id: pet.id,
+    petNumber: pet.petNumber ?? `P${index + 1}`,
+    name: pet.name,
+    ownership: pet.ownership ?? "owned",
+    displayState: pet.displayState ?? "active",
+    avatarUrl: pet.avatarUrl,
+    materialCount: pet.materials.filter((material) => material.status === "ready").length
+  }));
+}
+
+export function readyDesktopMaterials(pet: DesktopPetBundlePet) {
+  return pet.materials.filter((material) => material.status === "ready" && material.slot !== "drag_loop");
+}
+
 export function localMaterialReplacementDescriptions(
   bundle: DesktopPetBundle,
   restoreVideoPath: (slot: PetActionSlot, petIndex: number) => string | undefined
@@ -228,11 +250,7 @@ export function localMaterialReplacementDescriptions(
   const descriptions: string[] = [];
 
   displayablePets(bundle).forEach((pet, petIndex) => {
-    pet.materials.forEach((material) => {
-      if (material.status !== "ready" || material.slot === "drag_loop") {
-        return;
-      }
-
+    readyDesktopMaterials(pet).forEach((material) => {
       const existingPath = restoreVideoPath(material.slot, petIndex);
       if (!existingPath || isRemoteMaterialCachePath(existingPath)) {
         return;
@@ -252,4 +270,9 @@ function hasReadyIdleLoop(pet: DesktopPetBundlePet) {
 function isRemoteMaterialCachePath(filePath: string) {
   const parts = filePath.split(/[\\/]/);
   return parts.includes("CatDesktopPet") && parts.includes("RemoteMaterials");
+}
+
+export function safeRemoteMaterialPathComponent(value: string) {
+  const safe = value.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return safe || "pet";
 }

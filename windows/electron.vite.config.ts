@@ -21,8 +21,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          studio: "index.html",
-          pet: "pet.html"
+          studio: "src/renderer/index.html",
+          pet: "src/renderer/pet.html"
         }
       }
     }

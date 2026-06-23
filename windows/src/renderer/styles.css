@@ -1,5 +1,5 @@
 :root {
-  color: #252525;
+  color: #202124;
   background: transparent;
   font-family: "Segoe UI", system-ui, sans-serif;
 }
@@ -11,7 +11,7 @@ body {
 .studio-app {
   min-height: 100vh;
   padding: 16px;
-  background: #faf7f2;
+  background: #f5f7f8;
   box-sizing: border-box;
 }
 
@@ -29,14 +29,14 @@ body {
 
 .studio-app p {
   margin: 0;
-  color: #6b625b;
+  color: #5f6670;
 }
 
 .studio-topbar,
 .studio-panel {
-  border: 1px solid #dfd3c6;
+  border: 1px solid #d8dee4;
   border-radius: 8px;
-  background: #fffaf4;
+  background: #ffffff;
 }
 
 .studio-topbar {
@@ -76,7 +76,7 @@ body {
 .studio-panel h3 {
   margin: 0 0 8px;
   font-size: 13px;
-  color: #5b514a;
+  color: #3f4752;
 }
 
 .login-panel {
@@ -95,7 +95,7 @@ body {
 }
 
 .panel-heading span {
-  color: #7b7067;
+  color: #667085;
   font-size: 12px;
   font-weight: 700;
 }
@@ -103,35 +103,35 @@ body {
 label {
   display: grid;
   gap: 5px;
-  color: #5b514a;
+  color: #3f4752;
   font-size: 12px;
   font-weight: 700;
 }
 
 input {
   min-height: 34px;
-  border: 1px solid #d8cabe;
+  border: 1px solid #cfd6dd;
   border-radius: 8px;
   background: #fff;
-  color: #252525;
+  color: #202124;
   padding: 0 10px;
   font: inherit;
 }
 
 button {
   min-height: 34px;
-  border: 1px solid #cdbdae;
+  border: 1px solid #c7d0d9;
   border-radius: 8px;
   background: #fff;
-  color: #2a2521;
+  color: #202124;
   padding: 0 10px;
   font: inherit;
   font-weight: 700;
 }
 
 button:disabled {
-  color: #9d9186;
-  background: #eee6de;
+  color: #98a2b3;
+  background: #eef2f5;
 }
 
 .primary-action,
@@ -159,6 +159,64 @@ button:disabled {
   gap: 6px;
 }
 
+.synced-list,
+.friend-list {
+  display: grid;
+  gap: 8px;
+}
+
+.synced-card,
+.friend-row {
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.synced-card {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.synced-card small,
+.friend-row small,
+.material-row small {
+  display: block;
+  margin-top: 3px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.friend-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 8px;
+}
+
+.friend-row span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.friend-row > div:last-child {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.empty-copy {
+  padding: 8px 0;
+  font-size: 12px;
+}
+
 .material-row {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) auto;
@@ -166,9 +224,9 @@ button:disabled {
   gap: 10px;
   min-height: 42px;
   padding: 6px 8px;
-  border: 1px solid #eadfd5;
+  border: 1px solid #d8dee4;
   border-radius: 8px;
-  background: #fff;
+  background: #fbfcfd;
 }
 
 .material-row span {
@@ -191,6 +249,14 @@ button:disabled {
 
   .material-row {
     grid-template-columns: 1fr;
+  }
+
+  .friend-row {
+    grid-template-columns: 1fr;
+  }
+
+  .friend-row > div:last-child {
+    justify-content: flex-start;
   }
 }
 

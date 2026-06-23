@@ -12,6 +12,9 @@ export type PetWindowControllerLike = {
   resumeAfterSystemWake: () => void;
   refreshDisplayName: () => void;
   resetPosition: () => void;
+  dragBy?: (delta: { x: number; y: number }) => void;
+  click?: () => void;
+  playbackEnded?: () => void;
 };
 
 export type PetWindowFactory = (petIndex: number) => PetWindowControllerLike;
@@ -130,6 +133,18 @@ export class PetColonyController {
 
   resetPositions() {
     this.#activePetControllers().forEach((controller) => controller.resetPosition());
+  }
+
+  dragPetBy(petIndex: number, delta: { x: number; y: number }) {
+    this.#petControllers[petIndex]?.dragBy?.(delta);
+  }
+
+  clickPet(petIndex: number) {
+    this.#petControllers[petIndex]?.click?.();
+  }
+
+  petPlaybackEnded(petIndex: number) {
+    this.#petControllers[petIndex]?.playbackEnded?.();
   }
 
   #ensurePetControllers(count: number) {

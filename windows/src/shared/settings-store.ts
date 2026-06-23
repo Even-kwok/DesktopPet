@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { clampPetSizeScale } from "./pet-action-slots.ts";
+import type { DesktopFriendCard } from "./desktop-sync-client.ts";
 import type { PetActionSlot } from "./pet-action-slots.ts";
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -12,6 +13,16 @@ export type DesktopAccountSession = {
   credits: number;
   accessToken: string;
   signedInAt: string;
+};
+
+export type DesktopSyncedPetCard = {
+  id: string;
+  petNumber: string;
+  name: string;
+  ownership: string;
+  displayState: string;
+  avatarUrl?: string | null;
+  materialCount: number;
 };
 
 type PetSettings = {
@@ -28,6 +39,9 @@ type SettingsData = {
   isMouseoverCatchEnabled?: boolean;
   pets?: PetSettings[];
   currentAccount?: DesktopAccountSession;
+  syncedPetCards?: DesktopSyncedPetCard[];
+  selectedSyncedPetID?: string;
+  friendCards?: DesktopFriendCard[];
 };
 
 const maxPetSize = { width: 150, height: 150 };
@@ -88,6 +102,66 @@ export class SettingsStore {
 
   signOut() {
     delete this.#data.currentAccount;
+    this.#write();
+  }
+
+  get syncedPetCards() {
+    return this.#data.syncedPetCards ?? [];
+  }
+
+  saveSyncedPetCards(cards: DesktopSyncedPetCard[]) {
+    this.#data.syncedPetCards = cards;
+    if (cards.length === 0) {
+      delete this.#data.selectedSyncedPetID;
+    } else if (!cards.some((card) => card.id === this.#data.selectedSyncedPetID)) {
+      this.#data.selectedSyncedPetID = cards[0].id;
+    }
+    this.#write();
+  }
+
+  get selectedSyncedPetID() {
+    return this.#data.selectedSyncedPetID;
+  }
+
+  set selectedSyncedPetID(petID: string | undefined) {
+    if (petID) {
+      this.#data.selectedSyncedPetID = petID;
+    } else {
+      delete this.#data.selectedSyncedPetID;
+    }
+    this.#write();
+  }
+
+  markSyncedPetRecalled(petID: string) {
+    this.#data.syncedPetCards = this.syncedPetCards.map((card) =>
+      card.id === petID ? { ...card, displayState: "active", ownership: "owned" } : card
+    );
+    this.#write();
+  }
+
+  get friendCards() {
+    return this.#data.friendCards ?? [];
+  }
+
+  saveFriendCards(cards: DesktopFriendCard[]) {
+    this.#data.friendCards = cards;
+    this.#write();
+  }
+
+  upsertFriendCard(card: DesktopFriendCard) {
+    const cards = this.friendCards.filter((friend) => friend.id !== card.id);
+    cards.push(card);
+    this.#data.friendCards = cards;
+    this.#write();
+  }
+
+  removeFriendCard(friendID: string) {
+    this.#data.friendCards = this.friendCards.filter((friend) => friend.id !== friendID);
+    this.#write();
+  }
+
+  clearFriendCards() {
+    delete this.#data.friendCards;
     this.#write();
   }
 
