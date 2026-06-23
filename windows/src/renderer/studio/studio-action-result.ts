@@ -25,6 +25,10 @@ export function pendingStatusMessageForSyncAction() {
   return "正在从网页同步生成好的素材...";
 }
 
+export function pendingStatusMessageForSignInAction() {
+  return "正在登录账号...";
+}
+
 export function statusMessageForImportVideoAction(slotName: string, result: unknown) {
   if (isCanceledResult(result)) {
     return "已取消。";
@@ -55,16 +59,32 @@ export function statusMessageForAddFriendError() {
   return "添加失败，请确认账号邮箱。";
 }
 
+export function pendingStatusMessageForAddFriendAction() {
+  return "正在添加好友...";
+}
+
 export function statusMessageForRemoveFriendAction(friendName: string) {
   return `已删除好友 ${friendName}。`;
+}
+
+export function pendingStatusMessageForRemoveFriendAction(friendName: string) {
+  return `正在删除好友 ${friendName}...`;
 }
 
 export function statusMessageForHostingRequestAction(friendName: string, petName: string) {
   return `已向 ${friendName} 发起「${petName}」寄养请求。`;
 }
 
+export function pendingStatusMessageForHostingRequestAction(friendName: string) {
+  return `正在向 ${friendName} 发起寄养请求...`;
+}
+
 export function statusMessageForRecallAction(petName: string) {
   return `已召回「${petName}」。`;
+}
+
+export function pendingStatusMessageForRecallAction(petName: string) {
+  return `正在召回「${petName}」...`;
 }
 
 export function nextFriendEmailDraftAfterAddFriendAction(currentDraft: string, result: unknown) {

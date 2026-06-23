@@ -3,6 +3,11 @@ import test from "node:test";
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  pendingStatusMessageForAddFriendAction,
+  pendingStatusMessageForHostingRequestAction,
+  pendingStatusMessageForRecallAction,
+  pendingStatusMessageForRemoveFriendAction,
+  pendingStatusMessageForSignInAction,
   pendingStatusMessageForSyncAction,
   statusMessageForAddFriendAction,
   statusMessageForAddFriendError,
@@ -108,6 +113,14 @@ test("uses Mac-parity copy for desktop sync results", () => {
 
 test("uses Mac-parity pending copy for desktop sync", () => {
   assert.equal(pendingStatusMessageForSyncAction(), "正在从网页同步生成好的素材...");
+});
+
+test("uses Mac-parity pending copy for account and friend actions", () => {
+  assert.equal(pendingStatusMessageForSignInAction(), "正在登录账号...");
+  assert.equal(pendingStatusMessageForAddFriendAction(), "正在添加好友...");
+  assert.equal(pendingStatusMessageForRemoveFriendAction("阿雯"), "正在删除好友 阿雯...");
+  assert.equal(pendingStatusMessageForHostingRequestAction("阿雯"), "正在向 阿雯 发起寄养请求...");
+  assert.equal(pendingStatusMessageForRecallAction("栗子"), "正在召回「栗子」...");
 });
 
 test("uses Mac-parity copy for hosting request success", () => {

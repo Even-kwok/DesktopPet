@@ -16,6 +16,11 @@ import {
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  pendingStatusMessageForAddFriendAction,
+  pendingStatusMessageForHostingRequestAction,
+  pendingStatusMessageForRecallAction,
+  pendingStatusMessageForRemoveFriendAction,
+  pendingStatusMessageForSignInAction,
   pendingStatusMessageForSyncAction,
   statusMessageForAddFriendAction,
   statusMessageForAddFriendError,
@@ -202,9 +207,10 @@ export function StudioApp() {
           </label>
           <button
             className="primary-action"
-            onClick={() =>
-              void runAction(() => bridge?.signIn?.(email, password), statusMessageForSignInAction())
-            }
+            onClick={() => {
+              setStatusMessage(pendingStatusMessageForSignInAction());
+              void runAction(() => bridge?.signIn?.(email, password), statusMessageForSignInAction());
+            }}
           >
             登录
           </button>
@@ -332,12 +338,15 @@ export function StudioApp() {
           <div className="button-grid">
             <button
               disabled={!account || !selectedSyncedPet || !shouldShowRecallAction(selectedSyncedPet, true)}
-              onClick={() =>
+              onClick={() => {
+                if (selectedSyncedPet) {
+                  setStatusMessage(pendingStatusMessageForRecallAction(selectedSyncedPet.name));
+                }
                 void runAction(
                   () => bridge?.recallPet?.(selectedSyncedPet?.id ?? ""),
                   selectedSyncedPet ? statusMessageForRecallAction(selectedSyncedPet.name) : "已发送召回请求。"
-                )
-              }
+                );
+              }}
             >
               召回选中宠物
             </button>
@@ -368,7 +377,8 @@ export function StudioApp() {
             </button>
             <button
               disabled={!account || !friendEmail.trim()}
-              onClick={() =>
+              onClick={() => {
+                setStatusMessage(pendingStatusMessageForAddFriendAction());
                 void runAction(
                   () => bridge?.addFriend?.(friendEmail),
                   "已添加好友。",
@@ -377,8 +387,8 @@ export function StudioApp() {
                     return statusMessageForAddFriendAction(result);
                   },
                   () => statusMessageForAddFriendError()
-                )
-              }
+                );
+              }}
             >
               添加好友
             </button>
@@ -398,25 +408,27 @@ export function StudioApp() {
                   <div>
                     <button
                       disabled={!account || !selectedSyncedPet || !canRequestHosting(selectedSyncedPet)}
-                      onClick={() =>
+                      onClick={() => {
+                        setStatusMessage(pendingStatusMessageForHostingRequestAction(friend.name));
                         void runAction(
                           () => bridge?.requestHosting?.(selectedSyncedPet?.id ?? "", friend.id),
                           selectedSyncedPet
                             ? statusMessageForHostingRequestAction(friend.name, selectedSyncedPet.name)
                             : `已向 ${friend.name} 发起寄养。`
-                        )
-                      }
+                        );
+                      }}
                     >
                       寄养
                     </button>
                     <button
                       disabled={!account}
-                      onClick={() =>
+                      onClick={() => {
+                        setStatusMessage(pendingStatusMessageForRemoveFriendAction(friend.name));
                         void runAction(
                           () => bridge?.removeFriend?.(friend.id),
                           statusMessageForRemoveFriendAction(friend.name)
-                        )
-                      }
+                        );
+                      }}
                     >
                       删除
                     </button>
