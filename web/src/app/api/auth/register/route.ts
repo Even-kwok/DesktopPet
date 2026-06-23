@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { sanitizeRedirectPath } from "@/lib/auth-policy";
 import { provisionSupabaseAccount } from "@/lib/server/account-provisioning";
 import { createSupabaseServerClient, writeMockSession } from "@/lib/server/auth";
+import {
+  recordUserReferralAtRegistration,
+  resolveActiveReferralCode
+} from "@/lib/server/referral-store";
 import { getBackendStatus } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -11,6 +15,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+  const referralCode = String(form.get("referralCode") ?? "").trim();
   const next = sanitizeRedirectPath(String(form.get("next") ?? "/"), "/");
   const origin = new URL(request.url).origin;
 
@@ -20,6 +25,14 @@ export async function POST(request: Request) {
 
   if (password.length < 6) {
     return redirectWithMessage(origin, "error", "密码至少 6 位", next);
+  }
+
+  if (referralCode) {
+    try {
+      await resolveActiveReferralCode(referralCode);
+    } catch {
+      return redirectWithMessage(origin, "error", "推荐码无效或已停用", next);
+    }
   }
 
   if (!getBackendStatus().authConfigured) {
@@ -54,6 +67,13 @@ export async function POST(request: Request) {
       email: data.user.email ?? email,
       displayName
     });
+
+    if (referralCode) {
+      await recordUserReferralAtRegistration({
+        referredUserId: data.user.id,
+        referralCode
+      });
+    }
   } catch {
     return redirectWithMessage(origin, "error", "账号已创建，但初始化工作台失败，请联系管理员。", next);
   }

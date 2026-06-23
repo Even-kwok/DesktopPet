@@ -2,7 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildAdminOverview } from "./admin-overview.ts";
 import { materialGroups, materialSlots } from "./material-slots.ts";
-import type { CurrentUser, Friend, HostingRequest, Pet, PetAsset } from "./types.ts";
+import type {
+  CurrentUser,
+  Friend,
+  HostingRequest,
+  Pet,
+  PetAsset,
+  ReferralCode,
+  ReferralRewardLedgerEntry
+} from "./types.ts";
 
 test("admin overview groups account, pet, material, credit, recharge, friend, hosting, and slot data", () => {
   const currentUser: CurrentUser = {
@@ -43,6 +51,32 @@ test("admin overview groups account, pet, material, credit, recharge, friend, ho
   const hostingRequests: HostingRequest[] = [
     { id: "request_1", petName: "奶盖", from: "Mika", status: "等待你接收" }
   ];
+  const referralCodes: ReferralCode[] = [
+    {
+      id: "refcode_1",
+      code: "LIZI20",
+      ownerUserId: currentUser.id,
+      status: "active",
+      createdAt: "2026-06-23T00:00:00.000Z",
+      updatedAt: "2026-06-23T00:00:00.000Z"
+    }
+  ];
+  const referralRewards: ReferralRewardLedgerEntry[] = [
+    {
+      id: "reward_1",
+      referrerUserId: currentUser.id,
+      referredUserId: "friend_referral",
+      referralCodeId: "refcode_1",
+      rechargeRecordId: "recharge_1",
+      amountCents: 9900,
+      currency: "CNY",
+      rewardPercent: 10,
+      rewardAmountCents: 990,
+      rewardCredits: 9,
+      status: "posted",
+      createdAt: "2026-06-23T01:00:00.000Z"
+    }
+  ];
 
   const overview = buildAdminOverview({
     users: [currentUser],
@@ -51,7 +85,9 @@ test("admin overview groups account, pet, material, credit, recharge, friend, ho
     friends,
     hostingRequests,
     materialSlots,
-    materialGroups
+    materialGroups,
+    referralCodes,
+    referralRewards
   });
 
   assert.equal(overview.generatedAt.length > 0, true);
@@ -60,7 +96,10 @@ test("admin overview groups account, pet, material, credit, recharge, friend, ho
     "pets",
     "totalCredits",
     "rechargeRecords",
-    "materialSlots"
+    "materialSlots",
+    "referralCodes",
+    "referralRewards",
+    "referralRewardAmountCents"
   ]);
   assert.equal("readyMaterials" in overview.metrics, false);
   assert.equal(overview.users[0].id, currentUser.id);
@@ -73,6 +112,9 @@ test("admin overview groups account, pet, material, credit, recharge, friend, ho
   assert.equal(overview.materials.some((material) => material.slot === "idle_loop"), true);
   assert.equal(overview.creditLedger[0].userId, currentUser.id);
   assert.equal(overview.rechargeRecords[0].creditsGranted > 0, true);
+  assert.equal(overview.metrics.referralCodes, 1);
+  assert.equal(overview.metrics.referralRewards, 1);
+  assert.equal(overview.metrics.referralRewardAmountCents, 990);
   assert.equal(overview.friendships[0].userId, currentUser.id);
   assert.equal(overview.hostingRequests.length, hostingRequests.length);
   assert.equal(overview.materialLibrary[0].code, materialSlots[0].id);

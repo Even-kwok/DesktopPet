@@ -65,6 +65,14 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
             placeholder="密码"
             required
           />
+          <input
+            aria-label="推荐码"
+            className="input top-auth-input referral-code-input"
+            name="referralCode"
+            type="text"
+            autoComplete="off"
+            placeholder="推荐码（选填）"
+          />
           <button className="button" formAction="/api/auth/login" type="submit">
             登录
           </button>

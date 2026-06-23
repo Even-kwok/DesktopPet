@@ -6,7 +6,11 @@ import type {
   HostingRequest,
   Pet,
   PetAsset,
-  PetAssetStatus
+  PetAssetStatus,
+  RechargeRecord,
+  ReferralCode,
+  ReferralRewardLedgerEntry,
+  UserReferral
 } from "./types";
 import { isReadonlyPet, sortPetsForAccount } from "./starter-pet.ts";
 
@@ -17,6 +21,10 @@ export type AccountDataState = {
   generationJobs: GenerationJob[];
   friends: Friend[];
   hostingRequests: HostingRequest[];
+  referralCodes: ReferralCode[];
+  userReferrals: UserReferral[];
+  referralRewardLedger: ReferralRewardLedgerEntry[];
+  rechargeRecords: RechargeRecord[];
 };
 
 export type AccountDataSnapshot = AccountDataState & {
@@ -66,7 +74,11 @@ export function createMockAccountDataState(input: Partial<AccountDataState>): Ac
     assets: normalizePetAssets(input.assets ?? []),
     generationJobs: cloneArray(input.generationJobs ?? []),
     friends: cloneArray(input.friends ?? []),
-    hostingRequests: cloneArray(input.hostingRequests ?? [])
+    hostingRequests: cloneArray(input.hostingRequests ?? []),
+    referralCodes: cloneArray(input.referralCodes ?? []),
+    userReferrals: cloneArray(input.userReferrals ?? []),
+    referralRewardLedger: cloneArray(input.referralRewardLedger ?? []),
+    rechargeRecords: cloneArray(input.rechargeRecords ?? [])
   };
 }
 
@@ -89,7 +101,11 @@ export function loadMockAccountDataSnapshot(
     assets: visibleAssets,
     generationJobs: visibleJobs,
     friends: cloneArray(state.friends),
-    hostingRequests: cloneArray(state.hostingRequests)
+    hostingRequests: cloneArray(state.hostingRequests),
+    referralCodes: cloneArray(state.referralCodes),
+    userReferrals: cloneArray(state.userReferrals),
+    referralRewardLedger: cloneArray(state.referralRewardLedger),
+    rechargeRecords: cloneArray(state.rechargeRecords)
   };
 }
 

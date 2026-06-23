@@ -8,6 +8,97 @@ export type CurrentUser = {
   credits: number;
 };
 
+export type ReferralSettings = {
+  rewardPercent: number;
+  firstRechargeDiscountPercent: number;
+};
+
+export type ReferralCodeStatus = "active" | "disabled";
+
+export type ReferralCode = {
+  id: string;
+  code: string;
+  ownerUserId: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  status: ReferralCodeStatus;
+  createdByUserId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  referredUsers?: number;
+  rewardAmountCents?: number;
+  rewardCredits?: number;
+};
+
+export type UserReferral = {
+  referredUserId: string;
+  referralCodeId: string;
+  referralCode: string;
+  referrerUserId: string;
+  registeredAt: string;
+  rewardPercentAtRegistration: number;
+  firstRechargeDiscountPercentAtRegistration: number;
+  firstRechargeDiscountUsedAt?: string | null;
+};
+
+export type RechargeRecordStatus = "pending" | "paid" | "failed" | "refunded";
+
+export type RechargeRecord = {
+  id: string;
+  userId: string;
+  provider: string;
+  providerTransactionId?: string | null;
+  amountCents: number;
+  currency: string;
+  creditsGranted: number;
+  status: RechargeRecordStatus;
+  discountPercent: number;
+  discountAmountCents: number;
+  referralCodeId?: string | null;
+  referredByUserId?: string | null;
+  paidAt?: string | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReferralRewardLedgerEntry = {
+  id: string;
+  referrerUserId: string;
+  referrerName?: string;
+  referrerEmail?: string;
+  referredUserId: string;
+  referredUserName?: string;
+  referredUserEmail?: string;
+  referralCodeId: string;
+  referralCode?: string;
+  rechargeRecordId: string;
+  amountCents: number;
+  currency: string;
+  rewardPercent: number;
+  rewardAmountCents: number;
+  rewardCredits: number;
+  status: "posted" | "voided";
+  createdAt: string;
+};
+
+export type ReferralSummary = {
+  activeCode?: ReferralCode | null;
+  referredUsers: number;
+  rewardAmountCents: number;
+  rewardCredits: number;
+  rewardPercent: number;
+  firstRechargeDiscountPercent: number;
+  rewards: ReferralRewardLedgerEntry[];
+};
+
+export type AdminReferralOverview = {
+  settings: ReferralSettings;
+  codes: ReferralCode[];
+  rechargeRecords: RechargeRecord[];
+  rewards: ReferralRewardLedgerEntry[];
+};
+
 export type Pet = {
   id: string;
   petNumber: string;
@@ -152,6 +243,7 @@ export type StudioBootstrap = {
   assets: PetAsset[];
   jobs: GenerationJob[];
   materialSlots: MaterialSlot[];
+  referralSummary: ReferralSummary;
   backend: BackendStatus;
 };
 

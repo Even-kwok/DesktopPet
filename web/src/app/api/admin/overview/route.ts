@@ -4,6 +4,11 @@ import { materialGroups } from "@/lib/material-slots";
 import { loadAdminAccountDataState } from "@/lib/server/account-data-store";
 import { getCurrentAuthContext } from "@/lib/server/auth";
 import { listPublicMaterialSlots } from "@/lib/server/material-library-store";
+import {
+  listAdminRechargeRecords,
+  listAdminReferralCodes,
+  listAdminReferralRewards
+} from "@/lib/server/referral-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,9 +24,12 @@ export async function GET() {
     );
   }
 
-  const [accountState, materialSlots] = await Promise.all([
+  const [accountState, materialSlots, referralCodes, referralRewards, rechargeRecords] = await Promise.all([
     loadAdminAccountDataState(),
-    listPublicMaterialSlots()
+    listPublicMaterialSlots(),
+    listAdminReferralCodes(),
+    listAdminReferralRewards(),
+    listAdminRechargeRecords()
   ]);
 
   return NextResponse.json(
@@ -32,7 +40,10 @@ export async function GET() {
       friends: accountState.friends,
       hostingRequests: accountState.hostingRequests,
       materialSlots,
-      materialGroups
+      materialGroups,
+      referralCodes,
+      referralRewards,
+      rechargeRecords
     })
   );
 }

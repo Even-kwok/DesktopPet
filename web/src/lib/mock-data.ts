@@ -1,12 +1,29 @@
 import { materialSlots } from "./material-slots.ts";
 import { getStarterPetSeed } from "./starter-pet-seed.ts";
-import type { CurrentUser, Friend, HostingRequest, Pet, PetAsset } from "./types.ts";
+import type {
+  CurrentUser,
+  Friend,
+  HostingRequest,
+  Pet,
+  PetAsset,
+  RechargeRecord,
+  ReferralCode,
+  ReferralRewardLedgerEntry,
+  UserReferral
+} from "./types.ts";
 
 export const currentUser: CurrentUser = {
   id: "00000000-0000-4000-8000-000000000001",
   name: "栗子主人",
   email: "demo@desktop.pet",
   credits: 10120
+};
+
+export const referredUser: CurrentUser = {
+  id: "00000000-0000-4000-8000-000000000201",
+  name: "推荐来的朋友",
+  email: "friend-referral@desktop.pet",
+  credits: 1200
 };
 
 const starterPetSeed = getStarterPetSeed();
@@ -85,3 +102,76 @@ export const petAssets: PetAsset[] = pets.flatMap((pet) =>
     };
   })
 );
+
+export const referralCodes: ReferralCode[] = [
+  {
+    id: "refcode_lizi20",
+    code: "LIZI20",
+    ownerUserId: currentUser.id,
+    ownerName: currentUser.name,
+    ownerEmail: currentUser.email,
+    status: "active",
+    createdByUserId: "admin_demo",
+    createdAt: "2026-06-23T00:00:00.000Z",
+    updatedAt: "2026-06-23T00:00:00.000Z",
+    referredUsers: 1,
+    rewardAmountCents: 990,
+    rewardCredits: 9
+  }
+];
+
+export const userReferrals: UserReferral[] = [
+  {
+    referredUserId: referredUser.id,
+    referralCodeId: "refcode_lizi20",
+    referralCode: "LIZI20",
+    referrerUserId: currentUser.id,
+    registeredAt: "2026-06-23T00:00:00.000Z",
+    rewardPercentAtRegistration: 10,
+    firstRechargeDiscountPercentAtRegistration: 20,
+    firstRechargeDiscountUsedAt: "2026-06-23T01:00:00.000Z"
+  }
+];
+
+export const rechargeRecords: RechargeRecord[] = [
+  {
+    id: "recharge_referral_demo",
+    userId: referredUser.id,
+    provider: "mock",
+    providerTransactionId: "mock_recharge_referral_demo",
+    amountCents: 9900,
+    currency: "CNY",
+    creditsGranted: 1200,
+    status: "paid",
+    discountPercent: 20,
+    discountAmountCents: 1980,
+    referralCodeId: "refcode_lizi20",
+    referredByUserId: currentUser.id,
+    paidAt: "2026-06-23T01:00:00.000Z",
+    note: "推荐首充示例",
+    createdAt: "2026-06-23T01:00:00.000Z",
+    updatedAt: "2026-06-23T01:00:00.000Z"
+  }
+];
+
+export const referralRewardLedger: ReferralRewardLedgerEntry[] = [
+  {
+    id: "reward_referral_demo",
+    referrerUserId: currentUser.id,
+    referrerName: currentUser.name,
+    referrerEmail: currentUser.email,
+    referredUserId: referredUser.id,
+    referredUserName: referredUser.name,
+    referredUserEmail: referredUser.email,
+    referralCodeId: "refcode_lizi20",
+    referralCode: "LIZI20",
+    rechargeRecordId: "recharge_referral_demo",
+    amountCents: 9900,
+    currency: "CNY",
+    rewardPercent: 10,
+    rewardAmountCents: 990,
+    rewardCredits: 9,
+    status: "posted",
+    createdAt: "2026-06-23T01:00:00.000Z"
+  }
+];

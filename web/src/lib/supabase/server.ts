@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { BackendStatus } from "@/lib/types";
+import type { BackendStatus } from "../types.ts";
 
 let cachedAdminClient: SupabaseClient | null = null;
 

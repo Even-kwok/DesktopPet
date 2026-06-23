@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { GenerationSettingsEditor } from "@/components/admin/generation-settings-editor";
 import { MaterialLibraryEditor } from "@/components/admin/material-library-editor";
+import { ReferralAdminPanel } from "@/components/admin/referral-admin-panel";
 import { UserCreditEditor } from "@/components/admin/user-credit-editor";
 import { buildAdminOverview } from "@/lib/admin-overview";
 import { materialGroups } from "@/lib/material-slots";
@@ -11,6 +12,12 @@ import {
   listAdminMaterialLibraryConfigs,
   listPublicMaterialSlots
 } from "@/lib/server/material-library-store";
+import {
+  listAdminRechargeRecords,
+  listAdminReferralCodes,
+  listAdminReferralRewards,
+  loadReferralSettings
+} from "@/lib/server/referral-store";
 import { getBackendStatus } from "@/lib/supabase/server";
 import type { BackendStatus } from "@/lib/types";
 
@@ -18,11 +25,24 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const auth = await requireAdminPage("/admin");
-  const [adminMaterialConfigs, publicMaterialSlots, accountState, videoGenerationSettings] = await Promise.all([
+  const [
+    adminMaterialConfigs,
+    publicMaterialSlots,
+    accountState,
+    videoGenerationSettings,
+    referralSettings,
+    referralCodes,
+    rechargeRecords,
+    referralRewards
+  ] = await Promise.all([
     listAdminMaterialLibraryConfigs(),
     listPublicMaterialSlots(),
     loadAdminAccountDataState(),
-    loadVideoGenerationSettings()
+    loadVideoGenerationSettings(),
+    loadReferralSettings(),
+    listAdminReferralCodes(),
+    listAdminRechargeRecords(),
+    listAdminReferralRewards()
   ]);
   const overview = buildAdminOverview({
     users: accountState.users,
@@ -31,7 +51,10 @@ export default async function AdminPage() {
     friends: accountState.friends,
     hostingRequests: accountState.hostingRequests,
     materialSlots: publicMaterialSlots,
-    materialGroups
+    materialGroups,
+    referralCodes,
+    referralRewards,
+    rechargeRecords
   });
   const backend = getBackendStatus();
 
@@ -139,6 +162,16 @@ export default async function AdminPage() {
 
         <AdminSection title="生成全局设置" wide>
           <GenerationSettingsEditor initialSettings={videoGenerationSettings} />
+        </AdminSection>
+
+        <AdminSection title="推荐分销" wide>
+          <ReferralAdminPanel
+            users={overview.users}
+            initialSettings={referralSettings}
+            initialCodes={referralCodes}
+            initialRechargeRecords={rechargeRecords}
+            initialRewards={referralRewards}
+          />
         </AdminSection>
 
         <AdminSection title="素材库配置" wide>

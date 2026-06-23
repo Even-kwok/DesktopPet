@@ -28,14 +28,11 @@ import {
   type PetDeleteResult
 } from "@/lib/account-data-state";
 import { getJimengVideoJob, isJimengJobId } from "@/lib/server/jimeng";
-import { isReadonlyPet, sortPetsForAccount, starterPetAssetBundleUrl } from "@/lib/starter-pet";
 import {
-  currentUser,
-  friends,
-  hostingRequests,
-  petAssets,
-  pets
-} from "@/lib/mock-data";
+  getMockAccountDataState,
+  resetMockAccountDataStateForTests as resetSharedMockAccountDataStateForTests
+} from "@/lib/server/mock-account-state";
+import { isReadonlyPet, sortPetsForAccount, starterPetAssetBundleUrl } from "@/lib/starter-pet";
 import { getBackendStatus, getSupabaseAdminClient } from "@/lib/supabase/server";
 import type {
   CurrentUser,
@@ -109,27 +106,13 @@ type HostingRequestRow = {
   status: string;
 };
 
-let mockAccountState = createMockAccountDataState({
-  users: [currentUser],
-  pets,
-  assets: petAssets,
-  friends,
-  hostingRequests
-});
+const mockAccountState = getMockAccountDataState();
 
 const petSelectColumns =
   "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, asset_bundle_url, location_status";
 
 export function resetMockAccountDataStateForTests(state?: Partial<AccountDataState>) {
-  mockAccountState = createMockAccountDataState(
-    state ?? {
-      users: [currentUser],
-      pets,
-      assets: petAssets,
-      friends,
-      hostingRequests
-    }
-  );
+  resetSharedMockAccountDataStateForTests(state);
 }
 
 export async function loadAccountDataSnapshot(account: CurrentUser): Promise<AccountDataSnapshot> {
@@ -148,7 +131,11 @@ export async function loadAdminAccountDataState(): Promise<AccountDataState> {
       assets: [...mockAccountState.assets],
       generationJobs: [...mockAccountState.generationJobs],
       friends: [...mockAccountState.friends],
-      hostingRequests: [...mockAccountState.hostingRequests]
+      hostingRequests: [...mockAccountState.hostingRequests],
+      referralCodes: [...mockAccountState.referralCodes],
+      userReferrals: [...mockAccountState.userReferrals],
+      referralRewardLedger: [...mockAccountState.referralRewardLedger],
+      rechargeRecords: [...mockAccountState.rechargeRecords]
     };
   }
 
@@ -581,7 +568,11 @@ async function loadSupabaseAccountDataSnapshot(account: CurrentUser): Promise<Ac
     assets,
     generationJobs: await fetchSupabaseGenerationJobs(mappedUser),
     friends: await fetchFriends(account.id),
-    hostingRequests: await fetchHostingRequests(account.id)
+    hostingRequests: await fetchHostingRequests(account.id),
+    referralCodes: [],
+    userReferrals: [],
+    referralRewardLedger: [],
+    rechargeRecords: []
   };
 }
 
@@ -626,7 +617,11 @@ async function loadSupabaseAdminAccountDataState(): Promise<AccountDataState> {
     assets,
     generationJobs: [],
     friends: [],
-    hostingRequests: []
+    hostingRequests: [],
+    referralCodes: [],
+    userReferrals: [],
+    referralRewardLedger: [],
+    rechargeRecords: []
   };
 }
 

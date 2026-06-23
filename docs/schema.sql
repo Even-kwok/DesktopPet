@@ -124,6 +124,27 @@ create table if not exists public.credit_ledger (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.referral_codes (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  owner_user_id uuid not null references public.profiles(id) on delete cascade,
+  status text not null default 'active' check (status in ('active', 'disabled')),
+  created_by_user_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.user_referrals (
+  referred_user_id uuid primary key references public.profiles(id) on delete cascade,
+  referral_code_id uuid not null references public.referral_codes(id) on delete restrict,
+  referrer_user_id uuid not null references public.profiles(id) on delete cascade,
+  registered_at timestamptz not null default now(),
+  reward_percent_at_registration integer not null check (reward_percent_at_registration between 0 and 100),
+  first_recharge_discount_percent_at_registration integer not null check (first_recharge_discount_percent_at_registration between 0 and 100),
+  first_recharge_discount_used_at timestamptz,
+  check (referred_user_id <> referrer_user_id)
+);
+
 create table if not exists public.recharge_records (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -135,6 +156,30 @@ create table if not exists public.recharge_records (
   status text not null default 'pending' check (status in ('pending', 'paid', 'failed', 'refunded')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+alter table public.recharge_records
+  add column if not exists discount_percent integer not null default 0 check (discount_percent between 0 and 100),
+  add column if not exists discount_amount_cents integer not null default 0 check (discount_amount_cents >= 0),
+  add column if not exists referral_code_id uuid references public.referral_codes(id) on delete set null,
+  add column if not exists referred_by_user_id uuid references public.profiles(id) on delete set null,
+  add column if not exists paid_at timestamptz,
+  add column if not exists note text;
+
+create table if not exists public.referral_reward_ledger (
+  id uuid primary key default gen_random_uuid(),
+  referrer_user_id uuid not null references public.profiles(id) on delete cascade,
+  referred_user_id uuid not null references public.profiles(id) on delete cascade,
+  referral_code_id uuid not null references public.referral_codes(id) on delete restrict,
+  recharge_record_id uuid not null references public.recharge_records(id) on delete restrict,
+  amount_cents integer not null check (amount_cents >= 0),
+  currency text not null default 'CNY',
+  reward_percent integer not null check (reward_percent between 0 and 100),
+  reward_amount_cents integer not null check (reward_amount_cents >= 0),
+  reward_credits integer not null check (reward_credits >= 0),
+  status text not null default 'posted' check (status in ('posted', 'voided')),
+  created_at timestamptz not null default now(),
+  unique (recharge_record_id)
 );
 
 create table if not exists public.friend_requests (
@@ -174,7 +219,10 @@ alter table public.app_settings enable row level security;
 alter table public.pet_assets enable row level security;
 alter table public.generation_jobs enable row level security;
 alter table public.credit_ledger enable row level security;
+alter table public.referral_codes enable row level security;
+alter table public.user_referrals enable row level security;
 alter table public.recharge_records enable row level security;
+alter table public.referral_reward_ledger enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.friendships enable row level security;
 alter table public.pet_hosting_requests enable row level security;
@@ -190,7 +238,14 @@ grant select on public.public_material_slot_definitions to anon, authenticated;
 grant select, insert, update on public.pet_assets to authenticated;
 grant select, insert, update on public.generation_jobs to authenticated;
 grant select, insert on public.credit_ledger to authenticated;
+revoke all on public.referral_codes from anon, authenticated;
+grant select, insert, update on public.referral_codes to service_role;
+revoke all on public.user_referrals from anon, authenticated;
+grant select, insert, update on public.user_referrals to service_role;
 grant select, insert on public.recharge_records to authenticated;
+grant select, insert, update on public.recharge_records to service_role;
+revoke all on public.referral_reward_ledger from anon, authenticated;
+grant select, insert, update on public.referral_reward_ledger to service_role;
 grant select, insert, update on public.friend_requests to authenticated;
 grant select, insert, delete on public.friendships to authenticated;
 grant select, insert, update on public.pet_hosting_requests to authenticated;
@@ -260,6 +315,30 @@ on public.recharge_records for select
 to authenticated
 using (auth.uid() is not null and user_id = auth.uid());
 
+drop policy if exists "users can view owned referral codes" on public.referral_codes;
+create policy "users can view owned referral codes"
+on public.referral_codes for select
+to authenticated
+using (auth.uid() is not null and owner_user_id = auth.uid());
+
+drop policy if exists "users can view their referral attribution" on public.user_referrals;
+create policy "users can view their referral attribution"
+on public.user_referrals for select
+to authenticated
+using (
+  auth.uid() is not null
+  and (referred_user_id = auth.uid() or referrer_user_id = auth.uid())
+);
+
+drop policy if exists "users can view their referral rewards" on public.referral_reward_ledger;
+create policy "users can view their referral rewards"
+on public.referral_reward_ledger for select
+to authenticated
+using (
+  auth.uid() is not null
+  and (referrer_user_id = auth.uid() or referred_user_id = auth.uid())
+);
+
 drop policy if exists "users can view related hosting requests" on public.pet_hosting_requests;
 create policy "users can view related hosting requests"
 on public.pet_hosting_requests for select
@@ -291,6 +370,17 @@ values (
     "watermark": false,
     "generateAudio": false,
     "returnLastFrame": true
+  }'::jsonb,
+  now()
+)
+on conflict (key) do nothing;
+
+insert into public.app_settings (key, value, updated_at)
+values (
+  'referral_settings',
+  '{
+    "rewardPercent": 10,
+    "firstRechargeDiscountPercent": 20
   }'::jsonb,
   now()
 )

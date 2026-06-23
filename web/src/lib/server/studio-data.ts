@@ -5,15 +5,17 @@ import {
   refreshAccountGenerationJobs
 } from "@/lib/server/account-data-store";
 import { listPublicMaterialSlots } from "@/lib/server/material-library-store";
+import { loadAccountReferralSummary } from "@/lib/server/referral-store";
 import { getBackendStatus } from "@/lib/supabase/server";
 import type { CurrentUser, GenerationJob, StudioBootstrap } from "@/lib/types";
 
 export async function getStudioBootstrap(user: CurrentUser = currentUser): Promise<StudioBootstrap> {
   await refreshAccountGenerationJobs(user);
 
-  const [snapshot, materialSlots] = await Promise.all([
+  const [snapshot, materialSlots, referralSummary] = await Promise.all([
     loadAccountDataSnapshot(user),
-    listPublicMaterialSlots()
+    listPublicMaterialSlots(),
+    loadAccountReferralSummary(user)
   ]);
 
   return {
@@ -24,6 +26,7 @@ export async function getStudioBootstrap(user: CurrentUser = currentUser): Promi
     assets: snapshot.assets,
     jobs: snapshot.generationJobs,
     materialSlots,
+    referralSummary,
     backend: getBackendStatus()
   };
 }

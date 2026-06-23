@@ -1604,6 +1604,43 @@ select.input {
   font-size: 34px;
 }
 
+.referral-summary-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafffd;
+}
+
+.referral-summary-panel h3,
+.referral-summary-panel p {
+  margin: 0;
+}
+
+.referral-summary-panel h3 {
+  margin-top: 4px;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.referral-summary-panel p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.referral-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.referral-summary-note {
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .admin-shell {
   width: min(1280px, calc(100vw - 40px));
   margin: 0 auto;
@@ -1788,6 +1825,48 @@ select.input {
 .admin-material-groups {
   display: grid;
   gap: 16px;
+}
+
+.admin-referral-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-referral-settings {
+  grid-template-columns: repeat(2, minmax(0, 180px));
+}
+
+.admin-referral-actions,
+.admin-referral-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-referral-form-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 160px auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.admin-referral-form-grid.recharge {
+  grid-template-columns: minmax(180px, 1fr) 110px 110px 112px minmax(140px, 1fr) auto;
+}
+
+.admin-referral-note-field {
+  min-width: 0;
+}
+
+.admin-referral-mini-table {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-referral-mini-table h3 {
+  margin: 0;
+  font-size: 15px;
 }
 
 .admin-material-create-panel {
@@ -2053,6 +2132,7 @@ select.input {
   .friend-board,
   .image-confirm-panel,
   .billing-grid,
+  .referral-summary-stats,
   .settings-grid,
   .debug-info-grid {
     grid-template-columns: 1fr;
@@ -2115,6 +2195,13 @@ select.input {
 
   .admin-material-create-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-referral-actions,
+  .admin-referral-tables,
+  .admin-referral-form-grid,
+  .admin-referral-form-grid.recharge {
+    grid-template-columns: 1fr;
   }
 
   .admin-material-create-prompt,

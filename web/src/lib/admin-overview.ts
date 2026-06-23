@@ -1,5 +1,14 @@
 import type { MaterialGroup, MaterialSlot } from "./material-slots";
-import type { CurrentUser, Friend, HostingRequest, Pet, PetAsset } from "./types";
+import type {
+  CurrentUser,
+  Friend,
+  HostingRequest,
+  Pet,
+  PetAsset,
+  RechargeRecord,
+  ReferralCode,
+  ReferralRewardLedgerEntry
+} from "./types";
 import { defaultVideoGenerationSettings } from "./generation-settings.ts";
 
 type BuildAdminOverviewInput = {
@@ -10,6 +19,9 @@ type BuildAdminOverviewInput = {
   hostingRequests: HostingRequest[];
   materialSlots: MaterialSlot[];
   materialGroups?: MaterialGroup[];
+  referralCodes?: ReferralCode[];
+  referralRewards?: ReferralRewardLedgerEntry[];
+  rechargeRecords?: RechargeRecord[];
   generatedAt?: string;
 };
 
@@ -25,7 +37,7 @@ export function buildAdminOverview(input: BuildAdminOverviewInput) {
   const userSummaries = input.users.map((user) =>
     buildUserSummary(user, input.pets, input.assets, materialSlotsById)
   );
-  const rechargeRecords = input.users.map((user) => ({
+  const rechargeRecords = input.rechargeRecords ?? input.users.map((user) => ({
     id: `recharge_${user.id}_demo`,
     userId: user.id,
     provider: "mock",
@@ -34,8 +46,17 @@ export function buildAdminOverview(input: BuildAdminOverviewInput) {
     currency: "CNY",
     creditsGranted: user.credits,
     status: "paid" as const,
-    createdAt: "2026-06-16T00:00:00.000Z"
+    discountPercent: 0,
+    discountAmountCents: 0,
+    referralCodeId: null,
+    referredByUserId: null,
+    paidAt: "2026-06-16T00:00:00.000Z",
+    note: null,
+    createdAt: "2026-06-16T00:00:00.000Z",
+    updatedAt: "2026-06-16T00:00:00.000Z"
   }));
+  const referralCodes = input.referralCodes ?? [];
+  const referralRewards = input.referralRewards ?? [];
 
   return {
     generatedAt,
@@ -44,7 +65,13 @@ export function buildAdminOverview(input: BuildAdminOverviewInput) {
       pets: input.pets.length,
       totalCredits: input.users.reduce((sum, user) => sum + user.credits, 0),
       rechargeRecords: rechargeRecords.length,
-      materialSlots: input.materialSlots.length
+      materialSlots: input.materialSlots.length,
+      referralCodes: referralCodes.length,
+      referralRewards: referralRewards.length,
+      referralRewardAmountCents: referralRewards.reduce(
+        (sum, reward) => sum + reward.rewardAmountCents,
+        0
+      )
     },
     users: userSummaries,
     pets: input.pets.map((pet) => ({

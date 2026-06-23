@@ -24,6 +24,7 @@ import {
 } from "@/lib/generation-job-polling";
 import type { MaterialSlot, MaterialUnlockTier } from "@/lib/material-slots";
 import { canDeletePetForAccount } from "@/lib/pet-permissions";
+import { formatCnyFromCents } from "@/lib/referral";
 import { isReadonlyPet, sortPetsForAccount } from "@/lib/starter-pet";
 import {
   accountNameEditControlCopy,
@@ -46,6 +47,7 @@ import type {
   Pet,
   PetAsset,
   PetAssetStatus,
+  ReferralSummary,
   StudioBootstrap
 } from "@/lib/types";
 
@@ -1044,7 +1046,13 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             />
           ) : null}
 
-          {activeTab === "billing" ? <BillingTab user={user} jobs={jobs} /> : null}
+          {activeTab === "billing" ? (
+            <BillingTab
+              user={user}
+              jobs={jobs}
+              referralSummary={initialData.referralSummary}
+            />
+          ) : null}
         </section>
       </div>
 
@@ -1824,8 +1832,17 @@ function JobsTab({
   );
 }
 
-function BillingTab({ user, jobs }: { user: CurrentUser; jobs: GenerationJob[] }) {
+function BillingTab({
+  user,
+  jobs,
+  referralSummary
+}: {
+  user: CurrentUser;
+  jobs: GenerationJob[];
+  referralSummary: ReferralSummary;
+}) {
   const spent = jobs.reduce((sum, job) => sum + job.cost, 0);
+  const activeCode = referralSummary.activeCode;
 
   return (
     <section className="panel management-panel">
@@ -1843,6 +1860,34 @@ function BillingTab({ user, jobs }: { user: CurrentUser; jobs: GenerationJob[] }
           <strong>{jobs.length}</strong>
           <span>生成记录</span>
         </div>
+      </div>
+      <div className="referral-summary-panel">
+        <div>
+          <span className="eyebrow">推荐分销</span>
+          <h3>{activeCode ? activeCode.code : "暂未开通推荐码"}</h3>
+          <p>
+            {activeCode
+              ? `好友使用你的推荐码注册，首次充值可享 ${referralSummary.firstRechargeDiscountPercent}% 优惠。`
+              : "推荐码由后台为认证博主或合作用户开通。"}
+          </p>
+        </div>
+        <div className="referral-summary-stats">
+          <div className="stat">
+            <strong>{referralSummary.referredUsers}</strong>
+            <span>推荐注册</span>
+          </div>
+          <div className="stat">
+            <strong>{formatCnyFromCents(referralSummary.rewardAmountCents)}</strong>
+            <span>推广收益凭据</span>
+          </div>
+          <div className="stat">
+            <strong>{referralSummary.rewardCredits}</strong>
+            <span>收益积分记录</span>
+          </div>
+        </div>
+        <p className="referral-summary-note">
+          推荐收益暂不并入可消费积分，也暂不提现；后台会把它作为公司推广费用凭据。
+        </p>
       </div>
     </section>
   );
