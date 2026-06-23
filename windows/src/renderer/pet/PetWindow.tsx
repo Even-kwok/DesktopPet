@@ -14,19 +14,6 @@ type PetCommand =
       type: "pause";
     };
 
-type DesktopPetBridge = {
-  onPetCommand?: (callback: (command: PetCommand) => void) => () => void;
-  petDragBy?: (petIndex: number, delta: { x: number; y: number }) => void;
-  petClick?: (petIndex: number) => void;
-  petPlaybackEnded?: (petIndex: number) => void;
-};
-
-declare global {
-  interface Window {
-    desktopPet?: DesktopPetBridge;
-  }
-}
-
 export function PetWindow() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -42,6 +29,10 @@ export function PetWindow() {
   useEffect(() => {
     const bridge = window.desktopPet;
     const unsubscribe = bridge?.onPetCommand?.((command) => {
+      if (!isPetCommand(command)) {
+        return;
+      }
+
       if (command.type === "pause") {
         videoRef.current?.pause();
         return;
@@ -203,4 +194,13 @@ function toVideoSource(videoPath: string) {
   return normalizedPath.startsWith("/")
     ? `file://${encodeURI(normalizedPath)}`
     : `file:///${encodeURI(normalizedPath)}`;
+}
+
+function isPetCommand(command: unknown): command is PetCommand {
+  if (!command || typeof command !== "object") {
+    return false;
+  }
+
+  const record = command as Record<string, unknown>;
+  return record.type === "pause" || record.type === "loadVideo";
 }

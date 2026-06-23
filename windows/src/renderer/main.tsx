@@ -1,18 +1,10 @@
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-
-function BootstrapStudio() {
-  return (
-    <main className="studio-shell">
-      <h1>CatDesktopPet Windows</h1>
-      <p>Windows desktop client is starting.</p>
-    </main>
-  );
-}
+import { StudioApp } from "./studio/StudioApp.tsx";
 
 const root = document.getElementById("root");
 if (!root) {
   throw new Error("Missing root element.");
 }
 
-createRoot(root).render(<BootstrapStudio />);
+createRoot(root).render(<StudioApp />);
