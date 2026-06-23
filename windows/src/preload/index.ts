@@ -8,6 +8,7 @@ const desktopPet = {
   sync: () => ipcRenderer.invoke(ipcChannels.sync),
   selectSyncedPet: (petId: string) => ipcRenderer.invoke(ipcChannels.selectSyncedPet, petId),
   addPet: () => ipcRenderer.invoke(ipcChannels.addPet),
+  removePet: (petIndex: number) => ipcRenderer.invoke(ipcChannels.removePet, petIndex),
   renamePet: (petIndex: number, name: string) => ipcRenderer.invoke(ipcChannels.renamePet, petIndex, name),
   importVideo: (petIndex: number, slot: string) => ipcRenderer.invoke(ipcChannels.importVideo, petIndex, slot),
   removeVideo: (petIndex: number, slot: string) => ipcRenderer.invoke(ipcChannels.removeVideo, petIndex, slot),

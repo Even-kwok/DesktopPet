@@ -150,6 +150,11 @@ async function bootstrap() {
       refreshTray();
       return { petIndex, ...studioState() };
     },
+    removePet: (petIndex) => {
+      settingsStore.isPetVisible = settingsStore.isPetVisible && petColonyController.removePet(petIndex);
+      refreshTray();
+      return studioState();
+    },
     renamePet: (petIndex, name) => {
       settingsStore.setPetName(name, petIndex);
       petColonyController.refreshDisplayNames();

@@ -5,6 +5,7 @@ export const ipcChannels = {
   sync: "studio:sync",
   selectSyncedPet: "studio:select-synced-pet",
   addPet: "pets:add",
+  removePet: "pets:remove",
   renamePet: "pets:rename",
   importVideo: "pets:import-video",
   removeVideo: "pets:remove-video",
@@ -40,6 +41,7 @@ export type IpcDependencies = {
   sync: () => unknown;
   selectSyncedPet: (petId: string) => unknown;
   addPet: () => unknown;
+  removePet: (petIndex: number) => unknown;
   renamePet: (petIndex: number, name: string) => unknown;
   importVideo: (petIndex: number, slot: string) => unknown;
   removeVideo: (petIndex: number, slot: string) => unknown;
@@ -72,6 +74,7 @@ export function registerIpcHandlers(ipcMain: IpcMainLike, dependencies: IpcDepen
     dependencies.selectSyncedPet(String(petId ?? ""))
   );
   ipcMain.handle(ipcChannels.addPet, () => dependencies.addPet());
+  ipcMain.handle(ipcChannels.removePet, (_event, petIndex) => dependencies.removePet(Number(petIndex)));
   ipcMain.handle(ipcChannels.renamePet, (_event, petIndex, name) =>
     dependencies.renamePet(Number(petIndex), String(name ?? ""))
   );

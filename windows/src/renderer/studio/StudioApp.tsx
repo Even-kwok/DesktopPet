@@ -213,6 +213,14 @@ export function StudioApp() {
           <div className="button-grid">
             <button onClick={() => void runAction(() => bridge?.addPet?.(), "已添加宠物。")}>添加宠物</button>
             <button
+              disabled={state.petCount <= 0}
+              onClick={() =>
+                void runAction(() => bridge?.removePet?.(selectedPetIndex), "已删除宠物。")
+              }
+            >
+              删除宠物
+            </button>
+            <button
               onClick={() =>
                 void runAction(
                   () => bridge?.renamePet?.(selectedPetIndex, petNameDraft),
