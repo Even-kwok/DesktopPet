@@ -8,6 +8,10 @@ import { PetWindowController } from "./pet-window-controller.ts";
 import { StudioWindowController } from "./studio-window-controller.ts";
 import { registerIpcHandlers } from "./ipc.ts";
 import {
+  existingInstanceReopenActions,
+  singleInstanceStartupPlan
+} from "./app-lifecycle-policy.ts";
+import {
   bindMenuActions,
   buildTrayMenuTemplate
 } from "./tray-controller.ts";
@@ -46,9 +50,11 @@ import {
 } from "../shared/studio-model.ts";
 import type { DesktopPetBundleMaterial } from "../shared/desktop-sync-client.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
+import type { ExistingInstanceReopenAction } from "./app-lifecycle-policy.ts";
 
 let studioWindowController: StudioWindowController | undefined;
 let tray: Tray | undefined;
+let runExistingInstanceReopenAction: (action: ExistingInstanceReopenAction) => void = () => {};
 
 async function bootstrap() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -76,6 +82,18 @@ async function bootstrap() {
     () => petColonyController.resumeAfterSystemWake()
   );
   let refreshTray = () => {};
+  runExistingInstanceReopenAction = (action) => {
+    switch (action) {
+      case "resumePets":
+        petColonyController.resumeAfterSystemWake();
+        return;
+      case "showStudio":
+        studioWindowController?.show();
+        return;
+      case "refreshTray":
+        refreshTray();
+    }
+  };
   const studioState = () => ({
     account: settingsStore.currentAccount,
     petCount: settingsStore.petCount,
@@ -443,9 +461,20 @@ async function bootstrap() {
   }
 }
 
-app.whenReady().then(bootstrap);
+const startupPlan = singleInstanceStartupPlan(app.requestSingleInstanceLock());
+if (startupPlan.shouldQuit) {
+  app.quit();
+} else {
+  app.on("second-instance", handleExistingInstanceReopen);
+  app.on("activate", handleExistingInstanceReopen);
+  app.whenReady().then(bootstrap);
+}
 
 app.on("window-all-closed", () => {});
+
+function handleExistingInstanceReopen() {
+  existingInstanceReopenActions().forEach((action) => runExistingInstanceReopenAction(action));
+}
 
 function requireAccount<T extends { accessToken: string } | undefined>(account: T) {
   if (!account) {
