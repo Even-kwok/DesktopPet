@@ -171,6 +171,30 @@ test("removing a pet compacts settings and hides removed windows", () => {
   }
 });
 
+test("ignores invalid pet indexes from renderer commands", () => {
+  const { settingsStore, colony, windows, cleanup } = makeHarness();
+  try {
+    settingsStore.petCount = 2;
+    settingsStore.setPetName("栗子", 0);
+    settingsStore.setPetName("团子", 1);
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
+    settingsStore.isPetVisible = true;
+    colony.showAll();
+
+    const didShowAny = colony.removePet(Number.NaN);
+
+    assert.doesNotThrow(() => colony.setPetSizeScale(0.6, Number.NaN));
+    assert.equal(didShowAny, true);
+    assert.equal(settingsStore.petCount, 2);
+    assert.equal(settingsStore.petName(0), "栗子");
+    assert.equal(settingsStore.petName(1), "团子");
+    assert.deepEqual(windows.map((window) => window.isVisible), [true, true]);
+  } finally {
+    cleanup();
+  }
+});
+
 test("nearby pets trigger paired interactions with cooldown", () => {
   let now = 1000;
   const { settingsStore, colony, windows, cleanup } = makeHarness({

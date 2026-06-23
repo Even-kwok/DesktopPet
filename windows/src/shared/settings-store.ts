@@ -265,7 +265,7 @@ export class SettingsStore {
   }
 
   removePet(index: number) {
-    if (index < 0 || index >= this.petCount) {
+    if (!isExistingPetIndex(index, this.petCount)) {
       return;
     }
     const pets = [...(this.#data.pets ?? [])];
@@ -419,4 +419,8 @@ function isInteger(value: unknown) {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function isExistingPetIndex(index: number, petCount: number) {
+  return Number.isInteger(index) && index >= 0 && index < petCount;
 }

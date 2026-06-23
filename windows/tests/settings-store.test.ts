@@ -277,6 +277,23 @@ test("removing a pet compacts later pet data", () => {
   }
 });
 
+test("ignores invalid pet indexes when removing pets", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 2;
+    store.setPetName("栗子", 0);
+    store.setPetName("团子", 1);
+
+    store.removePet(Number.NaN);
+
+    assert.equal(store.petCount, 2);
+    assert.equal(store.petName(0), "栗子");
+    assert.equal(store.petName(1), "团子");
+  } finally {
+    cleanup();
+  }
+});
+
 test("ignores unknown saved video slot keys like the Mac settings store", () => {
   const { store, cleanup } = makeStore();
   try {

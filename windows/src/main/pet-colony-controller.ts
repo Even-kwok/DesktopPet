@@ -91,7 +91,7 @@ export class PetColonyController {
 
   removePet(index: number) {
     const currentCount = this.#settingsStore.petCount;
-    if (currentCount <= 0 || index < 0 || index >= currentCount) {
+    if (currentCount <= 0 || !isExistingPetIndex(index, currentCount)) {
       return this.isVisible;
     }
 
@@ -142,7 +142,7 @@ export class PetColonyController {
   }
 
   setPetSizeScale(scale: number, petIndex: number) {
-    if (petIndex < 0 || petIndex >= this.#settingsStore.petCount) {
+    if (!isExistingPetIndex(petIndex, this.#settingsStore.petCount)) {
       return;
     }
 
@@ -326,4 +326,8 @@ function arePetsClose(first: Rect, second: Rect, margin: number) {
 
 function randomSlot<T>(slots: T[], random: () => number) {
   return slots[Math.min(slots.length - 1, Math.floor(random() * slots.length))];
+}
+
+function isExistingPetIndex(index: number, petCount: number) {
+  return Number.isInteger(index) && index >= 0 && index < petCount;
 }
