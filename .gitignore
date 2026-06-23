@@ -10,5 +10,8 @@ web/node_modules/
 web/.env.local
 web/.vercel/
 web/*.tsbuildinfo
+windows/node_modules/
+windows/out/
+windows/dist/
 .vercel
 .superpowers/

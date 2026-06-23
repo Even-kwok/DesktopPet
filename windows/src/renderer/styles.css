@@ -1,0 +1,36 @@
+:root {
+  color: #252525;
+  background: transparent;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+.studio-shell {
+  min-height: 100vh;
+  padding: 20px;
+  background: #faf7f2;
+}
+
+.studio-shell h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.studio-shell p {
+  margin: 0;
+  color: #6b625b;
+}
+
+.pet-window {
+  overflow: hidden;
+  background: transparent;
+}
+
+.pet-bootstrap {
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+}
