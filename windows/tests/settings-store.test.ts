@@ -70,6 +70,39 @@ test("falls back to Mac defaults for malformed setting values", () => {
   }
 });
 
+test("falls back to Mac defaults for malformed pet setting records", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        pets: [
+          {
+            name: 123,
+            sizeScale: "large",
+            frame: { x: "bad", y: 20, width: 100, height: 100 },
+            videos: { idle_loop: 42 }
+          }
+        ]
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.petName(0), "Pet 1");
+    assert.equal(reloaded.petSizeScale(0), 1);
+    assert.deepEqual(reloaded.petFrame(0, { width: 1024, height: 768 }), {
+      x: 437,
+      y: 309,
+      width: 150,
+      height: 150
+    });
+    assert.equal(reloaded.restoreVideoPath("idle_loop", 0), undefined);
+    assert.deepEqual(reloaded.savedVideoSlots(0), []);
+  } finally {
+    cleanup();
+  }
+});
+
 test("falls back to empty account and cache state for malformed studio cache values", () => {
   const { store, cleanup } = makeStore();
   try {

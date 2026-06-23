@@ -197,7 +197,8 @@ export class SettingsStore {
   }
 
   petName(index: number) {
-    const name = this.#pet(index).name?.trim();
+    const rawName = this.#pet(index).name;
+    const name = typeof rawName === "string" ? rawName.trim() : "";
     return name ? name : `Pet ${index + 1}`;
   }
 
@@ -213,7 +214,8 @@ export class SettingsStore {
   }
 
   petSizeScale(index: number) {
-    return clampPetSizeScale(this.#pet(index).sizeScale ?? 1);
+    const rawScale = this.#pet(index).sizeScale;
+    return clampPetSizeScale(typeof rawScale === "number" ? rawScale : 1);
   }
 
   setPetSizeScale(scale: number, index: number) {
@@ -225,7 +227,7 @@ export class SettingsStore {
 
   petFrame(index: number, screenSize = { width: 1024, height: 768 }): Rect {
     const frame = this.#pet(index).frame;
-    if (frame && frame.width > 0 && frame.height > 0) {
+    if (isRect(frame)) {
       return frame;
     }
     return applyPetSizeScale(defaultPetFrame(index, screenSize), this.petSizeScale(index));
@@ -238,7 +240,8 @@ export class SettingsStore {
 
   saveVideoPath(videoPath: string, slot: PetActionSlot, index: number) {
     const pet = this.#pet(index);
-    pet.videos = { ...pet.videos, [slot]: videoPath };
+    const videos = isRecord(pet.videos) ? pet.videos : {};
+    pet.videos = { ...videos, [slot]: videoPath };
     this.#write();
   }
 
@@ -249,13 +252,16 @@ export class SettingsStore {
   }
 
   restoreVideoPath(slot: PetActionSlot, index: number) {
-    const videoPath = this.#pet(index).videos?.[slot];
+    const videos = this.#pet(index).videos;
+    const videoPath = isRecord(videos) && typeof videos[slot] === "string" ? videos[slot] : undefined;
     return videoPath && existsSync(videoPath) ? videoPath : undefined;
   }
 
   savedVideoSlots(index: number) {
-    const videos = this.#pet(index).videos ?? {};
-    return allPetActionSlots.filter((slot) => videos[slot]);
+    const videos = this.#pet(index).videos;
+    return isRecord(videos)
+      ? allPetActionSlots.filter((slot) => typeof videos[slot] === "string")
+      : [];
   }
 
   removePet(index: number) {
@@ -273,6 +279,9 @@ export class SettingsStore {
     const pets = Array.isArray(this.#data.pets) ? [...this.#data.pets] : [];
     while (pets.length <= index) {
       pets.push({});
+    }
+    if (!isRecord(pets[index])) {
+      pets[index] = {};
     }
     this.#data.pets = pets;
     return pets[index];
@@ -325,6 +334,22 @@ function normalizedPetCount(count: unknown, fallback: number) {
 
 function booleanOrDefault(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function isRect(value: unknown): value is Rect {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const { x, y, width, height } = value;
+  return (
+    isFiniteNumber(x) &&
+    isFiniteNumber(y) &&
+    isFiniteNumber(width) &&
+    isFiniteNumber(height) &&
+    width > 0 &&
+    height > 0
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -385,4 +410,8 @@ function isOptionalString(value: unknown) {
 
 function isInteger(value: unknown) {
   return typeof value === "number" && Number.isInteger(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
