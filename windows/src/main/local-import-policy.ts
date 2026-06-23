@@ -2,6 +2,13 @@ import type { PetActionSlot } from "../shared/pet-action-slots.ts";
 
 export type LocalVideoRemovalAction = "showAll" | "refreshPlayback";
 
+export function idleLoopImportTargetAfterAddingPet(petIndex: number) {
+  return {
+    petIndex: Math.max(0, Math.trunc(petIndex)),
+    slot: "idle_loop" as const
+  };
+}
+
 export function petCountAfterLocalVideoImport(
   currentPetCount: number,
   petIndex: number,

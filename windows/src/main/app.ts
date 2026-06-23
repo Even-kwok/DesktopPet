@@ -12,6 +12,7 @@ import {
   buildTrayMenuTemplate
 } from "./tray-controller.ts";
 import {
+  idleLoopImportTargetAfterAddingPet,
   localVideoRemovalAction,
   petCountAfterLocalVideoImport
 } from "./local-import-policy.ts";
@@ -364,8 +365,15 @@ async function bootstrap() {
           },
           resetPositions: () => petColonyController.resetPositions(),
           addPet: () => {
-            petColonyController.addPet();
+            const petIndex = petColonyController.addPet();
             refreshTray();
+            void importLocalVideo({
+              ...idleLoopImportTargetAfterAddingPet(petIndex),
+              settingsStore,
+              petColonyController
+            })
+              .then(refreshTray)
+              .catch(showActionError);
           },
           renamePet: () => studioWindowController?.show(),
           removePet: (payload) => {
