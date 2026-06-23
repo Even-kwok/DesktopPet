@@ -19,22 +19,32 @@ test("normalizes saved video generation settings with defaults", () => {
   assert.equal(settings.framesPerSecond, defaultVideoGenerationSettings.framesPerSecond);
 });
 
-test("defaults to the Doubao Seedance 2.0 mini model when saved settings omit model", () => {
+test("defaults to the Doubao Seedance 2.0 fast model when saved settings omit model", () => {
   const settings = normalizeVideoGenerationSettings({
     resolution: "480p"
   });
 
-  assert.equal(defaultVideoGenerationSettings.model, "doubao-seedance-2-0-mini-260615");
-  assert.equal(settings.model, "doubao-seedance-2-0-mini-260615");
+  assert.equal(defaultVideoGenerationSettings.model, "doubao-seedance-2-0-fast-260128");
+  assert.equal(settings.model, "doubao-seedance-2-0-fast-260128");
 });
 
-test("falls back to the Doubao Seedance 2.0 mini model for legacy Seedance settings", () => {
+test("keeps the Doubao Seedance 2.0 fast model when saved settings select it", () => {
   const settings = normalizeVideoGenerationSettings({
     model: "doubao-seedance-2-0-fast-260128",
     resolution: "480p"
   });
 
-  assert.equal(settings.model, "doubao-seedance-2-0-mini-260615");
+  assert.equal(settings.model, "doubao-seedance-2-0-fast-260128");
+  assert.equal(settings.resolution, "480p");
+});
+
+test("falls back to the Doubao Seedance 2.0 fast model for obsolete settings", () => {
+  const settings = normalizeVideoGenerationSettings({
+    model: "doubao-seed-2-0-mini-260428",
+    resolution: "480p"
+  });
+
+  assert.equal(settings.model, "doubao-seedance-2-0-fast-260128");
   assert.equal(settings.resolution, "480p");
 });
 

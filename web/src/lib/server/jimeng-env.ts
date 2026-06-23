@@ -1,6 +1,7 @@
 import {
   defaultSeedanceVideoModel,
   isSeedanceVideoModel,
+  seedanceFastModel,
   seedanceMiniModel,
   type SeedanceVideoModel
 } from "../seedance-models.ts";
@@ -49,6 +50,15 @@ export function getJimengApiKeyCandidates(
   model: SeedanceVideoModel = defaultJimengVideoModel,
   env: NodeJS.ProcessEnv = process.env
 ) {
+  if (model === seedanceFastModel) {
+    return trimmedEnvCandidates(env, [
+      "DOUBAO_SEEDANCE_API_KEY",
+      "DOUBAO_SEED_API_KEY",
+      "JIMENG_API_KEY",
+      "ARK_API_KEY"
+    ]);
+  }
+
   if (model === seedanceMiniModel) {
     return trimmedEnvCandidates(env, [
       "mini_API_KEY",

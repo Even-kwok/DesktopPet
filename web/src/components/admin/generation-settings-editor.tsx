@@ -162,7 +162,7 @@ export function GenerationSettingsEditor({
         <div className="debug-note">
           <strong>模型密钥</strong>
           <p>
-            Doubao-Seedance-2.0-mini 读取 mini_API_KEY、DOUBAO_SEEDANCE_API_KEY、JIMENG_API_KEY 或 ARK_API_KEY。
+            fast 默认读取 JIMENG_API_KEY / ARK_API_KEY；mini 可读取 mini_API_KEY，开通 API 后再切换。
           </p>
         </div>
       </div>

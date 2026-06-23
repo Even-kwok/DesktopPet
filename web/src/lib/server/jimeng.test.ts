@@ -49,12 +49,28 @@ function withProviderEnv<T>(env: Record<string, string | undefined>, run: () => 
   }
 }
 
-test("Jimeng config defaults to the Doubao Seedance 2.0 mini model", () => {
+test("Jimeng config defaults to the Doubao Seedance 2.0 fast model", () => {
   withProviderEnv({ ARK_API_KEY: " ark-secret " }, () => {
     assert.equal(getJimengApiKey(), "ark-secret");
-    assert.equal(defaultJimengVideoModel, "doubao-seedance-2-0-mini-260615");
-    assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-mini-260615");
+    assert.equal(defaultJimengVideoModel, "doubao-seedance-2-0-fast-260128");
+    assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-fast-260128");
   });
+});
+
+test("Jimeng config uses fast API key candidates for the fast model", () => {
+  withProviderEnv(
+    {
+      mini_API_KEY: "mini-secret",
+      JIMENG_API_KEY: " jimeng-secret ",
+      ARK_API_KEY: "ark-secret"
+    },
+    () => {
+      assert.deepEqual(getJimengApiKeyCandidates("doubao-seedance-2-0-fast-260128"), [
+        { name: "JIMENG_API_KEY", value: "jimeng-secret" },
+        { name: "ARK_API_KEY", value: "ark-secret" }
+      ]);
+    }
+  );
 });
 
 test("Jimeng config prefers the mini API key when the Doubao Seedance model is selected", () => {
@@ -92,10 +108,23 @@ test("Jimeng config ignores legacy Seedance env model overrides", () => {
     {
       mini_API_KEY: "mini-secret",
       ARK_API_KEY: "ark-secret",
-      JIMENG_VIDEO_MODEL: "doubao-seedance-2-0-fast-260128"
+      JIMENG_VIDEO_MODEL: "doubao-seed-2-0-mini-260428"
+    },
+    () => {
+      assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-fast-260128");
+    }
+  );
+});
+
+test("Jimeng config accepts the mini model as an env override", () => {
+  withProviderEnv(
+    {
+      mini_API_KEY: "mini-secret",
+      JIMENG_VIDEO_MODEL: "doubao-seedance-2-0-mini-260615"
     },
     () => {
       assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-mini-260615");
+      assert.equal(getJimengApiKey(getJimengVideoModel()), "mini-secret");
     }
   );
 });
@@ -107,7 +136,7 @@ test("Jimeng config accepts a named Seedance API key alias", () => {
       ARK_API_KEY: "ark-secret"
     },
     () => {
-      assert.deepEqual(getJimengApiKeyCandidates("doubao-seedance-2-0-mini-260615"), [
+      assert.deepEqual(getJimengApiKeyCandidates("doubao-seedance-2-0-fast-260128"), [
         { name: "DOUBAO_SEEDANCE_API_KEY", value: "seedance-secret" },
         { name: "ARK_API_KEY", value: "ark-secret" }
       ]);

@@ -361,7 +361,7 @@ insert into public.app_settings (key, value, updated_at)
 values (
   'video_generation_settings',
   '{
-    "model": "doubao-seedance-2-0-mini-260615",
+    "model": "doubao-seedance-2-0-fast-260128",
     "durationSeconds": 10,
     "ratio": "adaptive",
     "resolution": "720p",
