@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { clampPetSizeScale } from "./pet-action-slots.ts";
+import { allPetActionSlots, clampPetSizeScale } from "./pet-action-slots.ts";
 import type { DesktopFriendCard, DesktopSyncAccount } from "./desktop-sync-client.ts";
 import type { PetActionSlot } from "./pet-action-slots.ts";
 
@@ -240,7 +240,8 @@ export class SettingsStore {
   }
 
   savedVideoSlots(index: number) {
-    return Object.keys(this.#pet(index).videos ?? {}) as PetActionSlot[];
+    const videos = this.#pet(index).videos ?? {};
+    return allPetActionSlots.filter((slot) => videos[slot]);
   }
 
   removePet(index: number) {

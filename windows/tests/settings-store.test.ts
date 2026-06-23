@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -85,6 +85,31 @@ test("removing a pet compacts later pet data", () => {
     assert.equal(store.petSizeScale(0), 0.3);
     assert.equal(store.restoreVideoPath("idle_loop", 0), "C:/cats/second.mp4");
     assert.equal(store.restoreVideoPath("idle_loop", 1), undefined);
+  } finally {
+    cleanup();
+  }
+});
+
+test("ignores unknown saved video slot keys like the Mac settings store", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        pets: [
+          {
+            videos: {
+              idle_loop: "C:/cats/idle.mp4",
+              drag_loop: "C:/cats/drag.mp4",
+              unknown_slot: "C:/cats/unknown.mp4"
+            }
+          }
+        ]
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.deepEqual(reloaded.savedVideoSlots(0), ["idle_loop"]);
   } finally {
     cleanup();
   }
