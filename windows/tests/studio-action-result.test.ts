@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { statusMessageForActionResult } from "../src/renderer/studio/studio-action-result.ts";
+import {
+  nextFriendEmailDraftAfterAddFriendAction,
+  statusMessageForActionResult
+} from "../src/renderer/studio/studio-action-result.ts";
 
 test("keeps success message for normal studio actions", () => {
   assert.equal(statusMessageForActionResult(undefined, "已同步网页端素材。"), "已同步网页端素材。");
@@ -12,5 +15,13 @@ test("uses cancellation copy when a studio action is canceled", () => {
   assert.equal(
     statusMessageForActionResult({ result: { canceled: true } }, "已导入「待机循环」。"),
     "已取消。"
+  );
+});
+
+test("clears friend email draft after a successful add-friend action", () => {
+  assert.equal(nextFriendEmailDraftAfterAddFriendAction("friend@example.com", { friendAdded: true }), "");
+  assert.equal(
+    nextFriendEmailDraftAfterAddFriendAction("friend@example.com", { canceled: true }),
+    "friend@example.com"
   );
 });

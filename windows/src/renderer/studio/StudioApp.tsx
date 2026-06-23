@@ -13,7 +13,10 @@ import {
   shouldShowRecallAction,
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
-import { statusMessageForActionResult } from "./studio-action-result.ts";
+import {
+  nextFriendEmailDraftAfterAddFriendAction,
+  statusMessageForActionResult
+} from "./studio-action-result.ts";
 import {
   nextSelectedPetIndexAfterAction,
   nextSelectedSyncedPetID,
@@ -108,10 +111,15 @@ export function StudioApp() {
     return Array.from(groups.entries());
   }, []);
 
-  const runAction = async (action: () => Promise<unknown> | unknown, successMessage: string) => {
+  const runAction = async (
+    action: () => Promise<unknown> | unknown,
+    successMessage: string,
+    afterSuccess?: (result: unknown) => void
+  ) => {
     try {
       const result = await action();
       await refreshState(result);
+      afterSuccess?.(result);
       setStatusMessage(statusMessageForActionResult(result, successMessage));
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "操作失败，请稍后重试。");
@@ -315,7 +323,13 @@ export function StudioApp() {
             </button>
             <button
               disabled={!account || !friendEmail.trim()}
-              onClick={() => void runAction(() => bridge?.addFriend?.(friendEmail), "已添加好友。")}
+              onClick={() =>
+                void runAction(
+                  () => bridge?.addFriend?.(friendEmail),
+                  "已添加好友。",
+                  (result) => setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result))
+                )
+              }
             >
               添加好友
             </button>

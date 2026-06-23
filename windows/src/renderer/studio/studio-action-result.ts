@@ -2,6 +2,10 @@ export function statusMessageForActionResult(result: unknown, successMessage: st
   return isCanceledResult(result) ? "已取消。" : successMessage;
 }
 
+export function nextFriendEmailDraftAfterAddFriendAction(currentDraft: string, result: unknown) {
+  return isCanceledResult(result) ? currentDraft : "";
+}
+
 function isCanceledResult(result: unknown): boolean {
   if (!result || typeof result !== "object") {
     return false;
