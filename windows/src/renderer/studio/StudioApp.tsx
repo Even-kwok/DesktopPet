@@ -18,6 +18,7 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   pendingStatusMessageForAddFriendAction,
   pendingStatusMessageForHostingRequestAction,
+  pendingStatusMessageForImportVideoAction,
   pendingStatusMessageForRecallAction,
   pendingStatusMessageForRemoveFriendAction,
   pendingStatusMessageForSignInAction,
@@ -461,13 +462,14 @@ export function StudioApp() {
                       </span>
                       <div>
                         <button
-                          onClick={() =>
+                          onClick={() => {
+                            setStatusMessage(pendingStatusMessageForImportVideoAction(slotName));
                             void runAction(
                               () => bridge?.importVideo?.(selectedPetIndex, slot),
                               `已导入「${slotName}」。`,
                               (result) => statusMessageForImportVideoAction(slotName, result)
-                            )
-                          }
+                            );
+                          }}
                         >
                           导入
                         </button>

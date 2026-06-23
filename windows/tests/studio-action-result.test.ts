@@ -5,6 +5,7 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   pendingStatusMessageForAddFriendAction,
   pendingStatusMessageForHostingRequestAction,
+  pendingStatusMessageForImportVideoAction,
   pendingStatusMessageForRecallAction,
   pendingStatusMessageForRemoveFriendAction,
   pendingStatusMessageForSignInAction,
@@ -47,6 +48,10 @@ test("uses Mac-parity copy for local video import results", () => {
     }),
     "已导入「点击互动」本地视频。 这段视频有点长，作为桌宠动作可能不够轻快。"
   );
+});
+
+test("uses Mac-parity pending copy for local video import", () => {
+  assert.equal(pendingStatusMessageForImportVideoAction("待机循环"), "正在检查「待机循环」视频...");
 });
 
 test("uses Mac-parity copy for local video removal results", () => {

@@ -29,6 +29,10 @@ export function pendingStatusMessageForSignInAction() {
   return "正在登录账号...";
 }
 
+export function pendingStatusMessageForImportVideoAction(slotName: string) {
+  return `正在检查「${slotName}」视频...`;
+}
+
 export function statusMessageForImportVideoAction(slotName: string, result: unknown) {
   if (isCanceledResult(result)) {
     return "已取消。";
