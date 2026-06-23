@@ -1,0 +1,174 @@
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import type { IncomingMessage } from "node:http";
+import type { AddressInfo } from "node:net";
+import test from "node:test";
+import {
+  DesktopPetSyncClient,
+  DesktopPetSyncError,
+  displayablePets,
+  localMaterialReplacementDescriptions
+} from "../src/shared/desktop-sync-client.ts";
+
+async function withServer(
+  handler: (request: IncomingMessage, body: string) => { status: number; body: unknown }
+) {
+  const server = createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const result = handler(request, body);
+      response.writeHead(result.status, { "content-type": "application/json" });
+      response.end(JSON.stringify(result.body));
+    });
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.equal(typeof address, "object");
+  assert.ok(address);
+  const port = (address as AddressInfo).port;
+
+  return {
+    baseURL: `http://127.0.0.1:${port}`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      })
+  };
+}
+
+test("logs in and stores bearer-capable account response", async () => {
+  const server = await withServer((request, body) => {
+    assert.equal(request.url, "/api/desktop/auth/login");
+    assert.equal(request.method, "POST");
+    assert.deepEqual(JSON.parse(body), { email: "demo@desktop.pet", password: "123456" });
+    return {
+      status: 200,
+      body: {
+        mode: "mock",
+        tokenType: "bearer",
+        accessToken: "desktop-token",
+        expiresIn: 3600,
+        account: { id: "user_demo", name: "栗子主人", email: "demo@desktop.pet", credits: 120 }
+      }
+    };
+  });
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+    const login = await client.login("demo@desktop.pet", "123456");
+    assert.equal(login.accessToken, "desktop-token");
+    assert.equal(login.account.email, "demo@desktop.pet");
+  } finally {
+    await server.close();
+  }
+});
+
+test("fetches desktop bundle with bearer token and filters displayable pets", async () => {
+  const server = await withServer((request) => {
+    assert.equal(request.url, "/api/desktop/pets");
+    assert.equal(request.headers.authorization, "Bearer desktop-token");
+    return {
+      status: 200,
+      body: {
+        version: 1,
+        generatedAt: "2026-06-24T00:00:00.000Z",
+        pets: [
+          {
+            id: "pet_local",
+            name: "栗子",
+            type: "cat",
+            displayState: "active",
+            materials: [
+              {
+                slot: "idle_loop",
+                name: "待机循环",
+                videoUrl: "https://example.com/idle.mp4",
+                status: "ready"
+              }
+            ]
+          },
+          {
+            id: "pet_away",
+            name: "雪球",
+            type: "cat",
+            displayState: "unavailable",
+            materials: [
+              {
+                slot: "idle_loop",
+                name: "待机循环",
+                videoUrl: "https://example.com/idle.mp4",
+                status: "ready"
+              }
+            ]
+          }
+        ]
+      }
+    };
+  });
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+    const bundle = await client.fetchBundle("desktop-token");
+    assert.equal(
+      displayablePets(bundle)
+        .map((pet) => pet.id)
+        .join(","),
+      "pet_local"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("maps unauthorized bundle fetches to session expired", async () => {
+  const server = await withServer(() => ({ status: 401, body: { error: "DESKTOP_AUTH_REQUIRED" } }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.fetchBundle("expired-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "sessionExpired" &&
+        error.message === "登录已过期，请重新登录。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("describes local videos replaced by cloud sync", () => {
+  const bundle = {
+    version: 1,
+    generatedAt: "2026-06-24T00:00:00.000Z",
+    pets: [
+      {
+        id: "pet_orange",
+        name: "栗子",
+        type: "cat",
+        displayState: "active",
+        materials: [
+          {
+            slot: "idle_loop",
+            name: "待机循环",
+            videoUrl: "https://example.com/idle.mp4",
+            status: "ready"
+          }
+        ]
+      }
+    ]
+  } as const;
+
+  const replacements = localMaterialReplacementDescriptions(bundle, (slot, petIndex) => {
+    assert.equal(slot, "idle_loop");
+    assert.equal(petIndex, 0);
+    return "C:/local/idle.mp4";
+  });
+
+  assert.deepEqual(replacements, ["栗子 · 待机循环"]);
+});
