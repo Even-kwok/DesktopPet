@@ -140,9 +140,16 @@ export class SettingsStore {
   }
 
   get selectedSyncedPetID() {
-    return typeof this.#data.selectedSyncedPetID === "string"
-      ? this.#data.selectedSyncedPetID
-      : undefined;
+    const selectedPetID =
+      typeof this.#data.selectedSyncedPetID === "string"
+        ? this.#data.selectedSyncedPetID
+        : undefined;
+    const cards = this.syncedPetCards;
+    if (selectedPetID && cards.some((card) => card.id === selectedPetID)) {
+      return selectedPetID;
+    }
+
+    return cards[0]?.id;
   }
 
   set selectedSyncedPetID(petID: string | undefined) {

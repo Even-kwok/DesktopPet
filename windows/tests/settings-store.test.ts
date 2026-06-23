@@ -147,6 +147,33 @@ test("filters malformed account and studio cache records", () => {
   }
 });
 
+test("falls back to the first synced pet when the cached selection is stale", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        selectedSyncedPetID: "missing_pet",
+        syncedPetCards: [
+          {
+            id: "pet_orange",
+            petNumber: "P1",
+            name: "栗子",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: 3
+          }
+        ]
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.selectedSyncedPetID, "pet_orange");
+  } finally {
+    cleanup();
+  }
+});
+
 test("persists pet names, size, frame, video paths, and session", () => {
   const { store, cleanup } = makeStore();
   try {
