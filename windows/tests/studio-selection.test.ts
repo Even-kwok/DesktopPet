@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   nextSelectedPetIndexAfterAction,
+  nextSelectedSyncedPetID,
   petNameDraftForIndex
 } from "../src/renderer/studio/studio-selection.ts";
 
@@ -26,4 +27,13 @@ test("selects the pet returned by a studio add action", () => {
 test("uses the refreshed pet name for the selected pet draft", () => {
   assert.equal(petNameDraftForIndex({ petCount: 2, petNames: ["Milo", "Luna"] }, 1), "Luna");
   assert.equal(petNameDraftForIndex({ petCount: 2, petNames: [] }, 1), "Pet 2");
+});
+
+test("keeps synced pet selection on a valid refreshed card", () => {
+  const cards = [{ id: "pet-a" }, { id: "pet-b" }];
+
+  assert.equal(nextSelectedSyncedPetID("pet-b", "pet-a", cards), "pet-b");
+  assert.equal(nextSelectedSyncedPetID("missing-pet", "pet-a", cards), "pet-a");
+  assert.equal(nextSelectedSyncedPetID("missing-pet", "also-missing", cards), "pet-a");
+  assert.equal(nextSelectedSyncedPetID("missing-pet", undefined, []), undefined);
 });

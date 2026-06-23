@@ -16,6 +16,7 @@ import {
 import { statusMessageForActionResult } from "./studio-action-result.ts";
 import {
   nextSelectedPetIndexAfterAction,
+  nextSelectedSyncedPetID,
   petNameDraftForIndex
 } from "./studio-selection.ts";
 
@@ -82,7 +83,9 @@ export function StudioApp() {
         setPetNameDraft(petNameDraftForIndex(mergedState, nextPetIndex));
         return nextPetIndex;
       });
-      setSelectedSyncedPetID((current) => current ?? mergedState.selectedSyncedPetID ?? mergedState.syncedPetCards[0]?.id);
+      setSelectedSyncedPetID((current) =>
+        nextSelectedSyncedPetID(current, mergedState.selectedSyncedPetID, mergedState.syncedPetCards)
+      );
     }
   };
 
