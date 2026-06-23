@@ -211,6 +211,65 @@ button:disabled {
   color: #167b59;
 }
 
+.auth-status-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+}
+
+.auth-status-panel {
+  width: min(560px, 100%);
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow-soft);
+}
+
+.auth-status-mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  background: rgba(45, 185, 133, 0.14);
+  color: #167b59;
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.auth-status-mark.error {
+  background: #fff0f2;
+  color: var(--danger);
+}
+
+.auth-status-panel h1 {
+  margin: 8px 0 12px;
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.auth-status-detail {
+  margin: 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.auth-status-detail strong {
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.auth-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
 .studio-status-message {
   width: fit-content;
   max-width: 100%;

@@ -1,8 +1,7 @@
 import { nextPetNumber } from "@/lib/account-data-state";
+import { initialCreditBalanceFromEnv } from "@/lib/account-credit-config";
 import { getStarterPetSeed } from "@/lib/starter-pet-seed";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
-
-const initialCreditBalance = 10120;
 
 type ProvisionInput = {
   userId: string;
@@ -38,7 +37,7 @@ export async function provisionSupabaseAccount(input: ProvisionInput) {
     .upsert(
       {
         user_id: input.userId,
-        balance: initialCreditBalance,
+        balance: initialCreditBalanceFromEnv(),
         updated_at: now
       },
       { ignoreDuplicates: true, onConflict: "user_id" }

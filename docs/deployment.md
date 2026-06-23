@@ -107,6 +107,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 ADMIN_EMAILS
 AUTH_MOCK_COOKIE_SECRET
+INITIAL_CREDIT_BALANCE
 SUPABASE_SOURCE_IMAGE_BUCKET
 SUPABASE_FRONT_IMAGE_BUCKET
 SUPABASE_ACTION_VIDEO_BUCKET
@@ -117,6 +118,7 @@ SUPABASE_ASSET_BUNDLE_BUCKET
 5. Keep service-role keys only in Vercel server env. Never expose them in the Mac app.
 6. Grant admin access through Supabase `app_metadata.role = admin`, `app_metadata.roles = ["admin"]`, `app_metadata.is_admin = true`, or the server-only `ADMIN_EMAILS` allowlist. Never authorize admins from `user_metadata`.
 7. New Supabase public tables need explicit `GRANT` statements in addition to RLS policies. The schema draft includes grants for authenticated app access and keeps service-role usage server-side.
+8. Add the deployed site origin and `/auth/callback` URL to Supabase Auth redirect URLs, for example `https://your-preview.vercel.app/auth/callback`.
 
 ## API Routes In This MVP
 

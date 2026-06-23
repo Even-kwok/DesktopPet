@@ -75,14 +75,26 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
             required
           />
           {authMode === "register" ? (
-            <input
-              aria-label="推荐码"
-              className="input top-auth-input referral-code-input"
-              name="referralCode"
-              type="text"
-              autoComplete="off"
-              placeholder="推荐码（选填）"
-            />
+            <>
+              <input
+                aria-label="确认密码"
+                className="input top-auth-input"
+                name="passwordConfirmation"
+                type="password"
+                autoComplete="new-password"
+                defaultValue={backend.authConfigured ? "" : "123456"}
+                placeholder="确认密码"
+                required
+              />
+              <input
+                aria-label="推荐码"
+                className="input top-auth-input referral-code-input"
+                name="referralCode"
+                type="text"
+                autoComplete="off"
+                placeholder="推荐码（选填）"
+              />
+            </>
           ) : null}
           <button className="button" type="submit">
             {authMode === "register" ? "注册" : "登录"}
