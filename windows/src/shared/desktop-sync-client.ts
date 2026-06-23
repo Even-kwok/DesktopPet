@@ -235,12 +235,12 @@ export function syncedPetCardsFromBundle(bundle: DesktopPetBundle): DesktopSynce
     ownership: pet.ownership ?? "owned",
     displayState: pet.displayState ?? "active",
     avatarUrl: pet.avatarUrl,
-    materialCount: pet.materials.filter((material) => material.status === "ready").length
+    materialCount: pet.materials.filter((material) => !isDeprecatedMaterialSlot(material.slot)).length
   }));
 }
 
 export function readyDesktopMaterials(pet: DesktopPetBundlePet) {
-  return pet.materials.filter((material) => material.status === "ready" && material.slot !== "drag_loop");
+  return pet.materials.filter((material) => material.status === "ready" && !isDeprecatedMaterialSlot(material.slot));
 }
 
 export function localMaterialReplacementDescriptions(
@@ -270,6 +270,10 @@ function hasReadyIdleLoop(pet: DesktopPetBundlePet) {
 function isRemoteMaterialCachePath(filePath: string) {
   const parts = filePath.split(/[\\/]/);
   return parts.includes("CatDesktopPet") && parts.includes("RemoteMaterials");
+}
+
+function isDeprecatedMaterialSlot(slot: PetActionSlot) {
+  return slot === "drag_loop";
 }
 
 export function safeRemoteMaterialPathComponent(value: string) {

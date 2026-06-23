@@ -199,6 +199,18 @@ test("maps bundle pets to cached studio cards", () => {
             name: "点击反应",
             videoUrl: "https://example.com/click.mp4",
             status: "queued"
+          },
+          {
+            slot: "drag_loop",
+            name: "拖拽循环（备用）",
+            videoUrl: "https://example.com/drag.mp4",
+            status: "ready"
+          },
+          {
+            slot: "look_at_camera",
+            name: "看镜头",
+            videoUrl: "https://example.com/look.mp4",
+            status: "failed"
           }
         ]
       }
@@ -213,7 +225,7 @@ test("maps bundle pets to cached studio cards", () => {
       ownership: "owned",
       displayState: "active",
       avatarUrl: undefined,
-      materialCount: 1
+      materialCount: 3
     }
   ]);
   assert.equal(safeRemoteMaterialPathComponent("pet/demo:1"), "pet-demo-1");
