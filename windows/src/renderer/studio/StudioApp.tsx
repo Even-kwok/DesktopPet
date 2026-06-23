@@ -21,6 +21,7 @@ import {
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
+  statusMessageForImportVideoAction,
   statusMessageForRecallAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
@@ -436,10 +437,11 @@ export function StudioApp() {
               <div className="material-list">
                 {slots.map((slot) => {
                   const hasVideo = state.localVideoSlots[selectedPetIndex]?.includes(slot) ?? false;
+                  const slotName = petActionSlotDisplayName(slot);
                   return (
                     <div className="material-row" key={slot}>
                       <span>
-                        {petActionSlotDisplayName(slot)}
+                        {slotName}
                         <small>{hasVideo ? "已导入" : "未设置"}</small>
                       </span>
                       <div>
@@ -447,7 +449,8 @@ export function StudioApp() {
                           onClick={() =>
                             void runAction(
                               () => bridge?.importVideo?.(selectedPetIndex, slot),
-                              `已导入「${petActionSlotDisplayName(slot)}」。`
+                              `已导入「${slotName}」。`,
+                              (result) => statusMessageForImportVideoAction(slotName, result)
                             )
                           }
                         >
@@ -458,7 +461,7 @@ export function StudioApp() {
                           onClick={() =>
                             void runAction(
                               () => bridge?.removeVideo?.(selectedPetIndex, slot),
-                              `已移除「${petActionSlotDisplayName(slot)}」。`
+                              `已移除「${slotName}」。`
                             )
                           }
                         >

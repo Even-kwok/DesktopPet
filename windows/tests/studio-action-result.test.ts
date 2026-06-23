@@ -8,6 +8,7 @@ import {
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
+  statusMessageForImportVideoAction,
   statusMessageForRecallAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
@@ -25,6 +26,19 @@ test("uses cancellation copy when a studio action is canceled", () => {
   assert.equal(
     statusMessageForActionResult({ result: { canceled: true } }, "已导入「待机循环」。"),
     "已取消。"
+  );
+});
+
+test("uses Mac-parity copy for local video import results", () => {
+  assert.equal(
+    statusMessageForImportVideoAction("待机循环", { result: { warningMessages: [] } }),
+    "已导入「待机循环」本地视频。"
+  );
+  assert.equal(
+    statusMessageForImportVideoAction("点击互动", {
+      result: { warningMessages: ["这段视频有点长，作为桌宠动作可能不够轻快。"] }
+    }),
+    "已导入「点击互动」本地视频。 这段视频有点长，作为桌宠动作可能不够轻快。"
   );
 });
 
