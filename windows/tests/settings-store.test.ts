@@ -70,6 +70,29 @@ test("falls back to Mac defaults for malformed setting values", () => {
   }
 });
 
+test("falls back to empty account and cache state for malformed studio cache values", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        currentAccount: "signed-in",
+        syncedPetCards: "cached-pets",
+        selectedSyncedPetID: 42,
+        friendCards: "friends"
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.currentAccount, undefined);
+    assert.deepEqual(reloaded.syncedPetCards, []);
+    assert.equal(reloaded.selectedSyncedPetID, undefined);
+    assert.deepEqual(reloaded.friendCards, []);
+  } finally {
+    cleanup();
+  }
+});
+
 test("persists pet names, size, frame, video paths, and session", () => {
   const { store, cleanup } = makeStore();
   try {

@@ -110,7 +110,7 @@ export class SettingsStore {
   }
 
   get currentAccount() {
-    return this.#data.currentAccount;
+    return isRecord(this.#data.currentAccount) ? this.#data.currentAccount : undefined;
   }
 
   saveAccountSession(account: DesktopAccountSession) {
@@ -124,7 +124,7 @@ export class SettingsStore {
   }
 
   get syncedPetCards() {
-    return this.#data.syncedPetCards ?? [];
+    return Array.isArray(this.#data.syncedPetCards) ? this.#data.syncedPetCards : [];
   }
 
   saveSyncedPetCards(cards: DesktopSyncedPetCard[]) {
@@ -138,7 +138,9 @@ export class SettingsStore {
   }
 
   get selectedSyncedPetID() {
-    return this.#data.selectedSyncedPetID;
+    return typeof this.#data.selectedSyncedPetID === "string"
+      ? this.#data.selectedSyncedPetID
+      : undefined;
   }
 
   set selectedSyncedPetID(petID: string | undefined) {
@@ -158,7 +160,7 @@ export class SettingsStore {
   }
 
   get friendCards() {
-    return this.#data.friendCards ?? [];
+    return Array.isArray(this.#data.friendCards) ? this.#data.friendCards : [];
   }
 
   saveFriendCards(cards: DesktopFriendCard[]) {
@@ -312,4 +314,8 @@ function normalizedPetCount(count: unknown, fallback: number) {
 
 function booleanOrDefault(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function isRecord(value: unknown) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
