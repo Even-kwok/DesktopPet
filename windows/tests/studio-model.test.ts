@@ -4,6 +4,7 @@ import {
   accountDetail,
   canRequestHosting,
   resolveHostingRequestTarget,
+  resolveRecallPetTarget,
   shouldShowRecallAction,
   statusTextForSyncedPet
 } from "../src/shared/studio-model.ts";
@@ -56,5 +57,17 @@ test("validates hosting requests like the Mac studio action entry", () => {
   assert.throws(
     () => resolveHostingRequestTarget("pet_owned", "", syncedPetCards, friendCards),
     /请选择一位好友。/
+  );
+});
+
+test("validates recall requests against synced pet cards", () => {
+  const syncedPetCards = [
+    { id: "pet_away", ownership: "away", displayState: "unavailable" }
+  ];
+
+  assert.deepEqual(resolveRecallPetTarget("pet_away", syncedPetCards), { petId: "pet_away" });
+  assert.throws(
+    () => resolveRecallPetTarget("pet_missing", syncedPetCards),
+    /请先同步并选择一只猫咪。/
   );
 });

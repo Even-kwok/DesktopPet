@@ -71,3 +71,17 @@ export function resolveHostingRequestTarget(
     toUserId: selectedFriend.id
   };
 }
+
+export function resolveRecallPetTarget(
+  petId: string,
+  syncedPetCards: readonly SyncedPetActionState[]
+) {
+  const selectedPet = syncedPetCards.find((pet) => pet.id === petId);
+  if (!selectedPet) {
+    throw new Error("请先同步并选择一只猫咪。");
+  }
+
+  return {
+    petId: selectedPet.id
+  };
+}

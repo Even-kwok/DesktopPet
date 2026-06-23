@@ -35,7 +35,7 @@ import {
 import { allPetActionSlots } from "../shared/pet-action-slots.ts";
 import { reviewPetVideoImport } from "../shared/video-import-review.ts";
 import { remoteMaterialDestinationPath, writeRemoteMaterialAtomically } from "../shared/remote-material-cache.ts";
-import { resolveHostingRequestTarget } from "../shared/studio-model.ts";
+import { resolveHostingRequestTarget, resolveRecallPetTarget } from "../shared/studio-model.ts";
 import type { DesktopPetBundleMaterial } from "../shared/desktop-sync-client.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 
@@ -273,8 +273,9 @@ async function bootstrap() {
     },
     recallPet: async (petId) => {
       const account = requireAccount(settingsStore.currentAccount);
-      await desktopSyncClient.recallPet(petId, account.accessToken);
-      settingsStore.markSyncedPetRecalled(petId);
+      const target = resolveRecallPetTarget(petId, settingsStore.syncedPetCards);
+      await desktopSyncClient.recallPet(target.petId, account.accessToken);
+      settingsStore.markSyncedPetRecalled(target.petId);
       return studioState();
     },
     petDragStarted: (petIndex) => {
