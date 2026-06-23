@@ -13,6 +13,7 @@ import {
 } from "./tray-controller.ts";
 import {
   idleLoopImportTargetAfterAddingPet,
+  localVideoPickerOptions,
   localVideoRemovalAction,
   petCountAfterLocalVideoImport
 } from "./local-import-policy.ts";
@@ -33,7 +34,7 @@ import {
   readyDesktopMaterials,
   syncedPetCardsFromBundle
 } from "../shared/desktop-sync-client.ts";
-import { allPetActionSlots } from "../shared/pet-action-slots.ts";
+import { allPetActionSlots, petActionSlotDisplayName } from "../shared/pet-action-slots.ts";
 import { reviewPetVideoImport } from "../shared/video-import-review.ts";
 import { remoteMaterialDestinationPath, writeRemoteMaterialAtomically } from "../shared/remote-material-cache.ts";
 import {
@@ -495,17 +496,12 @@ async function importLocalVideo(input: {
   settingsStore: SettingsStore;
   petColonyController: PetColonyController;
 }) {
-  const result = await dialog.showOpenDialog({
-    title: "选择状态视频",
-    buttonLabel: "选择视频",
-    properties: ["openFile"],
-    filters: [
-      {
-        name: "Video",
-        extensions: ["mp4", "mov"]
-      }
-    ]
-  });
+  const result = await dialog.showOpenDialog(
+    localVideoPickerOptions(
+      input.settingsStore.petName(input.petIndex),
+      petActionSlotDisplayName(input.slot)
+    )
+  );
 
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true };

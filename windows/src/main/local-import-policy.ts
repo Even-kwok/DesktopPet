@@ -9,6 +9,15 @@ export function idleLoopImportTargetAfterAddingPet(petIndex: number) {
   };
 }
 
+export function localVideoPickerOptions(petName: string, slotName: string) {
+  return {
+    title: `选择 ${petName} 的「${slotName}」视频`,
+    buttonLabel: "选择",
+    properties: ["openFile"] as Array<"openFile">,
+    filters: [{ name: "Video", extensions: ["mp4", "mov"] }]
+  };
+}
+
 export function petCountAfterLocalVideoImport(
   currentPetCount: number,
   petIndex: number,
