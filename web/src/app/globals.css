@@ -237,6 +237,73 @@ button:disabled {
   color: var(--danger);
 }
 
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(25, 39, 42, 0.42);
+  backdrop-filter: blur(7px);
+}
+
+.confirm-dialog {
+  width: min(430px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid rgba(215, 231, 227, 0.9);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(24, 37, 40, 0.22);
+}
+
+.confirm-dialog h3 {
+  margin: 5px 0 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 760;
+  line-height: 1.5;
+}
+
+.delete-dialog-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px 12px;
+  padding: 12px;
+  border: 1px solid rgba(224, 85, 97, 0.18);
+  border-radius: 14px;
+  background: #fff8f8;
+}
+
+.delete-dialog-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.delete-dialog-summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dialog-actions .button {
+  min-width: 96px;
+}
+
 .client-center {
   display: grid;
   grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.4fr);
@@ -655,19 +722,10 @@ button:disabled {
   margin-top: 14px;
 }
 
-.pet-chip-row,
 .pet-name-form {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.pet-chip-row {
-  position: relative;
-}
-
-.pet-chip-row.editable {
-  margin-right: 0;
 }
 
 .pet-chip {
@@ -682,10 +740,6 @@ button:disabled {
 .pet-chip.active {
   background: var(--ink);
   color: #fff;
-}
-
-.pet-rename-button {
-  margin-left: -2px;
 }
 
 .pet-name-input {
@@ -1027,7 +1081,7 @@ select.input {
 
 .materials-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-template-columns: repeat(auto-fill, 148px);
   gap: 10px;
 }
 
@@ -1458,7 +1512,7 @@ select.input {
 .pet-list-card,
 .job-row {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 14px;
@@ -1474,6 +1528,26 @@ select.input {
 
 .pet-list-card h4 {
   margin: 0 0 3px;
+}
+
+.pet-list-name {
+  min-width: 0;
+}
+
+.pet-list-name h4,
+.pet-list-name p {
+  overflow-wrap: anywhere;
+}
+
+.pet-list-name-form {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.pet-list-rename-button {
+  inline-size: 36px;
+  block-size: 36px;
+  flex-basis: 36px;
 }
 
 .pet-avatar {

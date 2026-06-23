@@ -32,15 +32,31 @@ function errorMessageFromPayload(
   return details ? `${error}: ${details}` : error;
 }
 
+function networkErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+
+  if (/failed to fetch|load failed|networkerror|fetch failed/i.test(message)) {
+    return "网络请求失败，请检查网络后重试；如果刚刚登录过，请刷新页面再试。";
+  }
+
+  return message ? `请求发送失败：${message}` : "请求发送失败，请稍后重试。";
+}
+
 async function requestJSON<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "content-type": "application/json",
-      ...options.headers
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(path, {
+      ...options,
+      headers: {
+        "content-type": "application/json",
+        ...options.headers
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    });
+  } catch (error) {
+    throw new Error(networkErrorMessage(error));
+  }
 
   const payload = await response.json().catch(() => null);
 
@@ -147,8 +163,8 @@ export function deletePet(input: {
   petId: string;
   confirmation: "永久删除";
 }) {
-  return requestJSON<PetDeleteResponse>(`/api/pets/${encodeURIComponent(input.petId)}`, {
-    method: "DELETE",
+  return requestJSON<PetDeleteResponse>(`/api/pets/${encodeURIComponent(input.petId)}/delete`, {
+    method: "POST",
     body: {
       confirmation: input.confirmation
     }

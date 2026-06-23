@@ -97,6 +97,8 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const [sourcePublicUrl, setSourcePublicUrl] = useState<string | null>(null);
   const [isCreatingPet, setIsCreatingPet] = useState(false);
+  const [pendingDeletePetId, setPendingDeletePetId] = useState<string | null>(null);
+  const [deletingPetId, setDeletingPetId] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileNameDraft, setProfileNameDraft] = useState(initialData.user.name);
@@ -112,6 +114,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const selectedPet = useMemo(
     () => pets.find((pet) => pet.id === selectedPetId) ?? pets[0],
     [pets, selectedPetId]
+  );
+
+  const pendingDeletePet = useMemo(
+    () => pets.find((pet) => pet.id === pendingDeletePetId) ?? null,
+    [pendingDeletePetId, pets]
   );
 
   const selectedPetAssets = useMemo(
@@ -697,26 +704,43 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     }
   }
 
-  async function handleDeletePet(pet: Pet) {
-    const confirmation = window.prompt(
-      `删除「${pet.name}」后，这只猫咪和它已生成/上传的所有素材都会从账号素材库中删除，不可恢复。\n\n请输入「永久删除」确认。`
-    );
-
-    if (confirmation !== "永久删除") {
-      setMessage({ tone: "info", text: "已取消删除。" });
+  function handleRequestDeletePet(pet: Pet) {
+    if (deletingPetId) {
       return;
     }
+
+    setPendingDeletePetId(pet.id);
+  }
+
+  function handleCancelDeletePet() {
+    if (deletingPetId) {
+      return;
+    }
+
+    setPendingDeletePetId(null);
+    setMessage({ tone: "info", text: "已取消删除。" });
+  }
+
+  async function handleConfirmDeletePet() {
+    if (!pendingDeletePet || deletingPetId) {
+      return;
+    }
+
+    const pet = pendingDeletePet;
+    setDeletingPetId(pet.id);
+    setMessage({ tone: "info", text: `正在删除「${pet.name}」...` });
 
     try {
       const result = await deletePet({
         petId: pet.id,
-        confirmation
+        confirmation: "永久删除"
       });
       const nextPets = pets.filter((item) => item.id !== result.deletedPetId);
       const nextAssets = assets.filter((asset) => asset.petId !== result.deletedPetId);
 
       setPets(nextPets);
       setAssets(nextAssets);
+      setPendingDeletePetId(null);
       setSelectedPetId((currentPetId) =>
         currentPetId === result.deletedPetId ? nextPets[0]?.id ?? "" : currentPetId
       );
@@ -725,10 +749,33 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         text: `已删除「${pet.name}」和 ${result.deletedAssets} 个素材记录。`
       });
     } catch (error) {
+      const errorText = error instanceof Error ? error.message : "删除猫咪失败。";
+
+      if (errorText.startsWith("PET_NOT_FOUND")) {
+        setPendingDeletePetId(null);
+
+        try {
+          await refreshStudioData();
+          setMessage({ tone: "info", text: "这只猫咪已经不在账号里，列表已刷新。" });
+        } catch (refreshError) {
+          setMessage({
+            tone: "error",
+            text:
+              refreshError instanceof Error
+                ? `没有找到可删除的猫咪，刷新列表也失败了：${refreshError.message}`
+                : "没有找到可删除的猫咪，刷新列表也失败了。"
+          });
+        }
+
+        return;
+      }
+
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : "删除猫咪失败。"
+        text: errorText
       });
+    } finally {
+      setDeletingPetId(null);
     }
   }
 
@@ -914,7 +961,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             }}
             onCreatePet={handleCreatePet}
             onImageSelected={handleImageSelected}
-            onRenamePet={handleRenamePet}
           />
         </aside>
 
@@ -952,9 +998,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
           {activeTab === "pets" ? (
             <PetsTab
               currentUser={user}
+              deletingPetId={deletingPetId}
               pets={pets}
               selectedPetId={selectedPet?.id}
-              onDeletePet={handleDeletePet}
+              onDeletePet={handleRequestDeletePet}
+              onRenamePet={handleRenamePet}
               onSelectPet={handleSelectPet}
               onRecallPet={handleRecallPet}
             />
@@ -982,6 +1030,13 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
           {activeTab === "billing" ? <BillingTab user={user} jobs={jobs} /> : null}
         </section>
       </div>
+
+      <DeletePetDialog
+        isDeleting={deletingPetId === pendingDeletePet?.id}
+        pet={pendingDeletePet}
+        onCancel={handleCancelDeletePet}
+        onConfirm={handleConfirmDeletePet}
+      />
     </main>
   );
 }
@@ -1117,8 +1172,7 @@ function PetPanel({
   isCreatingPet,
   onSelectPet,
   onCreatePet,
-  onImageSelected,
-  onRenamePet
+  onImageSelected
 }: {
   pet: Pet | undefined;
   pets: Pet[];
@@ -1129,42 +1183,9 @@ function PetPanel({
   onSelectPet: (petId: string) => void;
   onCreatePet: () => void;
   onImageSelected: (file: File | undefined) => void;
-  onRenamePet: (petId: string, name: string) => Promise<void>;
 }) {
   const imageUrl = petPanelImageUrl(pet, sourcePreviewUrl);
   petPanelStats({ readyCount });
-  const [editingPetId, setEditingPetId] = useState<string | null>(null);
-  const [petNameDraft, setPetNameDraft] = useState("");
-  const [isSavingPetName, setIsSavingPetName] = useState(false);
-
-  function beginPetNameEdit(item: Pet) {
-    setEditingPetId(item.id);
-    setPetNameDraft(item.name);
-  }
-
-  async function handlePetNameSubmit(event: FormEvent<HTMLFormElement>, item: Pet) {
-    event.preventDefault();
-
-    const nextName = petNameDraft.trim();
-
-    if (!nextName) {
-      return;
-    }
-
-    if (nextName === item.name) {
-      setEditingPetId(null);
-      return;
-    }
-
-    setIsSavingPetName(true);
-
-    try {
-      await onRenamePet(item.id, nextName);
-      setEditingPetId(null);
-    } finally {
-      setIsSavingPetName(false);
-    }
-  }
 
   return (
     <section className="panel pet-card">
@@ -1207,55 +1228,15 @@ function PetPanel({
       <div className="pet-selector">
         {pets.map((item) => {
           const isSelectedPet = item.id === pet?.id;
-          const editControlCopy = isSelectedPet ? petNameEditControlCopy(item.name) : null;
 
-          return editingPetId === item.id ? (
-            <form
-              className="pet-name-form"
+          return (
+            <button
+              className={isSelectedPet ? "pet-chip active" : "pet-chip"}
               key={item.id}
-              onSubmit={(event) => void handlePetNameSubmit(event, item)}
+              onClick={() => onSelectPet(item.id)}
             >
-              <input
-                aria-label="猫咪名字"
-                className="input pet-name-input"
-                disabled={isSavingPetName}
-                maxLength={30}
-                required
-                value={petNameDraft}
-                onChange={(event) => setPetNameDraft(event.target.value)}
-              />
-              <button className="button tiny" disabled={isSavingPetName} type="submit">
-                {isSavingPetName ? "保存中" : "保存"}
-              </button>
-              <button
-                className="button ghost tiny"
-                disabled={isSavingPetName}
-                type="button"
-                onClick={() => setEditingPetId(null)}
-              >
-                取消
-              </button>
-            </form>
-          ) : (
-            <div className={isSelectedPet ? "pet-chip-row editable" : "pet-chip-row"} key={item.id}>
-              <button
-                className={isSelectedPet ? "pet-chip active" : "pet-chip"}
-                onClick={() => onSelectPet(item.id)}
-              >
-                {item.name}
-              </button>
-              {editControlCopy ? (
-                <button
-                  aria-label={editControlCopy.ariaLabel}
-                  className={`${editControlCopy.className} pet-rename-button`}
-                  title={editControlCopy.ariaLabel}
-                  type="button"
-                  onClick={() => beginPetNameEdit(item)}
-                >
-                  <span aria-hidden="true">{editControlCopy.icon}</span>
-                </button>
-              ) : null}
-            </div>
+              {item.name}
+            </button>
           );
         })}
         <button
@@ -1459,47 +1440,236 @@ function MaterialCard({
 
 function PetsTab({
   currentUser,
+  deletingPetId,
   pets,
   selectedPetId,
   onDeletePet,
+  onRenamePet,
   onSelectPet,
   onRecallPet
 }: {
   currentUser: CurrentUser;
+  deletingPetId: string | null;
   pets: Pet[];
   selectedPetId: string | undefined;
   onDeletePet: (pet: Pet) => void;
+  onRenamePet: (petId: string, name: string) => Promise<void>;
   onSelectPet: (petId: string) => void;
   onRecallPet: () => void;
 }) {
+  const [editingPetId, setEditingPetId] = useState<string | null>(null);
+  const [petNameDraft, setPetNameDraft] = useState("");
+  const [savingPetNameId, setSavingPetNameId] = useState<string | null>(null);
+
+  function beginPetNameEdit(pet: Pet) {
+    setEditingPetId(pet.id);
+    setPetNameDraft(pet.name);
+  }
+
+  function cancelPetNameEdit() {
+    if (savingPetNameId) {
+      return;
+    }
+
+    setEditingPetId(null);
+    setPetNameDraft("");
+  }
+
+  async function handlePetNameSubmit(event: FormEvent<HTMLFormElement>, pet: Pet) {
+    event.preventDefault();
+
+    const nextName = petNameDraft.trim();
+
+    if (!nextName) {
+      return;
+    }
+
+    if (nextName === pet.name) {
+      setEditingPetId(null);
+      setPetNameDraft("");
+      return;
+    }
+
+    setSavingPetNameId(pet.id);
+
+    try {
+      await onRenamePet(pet.id, nextName);
+      setEditingPetId(null);
+      setPetNameDraft("");
+    } finally {
+      setSavingPetNameId(null);
+    }
+  }
+
   return (
     <section className="panel management-panel">
       <PanelTitle icon="🐾" title="我的宠物" subtitle="给每只小家伙整理名字、位置和动作包。" />
       <div className="pet-list-grid">
-        {pets.map((pet) => (
-          <article className={pet.id === selectedPetId ? "pet-list-card active" : "pet-list-card"} key={pet.id}>
-            <div className="avatar pet-avatar">{pet.name.slice(0, 1)}</div>
-            <div>
-              <h4>{pet.name}</h4>
-              <p>{pet.status}</p>
-            </div>
-            <button className="button secondary" onClick={() => onSelectPet(pet.id)}>
-              选择
-            </button>
-            {canDeletePetForAccount(currentUser, pet) ? (
-              <button className="button danger" onClick={() => onDeletePet(pet)}>
-                删除
+        {pets.map((pet) => {
+          const canEditPet = canDeletePetForAccount(currentUser, pet);
+          const editControlCopy = canEditPet ? petNameEditControlCopy(pet.name) : null;
+          const isEditing = editingPetId === pet.id;
+          const isDeleting = deletingPetId === pet.id;
+          const isSavingPetName = savingPetNameId === pet.id;
+
+          return (
+            <article className={pet.id === selectedPetId ? "pet-list-card active" : "pet-list-card"} key={pet.id}>
+              <div className="avatar pet-avatar">{pet.name.slice(0, 1)}</div>
+              {isEditing ? (
+                <form
+                  className="pet-name-form pet-list-name-form"
+                  onSubmit={(event) => void handlePetNameSubmit(event, pet)}
+                >
+                  <input
+                    aria-label="猫咪名字"
+                    className="input pet-name-input"
+                    disabled={isSavingPetName}
+                    maxLength={30}
+                    required
+                    value={petNameDraft}
+                    onChange={(event) => setPetNameDraft(event.target.value)}
+                  />
+                  <button className="button tiny" disabled={isSavingPetName} type="submit">
+                    {isSavingPetName ? "保存中" : "保存"}
+                  </button>
+                  <button
+                    className="button ghost tiny"
+                    disabled={isSavingPetName}
+                    type="button"
+                    onClick={cancelPetNameEdit}
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : (
+                <div className="pet-list-name">
+                  <h4>{pet.name}</h4>
+                  <p>{pet.status}</p>
+                </div>
+              )}
+              <button
+                className="button secondary"
+                disabled={isSavingPetName}
+                onClick={() => onSelectPet(pet.id)}
+              >
+                选择
               </button>
-            ) : null}
-            {pet.host === "friend" ? (
-              <button className="button" onClick={() => void onRecallPet()}>
-                召回
-              </button>
-            ) : null}
-          </article>
-        ))}
+              {editControlCopy && !isEditing ? (
+                <button
+                  aria-label={editControlCopy.ariaLabel}
+                  className={`${editControlCopy.className} pet-list-rename-button`}
+                  disabled={isDeleting}
+                  title={editControlCopy.ariaLabel}
+                  type="button"
+                  onClick={() => beginPetNameEdit(pet)}
+                >
+                  <span aria-hidden="true">{editControlCopy.icon}</span>
+                </button>
+              ) : null}
+              {canEditPet ? (
+                <button
+                  className="button danger"
+                  disabled={isDeleting || isSavingPetName}
+                  onClick={() => onDeletePet(pet)}
+                >
+                  {isDeleting ? "删除中" : "删除"}
+                </button>
+              ) : null}
+              {pet.host === "friend" ? (
+                <button className="button" onClick={() => void onRecallPet()}>
+                  召回
+                </button>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
     </section>
+  );
+}
+
+function DeletePetDialog({
+  pet,
+  isDeleting,
+  onCancel,
+  onConfirm
+}: {
+  pet: Pet | null;
+  isDeleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (pet) {
+      cancelButtonRef.current?.focus();
+    }
+  }, [pet]);
+
+  useEffect(() => {
+    if (!pet || isDeleting) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDeleting, onCancel, pet]);
+
+  if (!pet) {
+    return null;
+  }
+
+  return (
+    <div className="dialog-backdrop">
+      <section
+        aria-describedby="delete-pet-description"
+        aria-labelledby="delete-pet-title"
+        aria-modal="true"
+        className="confirm-dialog"
+        role="dialog"
+      >
+        <div>
+          <span className="eyebrow">删除宠物</span>
+          <h3 id="delete-pet-title">删除「{pet.name}」？</h3>
+        </div>
+        <p id="delete-pet-description">
+          这只猫咪和它已生成、上传的素材会从账号素材库删除，不可恢复。
+        </p>
+        <div className="delete-dialog-summary">
+          <span>当前状态</span>
+          <strong>{pet.status}</strong>
+          <span>已完成素材</span>
+          <strong>{pet.materialsReady}</strong>
+        </div>
+        <div className="dialog-actions">
+          <button
+            className="button ghost"
+            disabled={isDeleting}
+            ref={cancelButtonRef}
+            type="button"
+            onClick={onCancel}
+          >
+            取消
+          </button>
+          <button
+            className="button danger"
+            disabled={isDeleting}
+            type="button"
+            onClick={() => void onConfirm()}
+          >
+            {isDeleting ? "删除中" : "确认删除"}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
