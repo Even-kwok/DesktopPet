@@ -4,6 +4,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForRefreshFriendsAction,
+  statusMessageForSyncAction,
   statusMessageForActionResult
 } from "../src/renderer/studio/studio-action-result.ts";
 
@@ -45,4 +46,12 @@ test("uses Mac-parity copy for refreshed friend list results", () => {
     statusMessageForRefreshFriendsAction({ friendCards: [{ id: "friend_1" }] }),
     "好友列表已刷新。"
   );
+});
+
+test("uses Mac-parity copy for desktop sync results", () => {
+  assert.equal(
+    statusMessageForSyncAction({ summary: { petCount: 2, materialCount: 9 } }),
+    "已从网页同步 2 只宠物、9 个动作素材。"
+  );
+  assert.equal(statusMessageForSyncAction({ canceled: true }), "已取消同步，本地动作保持不变。");
 });

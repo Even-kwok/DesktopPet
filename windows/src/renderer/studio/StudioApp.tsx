@@ -17,6 +17,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForRefreshFriendsAction,
+  statusMessageForSyncAction,
   statusMessageForActionResult
 } from "./studio-action-result.ts";
 import {
@@ -153,7 +154,16 @@ export function StudioApp() {
               退出
             </button>
           ) : null}
-          <button onClick={() => void runAction(() => bridge?.sync?.(), "已同步网页端素材。")} disabled={!account}>
+          <button
+            onClick={() =>
+              void runAction(
+                () => bridge?.sync?.(),
+                "已同步网页端素材。",
+                (result) => statusMessageForSyncAction(result)
+              )
+            }
+            disabled={!account}
+          >
             同步
           </button>
         </div>

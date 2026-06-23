@@ -8,6 +8,19 @@ export function statusMessageForRefreshFriendsAction(result: unknown) {
     : "好友列表已刷新。";
 }
 
+export function statusMessageForSyncAction(result: unknown) {
+  if (isCanceledResult(result)) {
+    return "已取消同步，本地动作保持不变。";
+  }
+
+  const summary = syncSummaryFromActionResult(result);
+  if (!summary) {
+    return "已同步网页端素材。";
+  }
+
+  return `已从网页同步 ${summary.petCount} 只宠物、${summary.materialCount} 个动作素材。`;
+}
+
 export function nextFriendEmailDraftAfterAddFriendAction(currentDraft: string, result: unknown) {
   return nextFriendEmailDraftAfterSuccessfulAction(currentDraft, result);
 }
@@ -40,4 +53,20 @@ function friendCardsFromActionResult(result: unknown) {
 
   const friendCards = (result as Record<string, unknown>).friendCards;
   return Array.isArray(friendCards) ? friendCards : [];
+}
+
+function syncSummaryFromActionResult(result: unknown) {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+
+  const summary = (result as Record<string, unknown>).summary;
+  if (!summary || typeof summary !== "object") {
+    return undefined;
+  }
+
+  const record = summary as Record<string, unknown>;
+  return typeof record.petCount === "number" && typeof record.materialCount === "number"
+    ? { petCount: record.petCount, materialCount: record.materialCount }
+    : undefined;
 }
