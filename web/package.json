@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test:unit": "node --experimental-strip-types --test src/lib/admin-material-table.test.ts src/lib/admin-overview.test.ts src/lib/auth-policy.test.ts src/lib/desktop-bundle.test.ts src/lib/generation-settings.test.ts src/lib/green-screen-image-validation.test.ts src/lib/material-library-config.test.ts src/lib/material-slots.test.ts src/lib/pet-permissions.test.ts src/lib/server/account-data-store.test.ts src/lib/server/desktop-auth.test.ts src/lib/server/jimeng.test.ts src/lib/server/seedance-request.test.ts src/lib/server/seedance-response.test.ts src/lib/studio-layout.test.ts",
+    "test:unit": "node --experimental-strip-types --test src/lib/admin-material-table.test.ts src/lib/admin-overview.test.ts src/lib/auth-policy.test.ts src/lib/desktop-bundle.test.ts src/lib/generation-job-polling.test.ts src/lib/generation-settings.test.ts src/lib/green-screen-image-validation.test.ts src/lib/material-library-config.test.ts src/lib/material-slots.test.ts src/lib/pet-permissions.test.ts src/lib/server/account-data-store.test.ts src/lib/server/desktop-auth.test.ts src/lib/server/jimeng.test.ts src/lib/server/seedance-request.test.ts src/lib/server/seedance-response.test.ts src/lib/studio-layout.test.ts",
     "start": "next start",
     "lint": "tsc --noEmit"
   },

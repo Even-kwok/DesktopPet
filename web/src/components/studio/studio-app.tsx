@@ -18,6 +18,10 @@ import {
   uploadSourceImage
 } from "@/lib/api-client";
 import { reviewGreenScreenImage, type GreenScreenImageMetadata } from "@/lib/green-screen-image-validation";
+import {
+  GenerationJobPollingError,
+  pollGenerationJobUntilTerminal
+} from "@/lib/generation-job-polling";
 import type { MaterialSlot, MaterialUnlockTier } from "@/lib/material-slots";
 import { canDeletePetForAccount } from "@/lib/pet-permissions";
 import {
@@ -139,6 +143,14 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         .then(finishGenerationJob)
         .catch((error: unknown) => {
           const errorText = error instanceof Error ? error.message : "恢复生成记录失败。";
+
+          if (error instanceof GenerationJobPollingError) {
+            setMessage({
+              tone: "error",
+              text: `生成状态查询暂时中断，任务可能仍在继续：${errorText}`
+            });
+            return;
+          }
 
           if (job.slot) {
             setSlotGenerationError(job.petId, job.slot, errorText);
@@ -355,68 +367,43 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   }
 
   async function pollJob(job: GenerationJob) {
-    let latestJob = job;
-
-    for (let attempt = 1; attempt <= 120; attempt += 1) {
-      setJobs((currentJobs) =>
-        currentJobs.map((item) =>
-          item.jobId === job.jobId
-            ? {
-                ...item,
-                ...latestJob,
-                petId: item.petId,
-                slot: item.slot,
-                cost: item.cost,
-                prompt: item.prompt,
-                settings: item.settings,
-                sourceImageUrl: item.sourceImageUrl,
-                lastImageUrl: item.lastImageUrl,
-                createdAt: item.createdAt,
-                status: latestJob.status === "queued" ? "running" : latestJob.status,
-                progress: estimateJobProgress(item, attempt)
-              }
-            : item
-        )
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      latestJob = await getGenerationJob(job.jobId);
-
-      setJobs((currentJobs) =>
-        currentJobs.map((item) =>
-          item.jobId === job.jobId
-            ? {
-                ...item,
-                ...latestJob,
-                petId: item.petId,
-                slot: item.slot,
-                cost: item.cost,
-                prompt: item.prompt,
-                settings: item.settings,
-                sourceImageUrl: item.sourceImageUrl,
-                lastImageUrl: item.lastImageUrl,
-                createdAt: item.createdAt,
-                progress:
-                  latestJob.status === "succeeded" ||
-                  latestJob.status === "failed" ||
-                  latestJob.status === "expired"
-                    ? 100
-                    : estimateJobProgress(item, attempt)
-              }
-            : item
-        )
-      );
-
-      if (
-        latestJob.status === "succeeded" ||
-        latestJob.status === "failed" ||
-        latestJob.status === "expired"
-      ) {
-        return latestJob;
+    return pollGenerationJobUntilTerminal({
+      job,
+      fetchJob: getGenerationJob,
+      onProgress: (latestJob, attempt) => {
+        setJobs((currentJobs) =>
+          currentJobs.map((item) =>
+            item.jobId === job.jobId
+              ? {
+                  ...item,
+                  ...latestJob,
+                  petId: item.petId,
+                  slot: item.slot,
+                  cost: item.cost,
+                  prompt: item.prompt,
+                  settings: item.settings,
+                  sourceImageUrl: item.sourceImageUrl,
+                  lastImageUrl: item.lastImageUrl,
+                  createdAt: item.createdAt,
+                  status: latestJob.status === "queued" ? "running" : latestJob.status,
+                  progress:
+                    latestJob.status === "succeeded" ||
+                    latestJob.status === "failed" ||
+                    latestJob.status === "expired"
+                      ? 100
+                      : estimateJobProgress(item, attempt)
+                }
+              : item
+          )
+        );
+      },
+      onStatusError: () => {
+        setMessage({
+          tone: "info",
+          text: "生成状态查询短暂失败，正在继续重试。"
+        });
       }
-    }
-
-    return latestJob;
+    });
   }
 
   async function finishGenerationJob(job: GenerationJob) {
@@ -573,6 +560,14 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       await finishGenerationJob(finishedJob);
     } catch (error) {
       const errorText = error instanceof Error ? error.message : `「${slot.name}」生成失败。`;
+
+      if (error instanceof GenerationJobPollingError) {
+        setMessage({
+          tone: "error",
+          text: `「${slot.name}」状态查询暂时中断，任务可能仍在继续；刷新页面会自动恢复。`
+        });
+        return;
+      }
 
       setSlotGenerationError(selectedPet.id, slot.id, errorText);
       setAssetStatus(selectedPet.id, slot.id, "failed");
