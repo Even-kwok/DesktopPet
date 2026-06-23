@@ -25,7 +25,14 @@ const desktopPet = {
   petDragBy: (petIndex: number, delta: { x: number; y: number }) =>
     ipcRenderer.send(ipcChannels.petDragBy, petIndex, delta),
   petClick: (petIndex: number) => ipcRenderer.send(ipcChannels.petClick, petIndex),
-  petPlaybackEnded: (petIndex: number) => ipcRenderer.send(ipcChannels.petPlaybackEnded, petIndex)
+  petPlaybackEnded: (petIndex: number) => ipcRenderer.send(ipcChannels.petPlaybackEnded, petIndex),
+  onPetCommand: (callback: (command: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, command: unknown) => callback(command);
+    ipcRenderer.on("pet:command", listener);
+    return () => {
+      ipcRenderer.removeListener("pet:command", listener);
+    };
+  }
 };
 
 contextBridge.exposeInMainWorld("desktopPet", desktopPet);

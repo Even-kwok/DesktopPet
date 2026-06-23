@@ -34,3 +34,27 @@ body {
   height: 100vh;
   background: transparent;
 }
+
+.pet-stage,
+.pet-canvas {
+  width: 100vw;
+  height: 100vh;
+}
+
+.pet-stage {
+  cursor: grab;
+  background: transparent;
+}
+
+.pet-stage:active {
+  cursor: grabbing;
+}
+
+.pet-video-source {
+  display: none;
+}
+
+.pet-canvas {
+  display: block;
+  background: transparent;
+}
