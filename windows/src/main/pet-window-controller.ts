@@ -1,9 +1,13 @@
 import { BrowserWindow, screen } from "electron";
 import type { Rectangle } from "electron";
 import type { Rect, SettingsStore } from "../shared/settings-store.ts";
-import { applyPetSizeScale, defaultPetFrame } from "../shared/settings-store.ts";
 import { PetStateMachine } from "../shared/pet-state-machine.ts";
 import type { PetWindowControllerLike } from "./pet-colony-controller.ts";
+import {
+  petFrameForScreen,
+  resetPetFrameForScreen,
+  setPetSizeScaleForScreen
+} from "./pet-window-frame.ts";
 import {
   clickReactionSlots,
   idleRandomActionSlots,
@@ -49,7 +53,7 @@ export class PetWindowController implements PetWindowControllerLike {
     }
 
     this.isVisible = true;
-    this.frame = this.#settingsStore.petFrame(this.#petIndex);
+    this.frame = this.#petFrameForCurrentScreen();
     this.#currentVideoPath = idleVideoPath;
     this.#currentMode = "loop";
     void this.#showWindow();
@@ -68,8 +72,7 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   setSizeScale(scale: number) {
-    this.#settingsStore.setPetSizeScale(scale, this.#petIndex);
-    this.frame = this.#settingsStore.petFrame(this.#petIndex);
+    this.frame = setPetSizeScaleForScreen(this.#settingsStore, this.#petIndex, scale, this.#currentScreenSize());
     if (this.#window) {
       this.#window.setBounds(this.#rectToBounds(this.frame));
     }
@@ -97,11 +100,7 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   resetPosition() {
-    const frame = applyPetSizeScale(
-      defaultPetFrame(this.#petIndex, { width: 1024, height: 768 }),
-      this.#settingsStore.petSizeScale(this.#petIndex)
-    );
-    this.#settingsStore.setPetFrame(frame, this.#petIndex);
+    const frame = resetPetFrameForScreen(this.#settingsStore, this.#petIndex, this.#currentScreenSize());
     this.frame = frame;
     this.#window?.setBounds(this.#rectToBounds(frame));
   }
@@ -154,7 +153,7 @@ export class PetWindowController implements PetWindowControllerLike {
   async #showWindow() {
     const window = this.#window ?? this.#createWindow();
     await this.#loadRenderer(window);
-    window.setBounds(this.#rectToBounds(this.#settingsStore.petFrame(this.#petIndex)));
+    window.setBounds(this.#rectToBounds(this.#petFrameForCurrentScreen()));
     window.setIgnoreMouseEvents(this.#options.getClickThrough(), { forward: true });
     window.showInactive();
     window.moveTop();
@@ -162,7 +161,7 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   #createWindow() {
-    const frame = this.#settingsStore.petFrame(this.#petIndex);
+    const frame = this.#petFrameForCurrentScreen();
     const window = new BrowserWindow({
       ...this.#rectToBounds(frame),
       title: this.#windowTitle(),
@@ -479,6 +478,14 @@ export class PetWindowController implements PetWindowControllerLike {
 
   #windowTitle() {
     return `CatDesktopPet - ${this.#settingsStore.petName(this.#petIndex)}`;
+  }
+
+  #petFrameForCurrentScreen() {
+    return petFrameForScreen(this.#settingsStore, this.#petIndex, this.#currentScreenSize());
+  }
+
+  #currentScreenSize() {
+    return screen.getPrimaryDisplay().workAreaSize;
   }
 }
 
