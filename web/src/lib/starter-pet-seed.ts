@@ -12,6 +12,14 @@ export type StarterPetSeed = {
   assetBundleUrl: string;
 };
 
+export type StarterPetTemplateSeed = {
+  name?: string | null;
+  imageUrl?: string | null;
+  assets: StarterPetAssetSeed[];
+};
+
+const defaultStarterPetTemplateId = "00000000-0000-4000-8000-000000000201";
+
 const starterPetAssetEnvNames: Record<string, string[]> = {
   idle_loop: ["STARTER_CAT_IDLE_LOOP_VIDEO_URL"],
   sleep_loop: ["STARTER_CAT_SLEEP_LOOP_VIDEO_URL"],
@@ -35,6 +43,28 @@ export function getStarterPetSeed(): StarterPetSeed {
       }))
       .filter((asset): asset is StarterPetAssetSeed => Boolean(asset.videoUrl)),
     assetBundleUrl: starterPetAssetBundleUrl
+  };
+}
+
+export function starterPetTemplateId() {
+  return readEnv("STARTER_CAT_TEMPLATE_PET_ID") || defaultStarterPetTemplateId;
+}
+
+export function starterPetSeedFromTemplate(
+  template: StarterPetTemplateSeed | null,
+  fallback: StarterPetSeed = getStarterPetSeed()
+): StarterPetSeed {
+  if (!template) {
+    return fallback;
+  }
+
+  const imageUrl = template.imageUrl?.trim() || fallback.imageUrl;
+  const assets = template.assets.length > 0 ? template.assets : fallback.assets;
+
+  return {
+    ...fallback,
+    imageUrl,
+    assets
   };
 }
 

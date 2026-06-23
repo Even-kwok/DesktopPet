@@ -99,7 +99,7 @@ export default async function AdminPage() {
 
       <section className="admin-grid">
         <AdminSection title="用户账号">
-          <UserCreditEditor users={overview.users} />
+          <UserCreditEditor currentAdminUserId={auth.user.id} users={overview.users} />
         </AdminSection>
 
         <AdminSection title="猫咪归属">

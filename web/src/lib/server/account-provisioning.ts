@@ -1,6 +1,11 @@
 import { nextPetNumber } from "@/lib/account-data-state";
 import { initialCreditBalanceFromEnv } from "@/lib/account-credit-config";
-import { getStarterPetSeed } from "@/lib/starter-pet-seed";
+import {
+  getStarterPetSeed,
+  starterPetSeedFromTemplate,
+  starterPetTemplateId,
+  type StarterPetAssetSeed
+} from "@/lib/starter-pet-seed";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 type ProvisionInput = {
@@ -59,7 +64,7 @@ export async function provisionSupabaseAccount(input: ProvisionInput) {
     .from("pets")
     .select("pet_number")
     .then(unwrapSupabaseData<Array<{ pet_number: string }>>);
-  const starterPet = getStarterPetSeed();
+  const starterPet = await loadStarterPetSeedFromTemplate();
   const starterImageUrl = starterPet.imageUrl;
 
   const insertedPet = await supabase
@@ -100,6 +105,57 @@ export async function provisionSupabaseAccount(input: ProvisionInput) {
     .then(unwrapSupabaseResult);
 }
 
+async function loadStarterPetSeedFromTemplate() {
+  const fallback = getStarterPetSeed();
+  const templatePetId = starterPetTemplateId();
+  const supabase = getSupabaseAdminClient();
+
+  if (!templatePetId || !supabase) {
+    return fallback;
+  }
+
+  const templatePet = await supabase
+    .from("pets")
+    .select("name, avatar_url, source_image_url, front_image_url")
+    .eq("id", templatePetId)
+    .maybeSingle()
+    .then(
+      unwrapSupabaseMaybeData<{
+        name: string | null;
+        avatar_url: string | null;
+        source_image_url: string | null;
+        front_image_url: string | null;
+      }>
+    );
+
+  if (!templatePet) {
+    return fallback;
+  }
+
+  const assetRows = await supabase
+    .from("pet_assets")
+    .select("slot, video_url")
+    .eq("pet_id", templatePetId)
+    .eq("status", "ready")
+    .not("video_url", "is", null)
+    .then(unwrapSupabaseData<Array<{ slot: string; video_url: string | null }>>);
+  const assets: StarterPetAssetSeed[] = assetRows
+    .map((asset) => ({
+      slot: asset.slot,
+      videoUrl: asset.video_url?.trim() ?? ""
+    }))
+    .filter((asset) => asset.videoUrl.length > 0);
+
+  return starterPetSeedFromTemplate(
+    {
+      name: templatePet.name,
+      imageUrl: templatePet.front_image_url ?? templatePet.source_image_url ?? templatePet.avatar_url,
+      assets
+    },
+    fallback
+  );
+}
+
 function cleanDisplayName(value: string | null | undefined) {
   const trimmed = value?.trim();
 
@@ -118,4 +174,12 @@ function unwrapSupabaseData<T>(result: { data: unknown; error: unknown }): T {
   }
 
   return result.data as T;
+}
+
+function unwrapSupabaseMaybeData<T>(result: { data: unknown; error: unknown }): T | null {
+  if (result.error) {
+    throw result.error;
+  }
+
+  return (result.data as T | null) ?? null;
 }

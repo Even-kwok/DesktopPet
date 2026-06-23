@@ -7,6 +7,7 @@ import {
   createGenerationJobInState,
   createMockAccountDataState,
   createPetInState,
+  deleteUserFromState,
   deletePetFromState,
   findActiveGenerationJobInState,
   loadMockAccountDataSnapshot,
@@ -223,6 +224,122 @@ test("deletePetFromState cascades pet assets and protects other accounts", () =>
   );
 
   assert.throws(() => deletePetFromState(state, account, "pet_other"), /PET_NOT_FOUND/);
+});
+
+test("deleteUserFromState removes the account and owned pets for admin testing", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [ownPet, hostedPet],
+    assets: [
+      {
+        petId: ownPet.id,
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/idle.mp4"
+      },
+      {
+        petId: hostedPet.id,
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/hosted.mp4"
+      }
+    ],
+    generationJobs: [
+      {
+        jobId: "job_owned",
+        type: "action_video",
+        status: "succeeded",
+        cost: 12,
+        petId: ownPet.id,
+        slot: "idle_loop",
+        resultUrl: "https://example.com/idle.mp4"
+      }
+    ],
+    referralCodes: [
+      {
+        id: "refcode_owned",
+        code: "OWNED20",
+        ownerUserId: account.id,
+        status: "active",
+        createdAt: "2026-06-23T00:00:00.000Z",
+        updatedAt: "2026-06-23T00:00:00.000Z"
+      }
+    ],
+    userReferrals: [
+      {
+        referredUserId: friendAccount.id,
+        referralCodeId: "refcode_owned",
+        referralCode: "OWNED20",
+        referrerUserId: "00000000-0000-4000-8000-000000009999",
+        registeredAt: "2026-06-23T00:00:00.000Z",
+        rewardPercentAtRegistration: 10,
+        firstRechargeDiscountPercentAtRegistration: 20
+      }
+    ],
+    referralRewardLedger: [
+      {
+        id: "reward_owned_code",
+        referrerUserId: "00000000-0000-4000-8000-000000009999",
+        referredUserId: friendAccount.id,
+        referralCodeId: "refcode_owned",
+        referralCode: "OWNED20",
+        rechargeRecordId: "recharge_friend_referral",
+        amountCents: 990,
+        currency: "CNY",
+        rewardPercent: 10,
+        rewardAmountCents: 99,
+        rewardCredits: 10,
+        status: "posted",
+        createdAt: "2026-06-23T00:00:00.000Z"
+      }
+    ],
+    rechargeRecords: [
+      {
+        id: "recharge_user",
+        userId: account.id,
+        provider: "manual",
+        amountCents: 990,
+        currency: "CNY",
+        creditsGranted: 100,
+        status: "paid",
+        discountPercent: 0,
+        discountAmountCents: 0,
+        createdAt: "2026-06-23T00:00:00.000Z",
+        updatedAt: "2026-06-23T00:00:00.000Z"
+      },
+      {
+        id: "recharge_friend_referral",
+        userId: friendAccount.id,
+        provider: "manual",
+        amountCents: 990,
+        currency: "CNY",
+        creditsGranted: 100,
+        status: "paid",
+        discountPercent: 20,
+        discountAmountCents: 198,
+        referralCodeId: "refcode_owned",
+        referredByUserId: "00000000-0000-4000-8000-000000009999",
+        createdAt: "2026-06-23T00:00:00.000Z",
+        updatedAt: "2026-06-23T00:00:00.000Z"
+      }
+    ]
+  });
+
+  const result = deleteUserFromState(state, account.id);
+
+  assert.deepEqual(result, {
+    deletedUserId: account.id,
+    deletedPets: 1,
+    deletedAssets: 1
+  });
+  assert.deepEqual(state.users.map((user) => user.id), [friendAccount.id]);
+  assert.deepEqual(state.pets.map((pet) => pet.id), [hostedPet.id]);
+  assert.deepEqual(state.assets.map((asset) => asset.petId), [hostedPet.id]);
+  assert.deepEqual(state.generationJobs, []);
+  assert.deepEqual(state.referralCodes, []);
+  assert.deepEqual(state.userReferrals, []);
+  assert.deepEqual(state.referralRewardLedger, []);
+  assert.deepEqual(state.rechargeRecords, []);
 });
 
 test("readonly starter pets sort after user-added pets in account snapshots", () => {

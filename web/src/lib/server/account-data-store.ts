@@ -7,6 +7,7 @@ import {
   createGenerationJobInState,
   defaultGenerationJobTimeoutMs,
   createPetInState,
+  deleteUserFromState,
   deletePetFromState,
   expireStaleGenerationJobsInState,
   findActiveGenerationJobInState,
@@ -24,6 +25,7 @@ import {
   type AccountDataSnapshot,
   type AccountDataState,
   type AdminCreditAdjustmentResult,
+  type AdminUserDeleteResult,
   type FriendDeleteResult,
   type PetDeleteResult
 } from "@/lib/account-data-state";
@@ -223,6 +225,14 @@ export async function adjustAdminUserCredits(input: {
   }
 
   return adjustSupabaseUserCredits(input);
+}
+
+export async function deleteAdminUser(userId: string): Promise<AdminUserDeleteResult> {
+  if (getBackendStatus().mode !== "supabase") {
+    return deleteUserFromState(mockAccountState, userId);
+  }
+
+  return deleteSupabaseUser(userId);
 }
 
 export async function listAccountFriends(account: CurrentUser): Promise<Friend[]> {
@@ -855,6 +865,143 @@ async function adjustSupabaseUserCredits(input: {
     .then(unwrapSupabaseData<unknown>);
 
   return adjustment;
+}
+
+async function deleteSupabaseUser(userId: string): Promise<AdminUserDeleteResult> {
+  const supabase = getRequiredSupabaseAdminClient();
+  const profile = await fetchProfile(userId);
+
+  if (!profile) {
+    throw new Error("USER_NOT_FOUND");
+  }
+
+  const ownedPetRows = await supabase
+    .from("pets")
+    .select("id")
+    .eq("owner_user_id", userId)
+    .then(unwrapSupabaseData<Array<{ id: string }>>);
+  const ownedPetIds = ownedPetRows.map((pet) => pet.id);
+  const assetRows = ownedPetIds.length > 0
+    ? await supabase
+        .from("pet_assets")
+        .select("pet_id")
+        .in("pet_id", ownedPetIds)
+        .then(unwrapSupabaseData<Array<{ pet_id: string }>>)
+    : [];
+  const ownedReferralCodeRows = await loadOptionalSupabaseRows(
+    () =>
+      supabase
+        .from("referral_codes")
+        .select("id")
+        .eq("owner_user_id", userId)
+        .then(unwrapSupabaseData<Array<{ id: string }>>),
+    []
+  );
+  const ownedReferralCodeIds = ownedReferralCodeRows.map((code) => code.id);
+
+  await deleteOptionalSupabaseRows(() =>
+    supabase
+      .from("referral_reward_ledger")
+      .delete()
+      .or(`referrer_user_id.eq.${userId},referred_user_id.eq.${userId}`)
+      .then(unwrapSupabaseData<unknown>)
+  );
+
+  if (ownedReferralCodeIds.length > 0) {
+    await deleteOptionalSupabaseRows(() =>
+      supabase
+        .from("referral_reward_ledger")
+        .delete()
+        .in("referral_code_id", ownedReferralCodeIds)
+        .then(unwrapSupabaseData<unknown>)
+    );
+  }
+
+  await deleteOptionalSupabaseRows(() =>
+    supabase
+      .from("user_referrals")
+      .delete()
+      .or(`referred_user_id.eq.${userId},referrer_user_id.eq.${userId}`)
+      .then(unwrapSupabaseData<unknown>)
+  );
+
+  if (ownedReferralCodeIds.length > 0) {
+    await deleteOptionalSupabaseRows(() =>
+      supabase
+        .from("user_referrals")
+        .delete()
+        .in("referral_code_id", ownedReferralCodeIds)
+        .then(unwrapSupabaseData<unknown>)
+    );
+  }
+
+  await deleteOptionalSupabaseRows(() =>
+    supabase
+      .from("referral_codes")
+      .delete()
+      .eq("owner_user_id", userId)
+      .then(unwrapSupabaseData<unknown>)
+  );
+
+  const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId);
+
+  if (authDeleteError && !authDeleteError.message.toLowerCase().includes("not found")) {
+    throw authDeleteError;
+  }
+
+  await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", userId)
+    .then(unwrapSupabaseData<unknown>);
+
+  return {
+    deletedUserId: userId,
+    deletedPets: ownedPetIds.length,
+    deletedAssets: assetRows.length
+  };
+}
+
+async function loadOptionalSupabaseRows<T>(operation: () => PromiseLike<T>, fallback: T) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (isMissingSupabaseSchemaError(error)) {
+      return fallback;
+    }
+
+    throw error;
+  }
+}
+
+async function deleteOptionalSupabaseRows(operation: () => PromiseLike<unknown>) {
+  try {
+    await operation();
+  } catch (error) {
+    if (isMissingSupabaseSchemaError(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+function isMissingSupabaseSchemaError(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === "object" && error && "message" in error
+      ? String((error as { message?: unknown }).message)
+      : "";
+
+  return (
+    code === "PGRST205" ||
+    code === "42P01" ||
+    message.includes("Could not find the table") ||
+    message.includes("does not exist")
+  );
 }
 
 async function createSupabaseGenerationJob(input: {

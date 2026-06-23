@@ -55,6 +55,12 @@ export type AdminCreditAdjustmentResult = {
   adjustedAt: string;
 };
 
+export type AdminUserDeleteResult = {
+  deletedUserId: string;
+  deletedPets: number;
+  deletedAssets: number;
+};
+
 export const defaultGenerationJobTimeoutMs = 30 * 60 * 1000;
 export const staleGenerationJobMessage =
   "这次生成等得有点久，先暂时停下；如果积分已经扣了，请刷新生成记录或联系小助手处理。";
@@ -127,6 +133,73 @@ export function deletePetFromState(
 
   return {
     deletedPetId: pet.id,
+    deletedAssets: beforeAssetCount - state.assets.length
+  };
+}
+
+export function deleteUserFromState(
+  state: AccountDataState,
+  userId: string
+): AdminUserDeleteResult {
+  const user = state.users.find((item) => item.id === userId);
+
+  if (!user) {
+    throw new Error("USER_NOT_FOUND");
+  }
+
+  const deletedPetIds = new Set(
+    state.pets.filter((pet) => pet.ownerUserId === userId).map((pet) => pet.id)
+  );
+  const deletedReferralCodeIds = new Set(
+    state.referralCodes
+      .filter((code) => code.ownerUserId === userId || code.createdByUserId === userId)
+      .map((code) => code.id)
+  );
+  const beforeAssetCount = state.assets.length;
+
+  state.users = state.users.filter((item) => item.id !== userId);
+  state.pets = state.pets
+    .filter((pet) => !deletedPetIds.has(pet.id))
+    .map((pet) =>
+      pet.currentHostUserId === userId
+        ? {
+            ...pet,
+            currentHostUserId: null,
+            host: "away",
+            ownership: "away",
+            locationStatus: "away",
+            status: "暂未显示"
+          }
+        : pet
+    );
+  state.assets = state.assets.filter((asset) => !deletedPetIds.has(asset.petId));
+  state.generationJobs = state.generationJobs.filter((job) => !deletedPetIds.has(job.petId));
+  state.friends = state.friends.filter((friend) => friend.id !== userId);
+  state.referralCodes = state.referralCodes.filter(
+    (code) => code.ownerUserId !== userId && code.createdByUserId !== userId
+  );
+  state.userReferrals = state.userReferrals.filter(
+    (referral) =>
+      referral.referredUserId !== userId &&
+      referral.referrerUserId !== userId &&
+      !deletedReferralCodeIds.has(referral.referralCodeId)
+  );
+  state.referralRewardLedger = state.referralRewardLedger.filter(
+    (reward) =>
+      reward.referredUserId !== userId &&
+      reward.referrerUserId !== userId &&
+      !deletedReferralCodeIds.has(reward.referralCodeId)
+  );
+  state.rechargeRecords = state.rechargeRecords.filter(
+    (record) =>
+      record.userId !== userId &&
+      record.referredByUserId !== userId &&
+      !deletedReferralCodeIds.has(record.referralCodeId ?? "")
+  );
+
+  return {
+    deletedUserId: userId,
+    deletedPets: deletedPetIds.size,
     deletedAssets: beforeAssetCount - state.assets.length
   };
 }

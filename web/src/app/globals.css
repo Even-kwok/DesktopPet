@@ -1863,6 +1863,10 @@ select.input {
   min-width: 150px;
 }
 
+.admin-danger-actions {
+  min-width: 390px;
+}
+
 .admin-list {
   display: grid;
   gap: 8px;
