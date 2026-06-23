@@ -1,4 +1,4 @@
-export const seedanceMiniModel = "doubao-seed-2-0-mini-260428";
+export const seedanceMiniModel = "doubao-seedance-2-0-mini-260615";
 export const seedanceVideoModelValues = [seedanceMiniModel] as const;
 
 export type SeedanceVideoModel = (typeof seedanceVideoModelValues)[number];
@@ -12,7 +12,7 @@ export const seedanceVideoModelOptions: Array<{
 }> = [
   {
     value: seedanceMiniModel,
-    label: "Doubao-Seed-2.0-mini",
+    label: "Doubao-Seedance-2.0-mini",
     keyHint: "mini_API_KEY / ARK_API_KEY"
   }
 ];

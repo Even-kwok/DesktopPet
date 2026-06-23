@@ -303,7 +303,7 @@ select
   credit_rate_per_second,
   prompt_template,
   jsonb_build_object(
-    'model', 'doubao-seed-2-0-mini-260428',
+    'model', 'doubao-seedance-2-0-mini-260615',
     'durationSeconds', duration_seconds,
     'ratio', 'adaptive',
     'resolution', '720p',

@@ -162,7 +162,7 @@ export function GenerationSettingsEditor({
         <div className="debug-note">
           <strong>模型密钥</strong>
           <p>
-            fast 优先读取 ARK_API_KEY / JIMENG_API_KEY；mini 需要账号已开通 API 权限，才会读取 mini_API_KEY。
+            Doubao-Seedance-2.0-mini 读取 mini_API_KEY、DOUBAO_SEEDANCE_API_KEY、JIMENG_API_KEY 或 ARK_API_KEY。
           </p>
         </div>
       </div>

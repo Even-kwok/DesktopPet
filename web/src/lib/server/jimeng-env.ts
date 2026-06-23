@@ -53,6 +53,7 @@ export function getJimengApiKeyCandidates(
     return trimmedEnvCandidates(env, [
       "mini_API_KEY",
       "MINI_API_KEY",
+      "DOUBAO_SEEDANCE_API_KEY",
       "DOUBAO_SEED_API_KEY",
       "JIMENG_MINI_API_KEY",
       "JIMENG_API_KEY",

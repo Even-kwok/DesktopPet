@@ -11,6 +11,7 @@ import {
 const providerEnvKeys = [
   "mini_API_KEY",
   "MINI_API_KEY",
+  "DOUBAO_SEEDANCE_API_KEY",
   "DOUBAO_SEED_API_KEY",
   "JIMENG_MINI_API_KEY",
   "JIMENG_API_KEY",
@@ -48,15 +49,15 @@ function withProviderEnv<T>(env: Record<string, string | undefined>, run: () => 
   }
 }
 
-test("Jimeng config defaults to the Doubao Seed 2.0 mini model", () => {
+test("Jimeng config defaults to the Doubao Seedance 2.0 mini model", () => {
   withProviderEnv({ ARK_API_KEY: " ark-secret " }, () => {
     assert.equal(getJimengApiKey(), "ark-secret");
-    assert.equal(defaultJimengVideoModel, "doubao-seed-2-0-mini-260428");
-    assert.equal(getJimengVideoModel(), "doubao-seed-2-0-mini-260428");
+    assert.equal(defaultJimengVideoModel, "doubao-seedance-2-0-mini-260615");
+    assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-mini-260615");
   });
 });
 
-test("Jimeng config prefers the mini API key when the Doubao Seed model is selected", () => {
+test("Jimeng config prefers the mini API key when the Doubao Seedance model is selected", () => {
   withProviderEnv(
     {
       mini_API_KEY: " mini-secret ",
@@ -64,7 +65,7 @@ test("Jimeng config prefers the mini API key when the Doubao Seed model is selec
       ARK_API_KEY: "ark-secret"
     },
     () => {
-      assert.equal(getJimengApiKey("doubao-seed-2-0-mini-260428"), "mini-secret");
+      assert.equal(getJimengApiKey("doubao-seedance-2-0-mini-260615"), "mini-secret");
     }
   );
 });
@@ -77,11 +78,11 @@ test("Jimeng config keeps fallback API key candidates for invalid mini keys", ()
       ARK_API_KEY: "ark-secret"
     },
     () => {
-      assert.deepEqual(getJimengApiKeyCandidates("doubao-seed-2-0-mini-260428"), [
+      assert.deepEqual(getJimengApiKeyCandidates("doubao-seedance-2-0-mini-260615"), [
         { name: "mini_API_KEY", value: "bad-mini" },
         { name: "ARK_API_KEY", value: "ark-secret" }
       ]);
-      assert.equal(getJimengApiKey("doubao-seed-2-0-mini-260428"), "bad-mini");
+      assert.equal(getJimengApiKey("doubao-seedance-2-0-mini-260615"), "bad-mini");
     }
   );
 });
@@ -94,7 +95,22 @@ test("Jimeng config ignores legacy Seedance env model overrides", () => {
       JIMENG_VIDEO_MODEL: "doubao-seedance-2-0-fast-260128"
     },
     () => {
-      assert.equal(getJimengVideoModel(), "doubao-seed-2-0-mini-260428");
+      assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-mini-260615");
+    }
+  );
+});
+
+test("Jimeng config accepts a named Seedance API key alias", () => {
+  withProviderEnv(
+    {
+      DOUBAO_SEEDANCE_API_KEY: " seedance-secret ",
+      ARK_API_KEY: "ark-secret"
+    },
+    () => {
+      assert.deepEqual(getJimengApiKeyCandidates("doubao-seedance-2-0-mini-260615"), [
+        { name: "DOUBAO_SEEDANCE_API_KEY", value: "seedance-secret" },
+        { name: "ARK_API_KEY", value: "ark-secret" }
+      ]);
     }
   );
 });
