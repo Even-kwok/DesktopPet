@@ -173,11 +173,20 @@ async function bootstrap() {
       refreshTray();
       return studioState();
     },
-    showPets: () => {
-      settingsStore.isPetVisible = true;
-      const didShow = petColonyController.showAll();
+    showPets: async () => {
+      const visibilityResult = visibilityResultAfterShowingPets(petColonyController.showAll());
+      settingsStore.isPetVisible = visibilityResult.isPetVisible;
+      let result: unknown;
+      if (visibilityResult.importIdleLoop) {
+        result = await importLocalVideo({
+          petIndex: visibilityResult.petIndex,
+          slot: visibilityResult.slot,
+          settingsStore,
+          petColonyController
+        });
+      }
       refreshTray();
-      return { didShow, ...studioState() };
+      return { result, didShow: settingsStore.isPetVisible, ...studioState() };
     },
     hidePets: () => {
       settingsStore.isPetVisible = false;
