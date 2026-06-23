@@ -18,7 +18,10 @@ import {
 import { showPetsActionPlan } from "./pet-visibility-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
-import { SettingsStore } from "../shared/settings-store.ts";
+import {
+  refreshedAccountSessionFromSyncAccount,
+  SettingsStore
+} from "../shared/settings-store.ts";
 import { SleepRecoveryCoordinator } from "../shared/sleep-recovery-coordinator.ts";
 import {
   DesktopPetSyncClient,
@@ -131,6 +134,7 @@ async function bootstrap() {
         }
       }
 
+      settingsStore.saveAccountSession(refreshedAccountSessionFromSyncAccount(account, bundle.account));
       const summary = await importDesktopBundle(bundle, {
         settingsStore,
         petColonyController,

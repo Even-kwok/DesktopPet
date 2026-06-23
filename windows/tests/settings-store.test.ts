@@ -3,7 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { SettingsStore } from "../src/shared/settings-store.ts";
+import {
+  refreshedAccountSessionFromSyncAccount,
+  SettingsStore
+} from "../src/shared/settings-store.ts";
 
 function makeStore() {
   const dir = mkdtempSync(path.join(tmpdir(), "cat-desktop-pet-windows-"));
@@ -126,4 +129,33 @@ test("persists synced pet cards and friend cards separately from account session
   } finally {
     cleanup();
   }
+});
+
+test("refreshes account session from sync account while preserving desktop token", () => {
+  const current = {
+    id: "old_user",
+    name: "旧名字",
+    email: "old@example.com",
+    credits: 12,
+    accessToken: "desktop-token",
+    signedInAt: "2026-06-24T00:00:00.000Z"
+  };
+
+  assert.deepEqual(
+    refreshedAccountSessionFromSyncAccount(current, {
+      id: "user_demo",
+      name: "栗子主人",
+      email: "demo@desktop.pet",
+      credits: 88
+    }),
+    {
+      id: "user_demo",
+      name: "栗子主人",
+      email: "demo@desktop.pet",
+      credits: 88,
+      accessToken: "desktop-token",
+      signedInAt: "2026-06-24T00:00:00.000Z"
+    }
+  );
+  assert.equal(refreshedAccountSessionFromSyncAccount(current, undefined), current);
 });

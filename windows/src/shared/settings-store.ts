@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { clampPetSizeScale } from "./pet-action-slots.ts";
-import type { DesktopFriendCard } from "./desktop-sync-client.ts";
+import type { DesktopFriendCard, DesktopSyncAccount } from "./desktop-sync-client.ts";
 import type { PetActionSlot } from "./pet-action-slots.ts";
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -24,6 +24,24 @@ export type DesktopSyncedPetCard = {
   avatarUrl?: string | null;
   materialCount: number;
 };
+
+export function refreshedAccountSessionFromSyncAccount(
+  currentAccount: DesktopAccountSession,
+  syncAccount: DesktopSyncAccount | null | undefined
+) {
+  if (!syncAccount) {
+    return currentAccount;
+  }
+
+  return {
+    id: syncAccount.id,
+    name: syncAccount.name,
+    email: syncAccount.email,
+    credits: syncAccount.credits,
+    accessToken: currentAccount.accessToken,
+    signedInAt: currentAccount.signedInAt
+  };
+}
 
 type PetSettings = {
   name?: string;
