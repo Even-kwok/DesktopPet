@@ -70,6 +70,23 @@ test("falls back to Mac defaults for malformed setting values", () => {
   }
 });
 
+test("falls back to Mac defaults when the settings file is not valid JSON", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(store.filePath, "{not valid json");
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.petCount, 1);
+    assert.equal(reloaded.isPetVisible, false);
+    assert.equal(reloaded.isClickThrough, false);
+    assert.equal(reloaded.isMouseoverCatchEnabled, true);
+    assert.equal(reloaded.petName(0), "Pet 1");
+    assert.deepEqual(reloaded.savedVideoSlots(0), []);
+  } finally {
+    cleanup();
+  }
+});
+
 test("falls back to Mac defaults for malformed pet setting records", () => {
   const { store, cleanup } = makeStore();
   try {

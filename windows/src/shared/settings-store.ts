@@ -291,7 +291,12 @@ export class SettingsStore {
     if (!existsSync(this.filePath)) {
       return {};
     }
-    return JSON.parse(readFileSync(this.filePath, "utf8")) as SettingsData;
+    try {
+      const data = JSON.parse(readFileSync(this.filePath, "utf8")) as unknown;
+      return isRecord(data) ? (data as SettingsData) : {};
+    } catch {
+      return {};
+    }
   }
 
   #write() {
