@@ -4,6 +4,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForAddFriendAction,
+  statusMessageForAddFriendError,
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
@@ -40,6 +41,10 @@ test("uses Mac-parity copy for add-friend success", () => {
     statusMessageForAddFriendAction({ addedFriend: { name: "阿雯" } }),
     "已添加好友 阿雯。"
   );
+});
+
+test("uses Mac-parity copy for add-friend failures", () => {
+  assert.equal(statusMessageForAddFriendError(), "添加失败，请确认账号邮箱。");
 });
 
 test("uses Mac-parity copy for remove-friend success", () => {

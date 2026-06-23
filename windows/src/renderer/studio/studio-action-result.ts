@@ -34,6 +34,10 @@ export function statusMessageForAddFriendAction(result: unknown) {
   return friendName ? `已添加好友 ${friendName}。` : "已添加好友。";
 }
 
+export function statusMessageForAddFriendError() {
+  return "添加失败，请确认账号邮箱。";
+}
+
 export function statusMessageForRemoveFriendAction(friendName: string) {
   return `已删除好友 ${friendName}。`;
 }

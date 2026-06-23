@@ -17,6 +17,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForAddFriendAction,
+  statusMessageForAddFriendError,
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
@@ -123,7 +124,8 @@ export function StudioApp() {
   const runAction = async (
     action: () => Promise<unknown> | unknown,
     successMessage: string,
-    afterSuccess?: (result: unknown) => string | void
+    afterSuccess?: (result: unknown) => string | void,
+    afterError?: (error: unknown) => string | void
   ) => {
     try {
       const result = await action();
@@ -131,7 +133,10 @@ export function StudioApp() {
       const nextStatusMessage = afterSuccess?.(result);
       setStatusMessage(nextStatusMessage ?? statusMessageForActionResult(result, successMessage));
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "操作失败，请稍后重试。");
+      const nextStatusMessage = afterError?.(error);
+      setStatusMessage(
+        nextStatusMessage ?? (error instanceof Error ? error.message : "操作失败，请稍后重试。")
+      );
     }
   };
 
@@ -366,7 +371,8 @@ export function StudioApp() {
                   (result) => {
                     setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
                     return statusMessageForAddFriendAction(result);
-                  }
+                  },
+                  () => statusMessageForAddFriendError()
                 )
               }
             >
