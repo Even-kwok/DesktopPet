@@ -12,6 +12,7 @@ import {
   buildTrayMenuTemplate,
   visibilityResultAfterShowingPets
 } from "./tray-controller.ts";
+import { petCountAfterLocalVideoImport } from "./local-import-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
 import { SettingsStore } from "../shared/settings-store.ts";
@@ -472,6 +473,15 @@ async function importLocalVideo(input: {
     if (response.response === 1) {
       return { canceled: true };
     }
+  }
+
+  const nextPetCount = petCountAfterLocalVideoImport(
+    input.settingsStore.petCount,
+    input.petIndex,
+    input.slot
+  );
+  if (nextPetCount !== input.settingsStore.petCount) {
+    input.petColonyController.setPetCount(nextPetCount);
   }
 
   input.settingsStore.saveVideoPath(videoPath, input.slot, input.petIndex);
