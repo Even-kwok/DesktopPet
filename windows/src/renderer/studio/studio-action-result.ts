@@ -21,6 +21,10 @@ export function statusMessageForSyncAction(result: unknown) {
   return `已从网页同步 ${summary.petCount} 只宠物、${summary.materialCount} 个动作素材。`;
 }
 
+export function pendingStatusMessageForSyncAction() {
+  return "正在从网页同步生成好的素材...";
+}
+
 export function statusMessageForImportVideoAction(slotName: string, result: unknown) {
   if (isCanceledResult(result)) {
     return "已取消。";

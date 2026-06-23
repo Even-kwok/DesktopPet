@@ -16,6 +16,7 @@ import {
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  pendingStatusMessageForSyncAction,
   statusMessageForAddFriendAction,
   statusMessageForAddFriendError,
   statusMessageForRemoveFriendAction,
@@ -168,13 +169,14 @@ export function StudioApp() {
             </button>
           ) : null}
           <button
-            onClick={() =>
+            onClick={() => {
+              setStatusMessage(pendingStatusMessageForSyncAction());
               void runAction(
                 () => bridge?.sync?.(),
                 "已同步网页端素材。",
                 (result) => statusMessageForSyncAction(result)
-              )
-            }
+              );
+            }}
             disabled={!account}
           >
             同步
