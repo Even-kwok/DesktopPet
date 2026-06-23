@@ -12,14 +12,15 @@ import {
 import type { GenerationJob, GenerationJobStatus } from "@/lib/types";
 import type { SeedanceVideoModel } from "@/lib/seedance-models";
 import {
-  getJimengApiKey,
+  getJimengApiKeyCandidates,
   getJimengBaseUrl,
   getJimengQueryUrlTemplate,
-  getJimengVideoModel
+  getJimengVideoModel,
+  type JimengApiKeyCandidate
 } from "./jimeng-env";
 
 type JimengConfig = {
-  apiKey: string;
+  apiKeyCandidates: JimengApiKeyCandidate[];
   baseUrl: string;
   model: string;
   queryUrlTemplate: string;
@@ -29,6 +30,38 @@ type JimengConfig = {
 type ProviderPayload = Record<string, unknown>;
 
 const jobPrefix = "jimeng_";
+
+class ProviderRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly payload: ProviderPayload
+  ) {
+    super(message);
+    this.name = "ProviderRequestError";
+  }
+}
+
+function isProviderRequestError(error: unknown): error is ProviderRequestError {
+  return error instanceof ProviderRequestError;
+}
+
+function isInvalidApiKeyError(error: unknown) {
+  if (!isProviderRequestError(error) || error.status !== 401) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    (message.includes("api key") || message.includes("apikey")) &&
+    (message.includes("doesn't exist") ||
+      message.includes("does not exist") ||
+      message.includes("not exist") ||
+      message.includes("invalid") ||
+      message.includes("unauthorized"))
+  );
+}
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, "");
@@ -81,17 +114,17 @@ function settingFromEnv<T extends string>(
 
 export function getJimengConfig(modelOverride?: SeedanceVideoModel): JimengConfig | null {
   const model = modelOverride ?? getJimengVideoModel();
-  const apiKey = getJimengApiKey(model);
+  const apiKeyCandidates = getJimengApiKeyCandidates(model);
   const baseUrl = getJimengBaseUrl();
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const queryUrlTemplate = getJimengQueryUrlTemplate();
 
-  if (!apiKey) {
+  if (apiKeyCandidates.length === 0) {
     return null;
   }
 
   return {
-    apiKey,
+    apiKeyCandidates,
     baseUrl: normalizedBaseUrl,
     model,
     queryUrlTemplate: queryUrlTemplate || `${normalizedBaseUrl}/{taskId}`,
@@ -241,10 +274,41 @@ async function parseProviderResponse(response: Response) {
 
   if (!response.ok) {
     const message = providerErrorMessage(payload) || response.statusText || "Provider request failed";
-    throw new Error(`${message} (${response.status})`);
+    throw new ProviderRequestError(`${message} (${response.status})`, response.status, payload);
   }
 
   return payload;
+}
+
+async function fetchWithApiKeyFallback(
+  config: JimengConfig,
+  request: (apiKey: string) => Promise<Response>
+) {
+  const rejectedKeyNames: string[] = [];
+  let lastError: unknown = null;
+
+  for (const candidate of config.apiKeyCandidates) {
+    const response = await request(candidate.value);
+
+    try {
+      return await parseProviderResponse(response);
+    } catch (error) {
+      if (isInvalidApiKeyError(error)) {
+        rejectedKeyNames.push(candidate.name);
+        lastError = error;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  const providerMessage = lastError instanceof Error ? lastError.message : "Provider rejected the API key.";
+  const keyHint = rejectedKeyNames.length > 0
+    ? `Rejected env vars: ${rejectedKeyNames.join(", ")}.`
+    : "No usable Seedance API key was configured.";
+
+  throw new Error(`${keyHint} Check the Vercel environment variables. ${providerMessage}`);
 }
 
 export async function createJimengVideoJob(input: {
@@ -280,15 +344,16 @@ export async function createJimengVideoJob(input: {
     settings
   });
 
-  const response = await fetch(config.baseUrl, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify(requestBody)
-  });
-  const payload = await parseProviderResponse(response);
+  const payload = await fetchWithApiKeyFallback(config, (apiKey) =>
+    fetch(config.baseUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    })
+  );
   const taskId = providerJobId(payload);
 
   if (!taskId) {
@@ -322,12 +387,13 @@ export async function getJimengVideoJob(jobId: string): Promise<GenerationJob | 
   }
 
   const url = config.queryUrlTemplate.replace("{taskId}", encodeURIComponent(providerTaskId));
-  const response = await fetch(url, {
-    headers: {
-      authorization: `Bearer ${config.apiKey}`
-    }
-  });
-  const payload = await parseProviderResponse(response);
+  const payload = await fetchWithApiKeyFallback(config, (apiKey) =>
+    fetch(url, {
+      headers: {
+        authorization: `Bearer ${apiKey}`
+      }
+    })
+  );
   const status = providerStatus(payload);
 
   return {

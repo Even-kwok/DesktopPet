@@ -9,6 +9,11 @@ export const defaultJimengBaseUrl =
   "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
 export const defaultJimengVideoModel = defaultSeedanceVideoModel;
 
+export type JimengApiKeyCandidate = {
+  name: string;
+  value: string;
+};
+
 function firstTrimmedEnvValue(
   env: NodeJS.ProcessEnv,
   keys: string[]
@@ -24,12 +29,28 @@ function firstTrimmedEnvValue(
   return "";
 }
 
-export function getJimengApiKey(
+function trimmedEnvCandidates(env: NodeJS.ProcessEnv, keys: string[]) {
+  const seenValues = new Set<string>();
+  const candidates: JimengApiKeyCandidate[] = [];
+
+  keys.forEach((key) => {
+    const value = env[key]?.trim();
+
+    if (value && !seenValues.has(value)) {
+      seenValues.add(value);
+      candidates.push({ name: key, value });
+    }
+  });
+
+  return candidates;
+}
+
+export function getJimengApiKeyCandidates(
   model: SeedanceVideoModel = defaultJimengVideoModel,
   env: NodeJS.ProcessEnv = process.env
 ) {
   if (model === seedanceMiniModel) {
-    return firstTrimmedEnvValue(env, [
+    return trimmedEnvCandidates(env, [
       "mini_API_KEY",
       "MINI_API_KEY",
       "DOUBAO_SEED_API_KEY",
@@ -39,7 +60,14 @@ export function getJimengApiKey(
     ]);
   }
 
-  return "";
+  return [];
+}
+
+export function getJimengApiKey(
+  model: SeedanceVideoModel = defaultJimengVideoModel,
+  env: NodeJS.ProcessEnv = process.env
+) {
+  return getJimengApiKeyCandidates(model, env)[0]?.value ?? "";
 }
 
 export function getJimengBaseUrl(env: NodeJS.ProcessEnv = process.env) {

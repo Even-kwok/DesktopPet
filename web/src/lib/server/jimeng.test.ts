@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   defaultJimengVideoModel,
   getJimengApiKey,
+  getJimengApiKeyCandidates,
   getJimengVideoModel
 } from "./jimeng-env.ts";
 
@@ -64,6 +65,23 @@ test("Jimeng config prefers the mini API key when the Doubao Seed model is selec
     },
     () => {
       assert.equal(getJimengApiKey("doubao-seed-2-0-mini-260428"), "mini-secret");
+    }
+  );
+});
+
+test("Jimeng config keeps fallback API key candidates for invalid mini keys", () => {
+  withProviderEnv(
+    {
+      mini_API_KEY: "bad-mini",
+      JIMENG_API_KEY: "bad-mini",
+      ARK_API_KEY: "ark-secret"
+    },
+    () => {
+      assert.deepEqual(getJimengApiKeyCandidates("doubao-seed-2-0-mini-260428"), [
+        { name: "mini_API_KEY", value: "bad-mini" },
+        { name: "ARK_API_KEY", value: "ark-secret" }
+      ]);
+      assert.equal(getJimengApiKey("doubao-seed-2-0-mini-260428"), "bad-mini");
     }
   );
 });
