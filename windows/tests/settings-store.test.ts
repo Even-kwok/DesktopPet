@@ -93,6 +93,60 @@ test("falls back to empty account and cache state for malformed studio cache val
   }
 });
 
+test("filters malformed account and studio cache records", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        currentAccount: {
+          id: "user_demo",
+          name: "栗子主人",
+          email: "demo@desktop.pet",
+          credits: "120",
+          accessToken: 123,
+          signedInAt: "2026-06-24T00:00:00.000Z"
+        },
+        syncedPetCards: [
+          {
+            id: "pet_orange",
+            petNumber: "P1",
+            name: "栗子",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: 3
+          },
+          {
+            id: "pet_broken",
+            petNumber: "P2",
+            name: "坏缓存",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: "many"
+          }
+        ],
+        friendCards: [
+          { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
+          { id: "friend_broken", name: "坏好友", status: "离线", hostedPets: "none" }
+        ]
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.currentAccount, undefined);
+    assert.deepEqual(
+      reloaded.syncedPetCards.map((card) => card.id),
+      ["pet_orange"]
+    );
+    assert.deepEqual(
+      reloaded.friendCards.map((card) => card.id),
+      ["friend_1"]
+    );
+  } finally {
+    cleanup();
+  }
+});
+
 test("persists pet names, size, frame, video paths, and session", () => {
   const { store, cleanup } = makeStore();
   try {

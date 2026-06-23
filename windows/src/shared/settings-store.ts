@@ -110,7 +110,7 @@ export class SettingsStore {
   }
 
   get currentAccount() {
-    return isRecord(this.#data.currentAccount) ? this.#data.currentAccount : undefined;
+    return isDesktopAccountSession(this.#data.currentAccount) ? this.#data.currentAccount : undefined;
   }
 
   saveAccountSession(account: DesktopAccountSession) {
@@ -124,7 +124,9 @@ export class SettingsStore {
   }
 
   get syncedPetCards() {
-    return Array.isArray(this.#data.syncedPetCards) ? this.#data.syncedPetCards : [];
+    return Array.isArray(this.#data.syncedPetCards)
+      ? this.#data.syncedPetCards.filter(isDesktopSyncedPetCard)
+      : [];
   }
 
   saveSyncedPetCards(cards: DesktopSyncedPetCard[]) {
@@ -160,7 +162,9 @@ export class SettingsStore {
   }
 
   get friendCards() {
-    return Array.isArray(this.#data.friendCards) ? this.#data.friendCards : [];
+    return Array.isArray(this.#data.friendCards)
+      ? this.#data.friendCards.filter(isDesktopFriendCard)
+      : [];
   }
 
   saveFriendCards(cards: DesktopFriendCard[]) {
@@ -316,6 +320,62 @@ function booleanOrDefault(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function isRecord(value: unknown) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isDesktopAccountSession(value: unknown): value is DesktopAccountSession {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isString(value.name) &&
+    isString(value.email) &&
+    isInteger(value.credits) &&
+    isString(value.accessToken) &&
+    isString(value.signedInAt)
+  );
+}
+
+function isDesktopSyncedPetCard(value: unknown): value is DesktopSyncedPetCard {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isString(value.petNumber) &&
+    isString(value.name) &&
+    isString(value.ownership) &&
+    isString(value.displayState) &&
+    isOptionalString(value.avatarUrl) &&
+    isInteger(value.materialCount)
+  );
+}
+
+function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isString(value.name) &&
+    isString(value.status) &&
+    isInteger(value.hostedPets)
+  );
+}
+
+function isString(value: unknown) {
+  return typeof value === "string";
+}
+
+function isOptionalString(value: unknown) {
+  return value === undefined || value === null || isString(value);
+}
+
+function isInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value);
 }
