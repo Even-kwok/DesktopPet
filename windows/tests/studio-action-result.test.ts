@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  statusMessageForAddFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
   statusMessageForRecallAction,
@@ -28,6 +29,13 @@ test("clears friend email draft after a successful add-friend action", () => {
   assert.equal(
     nextFriendEmailDraftAfterAddFriendAction("friend@example.com", { canceled: true }),
     "friend@example.com"
+  );
+});
+
+test("uses Mac-parity copy for add-friend success", () => {
+  assert.equal(
+    statusMessageForAddFriendAction({ addedFriend: { name: "阿雯" } }),
+    "已添加好友 阿雯。"
   );
 });
 

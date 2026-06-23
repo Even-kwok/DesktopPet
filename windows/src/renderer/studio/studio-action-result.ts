@@ -21,6 +21,11 @@ export function statusMessageForSyncAction(result: unknown) {
   return `已从网页同步 ${summary.petCount} 只宠物、${summary.materialCount} 个动作素材。`;
 }
 
+export function statusMessageForAddFriendAction(result: unknown) {
+  const friendName = addedFriendNameFromActionResult(result);
+  return friendName ? `已添加好友 ${friendName}。` : "已添加好友。";
+}
+
 export function statusMessageForHostingRequestAction(friendName: string, petName: string) {
   return `已向 ${friendName} 发起「${petName}」寄养请求。`;
 }
@@ -77,4 +82,18 @@ function syncSummaryFromActionResult(result: unknown) {
   return typeof record.petCount === "number" && typeof record.materialCount === "number"
     ? { petCount: record.petCount, materialCount: record.materialCount }
     : undefined;
+}
+
+function addedFriendNameFromActionResult(result: unknown) {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+
+  const addedFriend = (result as Record<string, unknown>).addedFriend;
+  if (!addedFriend || typeof addedFriend !== "object") {
+    return undefined;
+  }
+
+  const name = (addedFriend as Record<string, unknown>).name;
+  return typeof name === "string" && name.trim() ? name : undefined;
 }

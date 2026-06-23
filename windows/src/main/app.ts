@@ -255,8 +255,9 @@ async function bootstrap() {
       if (!trimmedEmail) {
         throw new Error("请输入好友邮箱。");
       }
-      settingsStore.upsertFriendCard(await desktopSyncClient.addFriend(trimmedEmail, account.accessToken));
-      return studioState();
+      const addedFriend = await desktopSyncClient.addFriend(trimmedEmail, account.accessToken);
+      settingsStore.upsertFriendCard(addedFriend);
+      return { addedFriend, ...studioState() };
     },
     removeFriend: async (friendId) => {
       const account = requireAccount(settingsStore.currentAccount);

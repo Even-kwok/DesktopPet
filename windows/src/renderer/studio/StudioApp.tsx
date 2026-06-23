@@ -16,6 +16,7 @@ import {
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  statusMessageForAddFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
   statusMessageForRecallAction,
@@ -357,7 +358,10 @@ export function StudioApp() {
                 void runAction(
                   () => bridge?.addFriend?.(friendEmail),
                   "已添加好友。",
-                  (result) => setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result))
+                  (result) => {
+                    setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
+                    return statusMessageForAddFriendAction(result);
+                  }
                 )
               }
             >
