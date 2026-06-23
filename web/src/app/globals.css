@@ -1512,7 +1512,7 @@ select.input {
 .pet-list-card,
 .job-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 14px;
@@ -1545,9 +1545,7 @@ select.input {
 }
 
 .pet-list-rename-button {
-  inline-size: 36px;
-  block-size: 36px;
-  flex-basis: 36px;
+  min-width: 64px;
 }
 
 .pet-avatar {

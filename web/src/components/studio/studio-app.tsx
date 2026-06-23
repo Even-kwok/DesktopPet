@@ -34,7 +34,6 @@ import {
   jobGeneratedAtLabel,
   jobGeneratedVideoApplyAction,
   materialCardPreviewState,
-  petNameEditControlCopy,
   petPanelImageUrl,
   petPanelStats,
   studioStatusMessageClassName
@@ -1003,7 +1002,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               selectedPetId={selectedPet?.id}
               onDeletePet={handleRequestDeletePet}
               onRenamePet={handleRenamePet}
-              onSelectPet={handleSelectPet}
               onRecallPet={handleRecallPet}
             />
           ) : null}
@@ -1445,7 +1443,6 @@ function PetsTab({
   selectedPetId,
   onDeletePet,
   onRenamePet,
-  onSelectPet,
   onRecallPet
 }: {
   currentUser: CurrentUser;
@@ -1454,7 +1451,6 @@ function PetsTab({
   selectedPetId: string | undefined;
   onDeletePet: (pet: Pet) => void;
   onRenamePet: (petId: string, name: string) => Promise<void>;
-  onSelectPet: (petId: string) => void;
   onRecallPet: () => void;
 }) {
   const [editingPetId, setEditingPetId] = useState<string | null>(null);
@@ -1507,7 +1503,7 @@ function PetsTab({
       <div className="pet-list-grid">
         {pets.map((pet) => {
           const canEditPet = canDeletePetForAccount(currentUser, pet);
-          const editControlCopy = canEditPet ? petNameEditControlCopy(pet.name) : null;
+          const renameLabel = canEditPet ? `改名：${pet.name}` : null;
           const isEditing = editingPetId === pet.id;
           const isDeleting = deletingPetId === pet.id;
           const isSavingPetName = savingPetNameId === pet.id;
@@ -1547,23 +1543,16 @@ function PetsTab({
                   <p>{pet.status}</p>
                 </div>
               )}
-              <button
-                className="button secondary"
-                disabled={isSavingPetName}
-                onClick={() => onSelectPet(pet.id)}
-              >
-                选择
-              </button>
-              {editControlCopy && !isEditing ? (
+              {renameLabel && !isEditing ? (
                 <button
-                  aria-label={editControlCopy.ariaLabel}
-                  className={`${editControlCopy.className} pet-list-rename-button`}
+                  aria-label={renameLabel}
+                  className="button secondary pet-list-rename-button"
                   disabled={isDeleting}
-                  title={editControlCopy.ariaLabel}
+                  title={renameLabel}
                   type="button"
                   onClick={() => beginPetNameEdit(pet)}
                 >
-                  <span aria-hidden="true">{editControlCopy.icon}</span>
+                  改名
                 </button>
               ) : null}
               {canEditPet ? (
