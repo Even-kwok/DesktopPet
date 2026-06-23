@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { processChromaKeyFrame } from "./chroma-key.ts";
-
-type PetPlaybackMode = "loop" | "playOnce";
+import { nextPetPlaybackRequest } from "./pet-playback-command.ts";
+import type { PetPlaybackMode, PetPlaybackRequest } from "./pet-playback-command.ts";
 
 type PetCommand =
   | {
@@ -25,7 +25,7 @@ export function PetWindow() {
   const dragStartedRef = useRef(false);
   const petIndexRef = useRef(0);
   const modeRef = useRef<PetPlaybackMode>("loop");
-  const [videoSource, setVideoSource] = useState("");
+  const [playbackRequest, setPlaybackRequest] = useState<PetPlaybackRequest>();
 
   useEffect(() => {
     const bridge = window.desktopPet;
@@ -41,7 +41,7 @@ export function PetWindow() {
 
       petIndexRef.current = command.petIndex;
       modeRef.current = command.mode;
-      setVideoSource(toVideoSource(command.videoPath));
+      setPlaybackRequest((current) => nextPetPlaybackRequest(current, command));
     });
 
     return () => {
@@ -51,12 +51,12 @@ export function PetWindow() {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !videoSource) {
+    if (!video || !playbackRequest) {
       return;
     }
 
-    video.src = videoSource;
-    video.loop = modeRef.current === "loop";
+    video.src = playbackRequest.source;
+    video.loop = playbackRequest.mode === "loop";
     void video.play();
 
     return () => {
@@ -64,7 +64,7 @@ export function PetWindow() {
       video.removeAttribute("src");
       video.load();
     };
-  }, [videoSource]);
+  }, [playbackRequest]);
 
   useEffect(() => {
     const draw = () => {
@@ -192,17 +192,6 @@ function aspectFit(sourceWidth: number, sourceHeight: number, targetWidth: numbe
   const width = sourceWidth * scale;
   const height = sourceHeight * scale;
   return [(targetWidth - width) / 2, (targetHeight - height) / 2, width, height] as const;
-}
-
-function toVideoSource(videoPath: string) {
-  if (/^(file|https?|blob):/i.test(videoPath)) {
-    return videoPath;
-  }
-
-  const normalizedPath = videoPath.replace(/\\/g, "/");
-  return normalizedPath.startsWith("/")
-    ? `file://${encodeURI(normalizedPath)}`
-    : `file:///${encodeURI(normalizedPath)}`;
 }
 
 function isPetCommand(command: unknown): command is PetCommand {
