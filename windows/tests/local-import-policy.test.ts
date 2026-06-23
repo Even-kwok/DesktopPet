@@ -4,6 +4,7 @@ import {
   firstRunIdleLoopPromptOptions,
   firstRunIdleLoopPromptPlan,
   idleLoopImportTargetAfterAddingPet,
+  isSupportedLocalVideoPath,
   localVideoPickerOptions,
   localVideoRemovalAction,
   petCountAfterLocalVideoImport
@@ -37,8 +38,15 @@ test("builds Mac-parity local video picker copy", () => {
     title: "选择 栗子 的「待机循环」视频",
     buttonLabel: "选择",
     properties: ["openFile"],
-    filters: [{ name: "Video", extensions: ["mp4", "mov"] }]
+    filters: [{ name: "Video", extensions: ["mp4", "mov", "m4v"] }]
   });
+});
+
+test("accepts Mac MPEG-4 local video file extensions", () => {
+  assert.equal(isSupportedLocalVideoPath("C:/cats/idle.mp4"), true);
+  assert.equal(isSupportedLocalVideoPath("C:/cats/idle.MOV"), true);
+  assert.equal(isSupportedLocalVideoPath("C:/cats/idle.m4v"), true);
+  assert.equal(isSupportedLocalVideoPath("C:/cats/idle.avi"), false);
 });
 
 test("requests first-run idle-loop import only when no pet can be restored", () => {

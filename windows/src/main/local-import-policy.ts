@@ -1,6 +1,9 @@
+import path from "node:path";
 import type { PetActionSlot } from "../shared/pet-action-slots.ts";
 
 export type LocalVideoRemovalAction = "showAll" | "refreshPlayback";
+
+const supportedLocalVideoExtensions = ["mp4", "mov", "m4v"] as const;
 
 export type FirstRunIdleLoopPromptInput = {
   showsFirstRunPrompt: boolean;
@@ -20,7 +23,7 @@ export function localVideoPickerOptions(petName: string, slotName: string) {
     title: `选择 ${petName} 的「${slotName}」视频`,
     buttonLabel: "选择",
     properties: ["openFile"] as Array<"openFile">,
-    filters: [{ name: "Video", extensions: ["mp4", "mov"] }]
+    filters: [{ name: "Video", extensions: [...supportedLocalVideoExtensions] }]
   };
 }
 
@@ -62,4 +65,9 @@ export function localVideoRemovalAction(
   isPetVisible: boolean
 ): LocalVideoRemovalAction {
   return slot === "idle_loop" && isPetVisible ? "showAll" : "refreshPlayback";
+}
+
+export function isSupportedLocalVideoPath(filePath: string) {
+  const extension = path.extname(filePath).slice(1).toLowerCase();
+  return supportedLocalVideoExtensions.some((supportedExtension) => extension === supportedExtension);
 }

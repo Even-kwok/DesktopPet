@@ -20,6 +20,7 @@ import {
   firstRunIdleLoopPromptOptions,
   firstRunIdleLoopPromptPlan,
   idleLoopImportTargetAfterAddingPet,
+  isSupportedLocalVideoPath,
   localVideoPickerOptions,
   localVideoRemovalAction,
   petCountAfterLocalVideoImport
@@ -572,7 +573,7 @@ async function importLocalVideo(input: {
   const review = reviewPetVideoImport({
     fileSizeBytes: fileStats.size,
     durationSeconds: videoMetadata.durationSeconds,
-    hasVideoTrack: videoMetadata.hasVideoTrack && isSupportedVideoFile(videoPath)
+    hasVideoTrack: videoMetadata.hasVideoTrack && isSupportedLocalVideoPath(videoPath)
   });
 
   if (!review.canImport) {
@@ -643,8 +644,4 @@ function toPetActionSlot(slot: string): PetActionSlot {
   }
 
   return slot as PetActionSlot;
-}
-
-function isSupportedVideoFile(filePath: string) {
-  return /\.(mp4|mov)$/i.test(filePath);
 }
