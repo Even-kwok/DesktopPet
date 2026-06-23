@@ -14,6 +14,10 @@ import {
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
 import { statusMessageForActionResult } from "./studio-action-result.ts";
+import {
+  nextSelectedPetIndexAfterAction,
+  petNameDraftForIndex
+} from "./studio-selection.ts";
 
 declare global {
   interface Window {
@@ -68,14 +72,14 @@ export function StudioApp() {
 
   const bridge = window.desktopPet;
 
-  const refreshState = async () => {
+  const refreshState = async (actionResult?: unknown) => {
     const nextState = (await bridge?.getStudioState?.()) as StudioState | undefined;
     if (nextState) {
       const mergedState = { ...defaultStudioState, ...nextState };
       setState(mergedState);
       setSelectedPetIndex((current) => {
-        const nextPetIndex = Math.min(current, Math.max(mergedState.petCount - 1, 0));
-        setPetNameDraft(mergedState.petNames[nextPetIndex] ?? `Pet ${nextPetIndex + 1}`);
+        const nextPetIndex = nextSelectedPetIndexAfterAction(current, mergedState, actionResult);
+        setPetNameDraft(petNameDraftForIndex(mergedState, nextPetIndex));
         return nextPetIndex;
       });
       setSelectedSyncedPetID((current) => current ?? mergedState.selectedSyncedPetID ?? mergedState.syncedPetCards[0]?.id);
@@ -98,7 +102,7 @@ export function StudioApp() {
   const runAction = async (action: () => Promise<unknown> | unknown, successMessage: string) => {
     try {
       const result = await action();
-      await refreshState();
+      await refreshState(result);
       setStatusMessage(statusMessageForActionResult(result, successMessage));
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "操作失败，请稍后重试。");
