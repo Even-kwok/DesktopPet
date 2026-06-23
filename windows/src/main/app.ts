@@ -9,10 +9,10 @@ import { StudioWindowController } from "./studio-window-controller.ts";
 import { registerIpcHandlers } from "./ipc.ts";
 import {
   bindMenuActions,
-  buildTrayMenuTemplate,
-  visibilityResultAfterShowingPets
+  buildTrayMenuTemplate
 } from "./tray-controller.ts";
 import { petCountAfterLocalVideoImport } from "./local-import-policy.ts";
+import { showPetsActionPlan } from "./pet-visibility-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
 import { SettingsStore } from "../shared/settings-store.ts";
@@ -174,7 +174,7 @@ async function bootstrap() {
       return studioState();
     },
     showPets: async () => {
-      const visibilityResult = visibilityResultAfterShowingPets(petColonyController.showAll());
+      const visibilityResult = showPetsActionPlan(petColonyController.showAll());
       settingsStore.isPetVisible = visibilityResult.isPetVisible;
       let result: unknown;
       if (visibilityResult.importIdleLoop) {
@@ -295,7 +295,7 @@ async function bootstrap() {
               settingsStore.isPetVisible = false;
               petColonyController.hideAll();
             } else {
-              const visibilityResult = visibilityResultAfterShowingPets(petColonyController.showAll());
+              const visibilityResult = showPetsActionPlan(petColonyController.showAll());
               settingsStore.isPetVisible = visibilityResult.isPetVisible;
               if (visibilityResult.importIdleLoop) {
                 void importLocalVideo({

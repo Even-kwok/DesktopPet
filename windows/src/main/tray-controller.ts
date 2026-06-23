@@ -5,6 +5,13 @@ import {
 } from "../shared/pet-action-slots.ts";
 import type { PetActionSlot } from "../shared/pet-action-slots.ts";
 
+export {
+  showPetsActionPlan as visibilityResultAfterShowingPets
+} from "./pet-visibility-policy.ts";
+export type {
+  ShowPetsActionPlan as VisibilityResultAfterShowingPets
+} from "./pet-visibility-policy.ts";
+
 export type MenuTemplateItem = {
   label?: string;
   type?: "separator" | "normal" | "checkbox";
@@ -31,10 +38,6 @@ export type TrayMenuState = {
   hasVideo: (slot: PetActionSlot, petIndex: number) => boolean;
   petSizeScale: (petIndex: number) => number;
 };
-
-export type VisibilityResultAfterShowingPets =
-  | { isPetVisible: true; importIdleLoop: false }
-  | { isPetVisible: false; importIdleLoop: true; petIndex: 0; slot: "idle_loop" };
 
 export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] {
   return [
@@ -72,14 +75,6 @@ export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] 
     { type: "separator" },
     { label: "退出", action: "quit" }
   ];
-}
-
-export function visibilityResultAfterShowingPets(didShowAnyPet: boolean): VisibilityResultAfterShowingPets {
-  if (didShowAnyPet) {
-    return { isPetVisible: true, importIdleLoop: false };
-  }
-
-  return { isPetVisible: false, importIdleLoop: true, petIndex: 0, slot: "idle_loop" };
 }
 
 export function bindMenuActions(
