@@ -264,6 +264,7 @@ export class PetWindowController implements PetWindowControllerLike {
       this.#stopSleepTimer();
       this.#stopIdleActionTimer();
       this.#pendingSocialInteractionSlots = undefined;
+      this.#sendCommand({ type: "playDropBounce" });
       return;
     }
 

@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { processChromaKeyFrame } from "./chroma-key.ts";
-import { nextPetPlaybackRequest } from "./pet-playback-command.ts";
-import type { PetPlaybackMode, PetPlaybackRequest } from "./pet-playback-command.ts";
+import {
+  nextPetPlaybackRequest,
+  nextPetVisualEffectRequest
+} from "./pet-playback-command.ts";
+import type {
+  PetPlaybackMode,
+  PetPlaybackRequest,
+  PetVisualEffectRequest
+} from "./pet-playback-command.ts";
 
 type PetCommand =
   | {
@@ -12,6 +19,9 @@ type PetCommand =
     }
   | {
       type: "pause";
+    }
+  | {
+      type: "playDropBounce";
     };
 
 export function PetWindow() {
@@ -26,6 +36,8 @@ export function PetWindow() {
   const petIndexRef = useRef(0);
   const modeRef = useRef<PetPlaybackMode>("loop");
   const [playbackRequest, setPlaybackRequest] = useState<PetPlaybackRequest>();
+  const [visualEffectRequest, setVisualEffectRequest] = useState<PetVisualEffectRequest>();
+  const [isDropBounceActive, setIsDropBounceActive] = useState(false);
 
   useEffect(() => {
     const bridge = window.desktopPet;
@@ -36,6 +48,11 @@ export function PetWindow() {
 
       if (command.type === "pause") {
         videoRef.current?.pause();
+        return;
+      }
+
+      if (command.type === "playDropBounce") {
+        setVisualEffectRequest((current) => nextPetVisualEffectRequest(current, "dropBounce"));
         return;
       }
 
@@ -67,6 +84,19 @@ export function PetWindow() {
   }, [playbackRequest]);
 
   useEffect(() => {
+    if (visualEffectRequest?.effect !== "dropBounce") {
+      return;
+    }
+
+    setIsDropBounceActive(true);
+    const timeout = window.setTimeout(() => {
+      setIsDropBounceActive(false);
+    }, 260);
+
+    return () => window.clearTimeout(timeout);
+  }, [visualEffectRequest]);
+
+  useEffect(() => {
     const draw = () => {
       drawCurrentFrame(canvasRef.current, videoRef.current, offscreenCanvasRef);
       animationFrameRef.current = requestAnimationFrame(draw);
@@ -96,7 +126,7 @@ export function PetWindow() {
       />
       <canvas
         ref={canvasRef}
-        className="pet-canvas"
+        className={isDropBounceActive ? "pet-canvas drop-bounce" : "pet-canvas"}
         onPointerDown={(event) => {
           lastDragLocationRef.current = { x: event.screenX, y: event.screenY };
           dragStartLocationRef.current = { x: event.screenX, y: event.screenY };
@@ -200,5 +230,5 @@ function isPetCommand(command: unknown): command is PetCommand {
   }
 
   const record = command as Record<string, unknown>;
-  return record.type === "pause" || record.type === "loadVideo";
+  return record.type === "pause" || record.type === "playDropBounce" || record.type === "loadVideo";
 }

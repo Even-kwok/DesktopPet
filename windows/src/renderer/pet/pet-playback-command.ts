@@ -12,6 +12,13 @@ export type PetPlaybackRequest = {
   revision: number;
 };
 
+export type PetVisualEffect = "dropBounce";
+
+export type PetVisualEffectRequest = {
+  effect: PetVisualEffect;
+  revision: number;
+};
+
 export function nextPetPlaybackRequest(
   current: PetPlaybackRequest | undefined,
   command: PetPlaybackLoadCommand
@@ -19,6 +26,16 @@ export function nextPetPlaybackRequest(
   return {
     source: toVideoSource(command.videoPath),
     mode: command.mode,
+    revision: (current?.revision ?? 0) + 1
+  };
+}
+
+export function nextPetVisualEffectRequest(
+  current: PetVisualEffectRequest | undefined,
+  effect: PetVisualEffect
+): PetVisualEffectRequest {
+  return {
+    effect,
     revision: (current?.revision ?? 0) + 1
   };
 }

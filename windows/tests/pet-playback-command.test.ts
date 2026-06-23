@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   nextPetPlaybackRequest,
+  nextPetVisualEffectRequest,
   toVideoSource
 } from "../src/renderer/pet/pet-playback-command.ts";
 
@@ -26,5 +27,14 @@ test("advances playback request revision even when source path repeats", () => {
   assert.equal(first.source, second.source);
   assert.equal(first.mode, "loop");
   assert.equal(second.mode, "playOnce");
+  assert.equal(second.revision, first.revision + 1);
+});
+
+test("advances visual effect request revision for repeated drop bounces", () => {
+  const first = nextPetVisualEffectRequest(undefined, "dropBounce");
+  const second = nextPetVisualEffectRequest(first, "dropBounce");
+
+  assert.equal(first.effect, "dropBounce");
+  assert.equal(second.effect, "dropBounce");
   assert.equal(second.revision, first.revision + 1);
 });
