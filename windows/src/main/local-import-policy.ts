@@ -2,6 +2,12 @@ import type { PetActionSlot } from "../shared/pet-action-slots.ts";
 
 export type LocalVideoRemovalAction = "showAll" | "refreshPlayback";
 
+export type FirstRunIdleLoopPromptInput = {
+  showsFirstRunPrompt: boolean;
+  didRestoreVideo: boolean;
+  hasFirstPetIdleLoop: boolean;
+};
+
 export function idleLoopImportTargetAfterAddingPet(petIndex: number) {
   return {
     petIndex: Math.max(0, Math.trunc(petIndex)),
@@ -15,6 +21,25 @@ export function localVideoPickerOptions(petName: string, slotName: string) {
     buttonLabel: "选择",
     properties: ["openFile"] as Array<"openFile">,
     filters: [{ name: "Video", extensions: ["mp4", "mov"] }]
+  };
+}
+
+export function firstRunIdleLoopPromptPlan(input: FirstRunIdleLoopPromptInput) {
+  if (!input.showsFirstRunPrompt || input.didRestoreVideo || input.hasFirstPetIdleLoop) {
+    return { shouldPrompt: false as const };
+  }
+
+  return { shouldPrompt: true as const, petIndex: 0, slot: "idle_loop" as const };
+}
+
+export function firstRunIdleLoopPromptOptions() {
+  return {
+    type: "info" as const,
+    buttons: ["选择待机循环", "稍后"],
+    defaultId: 0,
+    cancelId: 1,
+    message: "CatDesktopPet is running",
+    detail: "请选择一个待机循环绿幕 MP4 或 MOV，宠物才会显示在桌面上。其他状态视频可以稍后从「选择状态视频」里添加。"
   };
 }
 

@@ -12,6 +12,8 @@ import {
   buildTrayMenuTemplate
 } from "./tray-controller.ts";
 import {
+  firstRunIdleLoopPromptOptions,
+  firstRunIdleLoopPromptPlan,
   idleLoopImportTargetAfterAddingPet,
   localVideoPickerOptions,
   localVideoRemovalAction,
@@ -406,12 +408,39 @@ async function bootstrap() {
   };
   refreshTray();
 
+  let didRestoreVideo = false;
   if (settingsStore.isPetVisible) {
-    settingsStore.isPetVisible = petColonyController.showAll();
+    didRestoreVideo = petColonyController.showAll();
+    settingsStore.isPetVisible = didRestoreVideo;
     refreshTray();
   }
 
   studioWindowController.show();
+
+  const firstRunPrompt = firstRunIdleLoopPromptPlan({
+    showsFirstRunPrompt: true,
+    didRestoreVideo,
+    hasFirstPetIdleLoop: settingsStore.restoreVideoPath("idle_loop", 0) !== undefined
+  });
+  if (firstRunPrompt.shouldPrompt) {
+    setTimeout(() => {
+      void dialog
+        .showMessageBox(firstRunIdleLoopPromptOptions())
+        .then((response) => {
+          if (response.response !== 0) {
+            return undefined;
+          }
+
+          return importLocalVideo({
+            petIndex: firstRunPrompt.petIndex,
+            slot: firstRunPrompt.slot,
+            settingsStore,
+            petColonyController
+          }).then(refreshTray);
+        })
+        .catch(showActionError);
+    }, 400);
+  }
 }
 
 app.whenReady().then(bootstrap);

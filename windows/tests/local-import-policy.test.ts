@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  firstRunIdleLoopPromptOptions,
+  firstRunIdleLoopPromptPlan,
   idleLoopImportTargetAfterAddingPet,
   localVideoPickerOptions,
   localVideoRemovalAction,
@@ -36,5 +38,43 @@ test("builds Mac-parity local video picker copy", () => {
     buttonLabel: "选择",
     properties: ["openFile"],
     filters: [{ name: "Video", extensions: ["mp4", "mov"] }]
+  });
+});
+
+test("requests first-run idle-loop import only when no pet can be restored", () => {
+  assert.deepEqual(
+    firstRunIdleLoopPromptPlan({
+      showsFirstRunPrompt: true,
+      didRestoreVideo: false,
+      hasFirstPetIdleLoop: false
+    }),
+    { shouldPrompt: true, petIndex: 0, slot: "idle_loop" }
+  );
+  assert.deepEqual(
+    firstRunIdleLoopPromptPlan({
+      showsFirstRunPrompt: true,
+      didRestoreVideo: true,
+      hasFirstPetIdleLoop: false
+    }),
+    { shouldPrompt: false }
+  );
+  assert.deepEqual(
+    firstRunIdleLoopPromptPlan({
+      showsFirstRunPrompt: true,
+      didRestoreVideo: false,
+      hasFirstPetIdleLoop: true
+    }),
+    { shouldPrompt: false }
+  );
+});
+
+test("builds Mac-parity first-run idle-loop prompt copy", () => {
+  assert.deepEqual(firstRunIdleLoopPromptOptions(), {
+    type: "info",
+    buttons: ["选择待机循环", "稍后"],
+    defaultId: 0,
+    cancelId: 1,
+    message: "CatDesktopPet is running",
+    detail: "请选择一个待机循环绿幕 MP4 或 MOV，宠物才会显示在桌面上。其他状态视频可以稍后从「选择状态视频」里添加。"
   });
 });
