@@ -120,7 +120,12 @@ function normalizeDelta(delta: unknown) {
 
   const record = delta as Record<string, unknown>;
   return {
-    x: Number(record.x ?? 0),
-    y: Number(record.y ?? 0)
+    x: finiteNumberOrZero(record.x),
+    y: finiteNumberOrZero(record.y)
   };
+}
+
+function finiteNumberOrZero(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
 }
