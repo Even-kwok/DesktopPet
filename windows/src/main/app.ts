@@ -18,6 +18,7 @@ import {
 import { showPetsActionPlan } from "./pet-visibility-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
+import { refreshedFriendCardsAfterSync } from "./sync-policy.ts";
 import {
   refreshedAccountSessionFromSyncAccount,
   SettingsStore
@@ -134,7 +135,15 @@ async function bootstrap() {
         }
       }
 
-      settingsStore.saveAccountSession(refreshedAccountSessionFromSyncAccount(account, bundle.account));
+      const refreshedAccount = refreshedAccountSessionFromSyncAccount(account, bundle.account);
+      settingsStore.saveAccountSession(refreshedAccount);
+      settingsStore.saveFriendCards(
+        await refreshedFriendCardsAfterSync(
+          refreshedAccount.accessToken,
+          settingsStore.friendCards,
+          (accessToken) => desktopSyncClient.fetchFriends(accessToken)
+        )
+      );
       const summary = await importDesktopBundle(bundle, {
         settingsStore,
         petColonyController,
