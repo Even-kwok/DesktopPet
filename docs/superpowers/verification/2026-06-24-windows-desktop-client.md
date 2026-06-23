@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 34 tests.
+- `npm test`: passed, 38 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -13,7 +13,7 @@ Run from `windows/` on the current branch:
 
 Run from `windows/`:
 
-- `npm run dev`: main process and preload builds passed, renderer dev server started at `http://localhost:5173/`, and Electron app startup was reached.
+- `npm run dev`: main process and preload builds passed, renderer dev server started at `http://localhost:5173/`, and Electron app startup was reached after the preload runtime path was corrected to `out/preload/index.mjs`.
 
 The smoke run was stopped after startup to avoid leaving a desktop process running.
 
