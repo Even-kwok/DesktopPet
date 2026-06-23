@@ -9,6 +9,7 @@ import { StudioWindowController } from "./studio-window-controller.ts";
 import { registerIpcHandlers } from "./ipc.ts";
 import { bindMenuActions, buildTrayMenuTemplate } from "./tray-controller.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
+import { resolveRuntimePaths } from "./runtime-paths.ts";
 import { SettingsStore } from "../shared/settings-store.ts";
 import { SleepRecoveryCoordinator } from "../shared/sleep-recovery-coordinator.ts";
 import {
@@ -30,10 +31,7 @@ let tray: Tray | undefined;
 
 async function bootstrap() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const preloadPath = path.join(currentDir, "../preload/index.js");
-  const rendererURL = process.env.ELECTRON_RENDERER_URL;
-  const studioRendererFile = path.join(currentDir, "../renderer/index.html");
-  const petRendererFile = path.join(currentDir, "../renderer/pet.html");
+  const runtimePaths = resolveRuntimePaths(currentDir, process.env.ELECTRON_RENDERER_URL);
   const settingsStore = new SettingsStore(path.join(app.getPath("userData"), "settings.json"));
   const desktopSyncClient = new DesktopPetSyncClient(process.env.CAT_DESKTOP_PET_WEB_BASE_URL);
   const remoteMaterialRoot = path.join(app.getPath("appData"), "CatDesktopPet", "RemoteMaterials");
@@ -41,16 +39,16 @@ async function bootstrap() {
     settingsStore,
     (petIndex) =>
       new PetWindowController(settingsStore, petIndex, {
-        preloadPath,
-        petRendererURL: rendererURL,
-        petRendererFile,
+        preloadPath: runtimePaths.preloadPath,
+        petRendererURL: runtimePaths.rendererURL,
+        petRendererFile: runtimePaths.petRendererFile,
         getClickThrough: () => settingsStore.isClickThrough
       })
   );
   studioWindowController = new StudioWindowController({
-    preloadPath,
-    studioRendererURL: rendererURL,
-    studioRendererFile
+    preloadPath: runtimePaths.preloadPath,
+    studioRendererURL: runtimePaths.rendererURL,
+    studioRendererFile: runtimePaths.studioRendererFile
   });
   const sleepRecoveryCoordinator = new SleepRecoveryCoordinator(
     () => petColonyController.prepareForSystemSleep(),
