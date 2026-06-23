@@ -228,9 +228,9 @@ export function displayablePets(bundle: DesktopPetBundle) {
 }
 
 export function syncedPetCardsFromBundle(bundle: DesktopPetBundle): DesktopSyncedPetCard[] {
-  return bundle.pets.map((pet, index) => ({
+  return bundle.pets.map((pet) => ({
     id: pet.id,
-    petNumber: pet.petNumber ?? `P${index + 1}`,
+    petNumber: pet.petNumber ?? pet.id,
     name: pet.name,
     ownership: pet.ownership ?? "owned",
     displayState: pet.displayState ?? "active",

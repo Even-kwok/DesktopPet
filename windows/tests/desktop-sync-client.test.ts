@@ -213,6 +213,19 @@ test("maps bundle pets to cached studio cards", () => {
             status: "failed"
           }
         ]
+      },
+      {
+        id: "pet_missing_number",
+        name: "团子",
+        type: "cat",
+        materials: [
+          {
+            slot: "idle_loop",
+            name: "待机循环",
+            videoUrl: "https://example.com/second-idle.mp4",
+            status: "ready"
+          }
+        ]
       }
     ]
   });
@@ -226,6 +239,15 @@ test("maps bundle pets to cached studio cards", () => {
       displayState: "active",
       avatarUrl: undefined,
       materialCount: 3
+    },
+    {
+      id: "pet_missing_number",
+      petNumber: "pet_missing_number",
+      name: "团子",
+      ownership: "owned",
+      displayState: "active",
+      avatarUrl: undefined,
+      materialCount: 1
     }
   ]);
   assert.equal(safeRemoteMaterialPathComponent("pet/demo:1"), "pet-demo-1");
