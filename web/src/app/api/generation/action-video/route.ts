@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  assertAccountPetEditable,
   createAccountGenerationJob,
   findActiveAccountGenerationJob
 } from "@/lib/server/account-data-store";
@@ -45,6 +46,29 @@ export async function POST(request: Request) {
 
   if (!materialConfig || !materialConfig.enabled) {
     return NextResponse.json({ error: "UNKNOWN_MATERIAL_CONFIG" }, { status: 404 });
+  }
+
+  try {
+    await assertAccountPetEditable({
+      account: auth.user,
+      petId: parsed.data.petId
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "PET_NOT_FOUND";
+
+    return NextResponse.json(
+      {
+        error:
+          message === "PET_NOT_FOUND" || message === "PET_READONLY"
+            ? message
+            : "ACTION_VIDEO_GENERATION_FAILED",
+        details:
+          message === "PET_READONLY"
+            ? "体验猫的素材不能重新生成，可以添加新的猫咪后编辑。"
+            : message
+      },
+      { status: message === "PET_NOT_FOUND" ? 404 : message === "PET_READONLY" ? 403 : 500 }
+    );
   }
 
   const activeJob = await findActiveAccountGenerationJob({

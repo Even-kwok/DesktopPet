@@ -28,6 +28,7 @@ import {
   type PetDeleteResult
 } from "@/lib/account-data-state";
 import { getJimengVideoJob, isJimengJobId } from "@/lib/server/jimeng";
+import { isReadonlyPet, sortPetsForAccount, starterPetAssetBundleUrl } from "@/lib/starter-pet";
 import {
   currentUser,
   friends,
@@ -68,6 +69,7 @@ type PetRow = {
   avatar_url: string | null;
   source_image_url: string | null;
   front_image_url: string | null;
+  asset_bundle_url: string | null;
   location_status: Pet["locationStatus"];
 };
 
@@ -114,6 +116,9 @@ let mockAccountState = createMockAccountDataState({
   friends,
   hostingRequests
 });
+
+const petSelectColumns =
+  "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, asset_bundle_url, location_status";
 
 export function resetMockAccountDataStateForTests(state?: Partial<AccountDataState>) {
   mockAccountState = createMockAccountDataState(
@@ -185,6 +190,29 @@ export async function updateAccountPetName(input: {
   }
 
   return updateSupabasePetName(input);
+}
+
+export async function assertAccountPetEditable(input: {
+  account: CurrentUser;
+  petId: string;
+}): Promise<void> {
+  if (getBackendStatus().mode !== "supabase") {
+    const pet = mockAccountState.pets.find(
+      (item) => item.id === input.petId && item.ownerUserId === input.account.id
+    );
+
+    if (!pet) {
+      throw new Error("PET_NOT_FOUND");
+    }
+
+    if (isReadonlyPet(pet)) {
+      throw new Error("PET_READONLY");
+    }
+
+    return;
+  }
+
+  await fetchEditableSupabasePetRow(input.account, input.petId);
 }
 
 export async function updateAccountProfile(input: {
@@ -534,19 +562,17 @@ async function loadSupabaseAccountDataSnapshot(account: CurrentUser): Promise<Ac
     fetchCreditBalance(account.id),
     supabase
       .from("pets")
-      .select(
-        "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, location_status"
-      )
+      .select(petSelectColumns)
       .or(`owner_user_id.eq.${account.id},current_host_user_id.eq.${account.id}`)
       .then(unwrapSupabaseData<PetRow[]>)
   ]);
   const mappedUser = mapUser(account, profile, balance);
   const petIds = petRows.map((pet) => pet.id);
   const assets = petIds.length > 0 ? await fetchPetAssets(petIds) : [];
-  const mappedPets = withMaterialCounts(
+  const mappedPets = sortPetsForAccount(withMaterialCounts(
     petRows.map((pet) => mapPetRow(pet, account.id)),
     assets
-  );
+  ));
 
   return {
     user: mappedUser,
@@ -572,9 +598,7 @@ async function loadSupabaseAdminAccountDataState(): Promise<AccountDataState> {
       .then(unwrapSupabaseData<CreditBalanceRow[]>),
     supabase
       .from("pets")
-      .select(
-        "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, location_status"
-      )
+      .select(petSelectColumns)
       .then(unwrapSupabaseData<PetRow[]>)
   ]);
   const balances = new Map(balanceRows.map((row) => [row.user_id, row.balance ?? 0]));
@@ -595,10 +619,10 @@ async function loadSupabaseAdminAccountDataState(): Promise<AccountDataState> {
 
   return {
     users,
-    pets: withMaterialCounts(
+    pets: sortPetsForAccount(withMaterialCounts(
       petRows.map((pet) => mapPetRow(pet)),
       assets
-    ),
+    )),
     assets,
     generationJobs: [],
     friends: [],
@@ -658,11 +682,14 @@ async function createSupabasePet(input: {
       .then(unwrapSupabaseData<Array<{ pet_number: string }>>),
     supabase
       .from("pets")
-      .select("id")
+      .select("id, asset_bundle_url")
       .eq("owner_user_id", input.account.id)
-      .then(unwrapSupabaseData<Array<{ id: string }>>)
+      .then(unwrapSupabaseData<Array<{ id: string; asset_bundle_url: string | null }>>)
   ]);
-  const name = cleanSupabasePetName(input.name) ?? `猫咪 ${ownedPetRows.length + 1}`;
+  const editablePetCount = ownedPetRows.filter(
+    (pet) => pet.asset_bundle_url !== starterPetAssetBundleUrl
+  ).length;
+  const name = cleanSupabasePetName(input.name) ?? `猫咪 ${editablePetCount + 1}`;
   const inserted = await supabase
     .from("pets")
     .insert({
@@ -674,9 +701,7 @@ async function createSupabasePet(input: {
       location_status: "at_owner_desktop",
       updated_at: new Date().toISOString()
     })
-    .select(
-      "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, location_status"
-    )
+    .select(petSelectColumns)
     .single()
     .then(unwrapSupabaseData<PetRow>);
 
@@ -688,6 +713,8 @@ async function updateSupabasePetImages(input: {
   petId: string;
   imageUrl: string;
 }): Promise<Pet> {
+  await fetchEditableSupabasePetRow(input.account, input.petId);
+
   const supabase = getRequiredSupabaseAdminClient();
   const pet = await supabase
     .from("pets")
@@ -699,9 +726,7 @@ async function updateSupabasePetImages(input: {
     })
     .eq("id", input.petId)
     .eq("owner_user_id", input.account.id)
-    .select(
-      "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, location_status"
-    )
+    .select(petSelectColumns)
     .maybeSingle()
     .then(unwrapSupabaseMaybeData<PetRow>);
 
@@ -725,6 +750,8 @@ async function updateSupabasePetName(input: {
     throw new Error("PET_NAME_REQUIRED");
   }
 
+  await fetchEditableSupabasePetRow(input.account, input.petId);
+
   const supabase = getRequiredSupabaseAdminClient();
   const pet = await supabase
     .from("pets")
@@ -734,9 +761,7 @@ async function updateSupabasePetName(input: {
     })
     .eq("id", input.petId)
     .eq("owner_user_id", input.account.id)
-    .select(
-      "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, location_status"
-    )
+    .select(petSelectColumns)
     .maybeSingle()
     .then(unwrapSupabaseMaybeData<PetRow>);
 
@@ -843,16 +868,7 @@ async function createSupabaseGenerationJob(input: {
   provider: string;
 }): Promise<GenerationJob> {
   const supabase = getRequiredSupabaseAdminClient();
-  const pet = await supabase
-    .from("pets")
-    .select("id, owner_user_id, current_host_user_id")
-    .eq("id", input.job.petId)
-    .maybeSingle()
-    .then(unwrapSupabaseMaybeData<{ id: string; owner_user_id: string; current_host_user_id: string | null }>);
-
-  if (!pet || pet.owner_user_id !== input.account.id) {
-    throw new Error("PET_NOT_FOUND");
-  }
+  await fetchEditableSupabasePetRow(input.account, input.job.petId);
 
   const activeRow = await findActiveSupabaseGenerationJobRow(input.account, {
     petId: input.job.petId,
@@ -999,15 +1015,17 @@ async function upsertSupabasePetAsset(input: {
   const supabase = getRequiredSupabaseAdminClient();
   const pet = await supabase
     .from("pets")
-    .select(
-      "id, pet_number, owner_user_id, current_host_user_id, name, species, avatar_url, source_image_url, front_image_url, location_status"
-    )
+    .select(petSelectColumns)
     .eq("id", input.petId)
     .maybeSingle()
     .then(unwrapSupabaseMaybeData<PetRow>);
 
-  if (!pet || !canAccountSeePet(input.account, mapPetRow(pet, input.account.id))) {
+  if (!pet || pet.owner_user_id !== input.account.id) {
     throw new Error("PET_NOT_FOUND");
+  }
+
+  if (pet.asset_bundle_url === starterPetAssetBundleUrl) {
+    throw new Error("PET_READONLY");
   }
 
   const asset = await supabase
@@ -1170,6 +1188,28 @@ async function recallSupabasePet(input: {
     petId: pet.id,
     status: "已召回到我的桌面"
   };
+}
+
+async function fetchEditableSupabasePetRow(
+  account: CurrentUser,
+  petId: string
+): Promise<PetRow> {
+  const pet = await getRequiredSupabaseAdminClient()
+    .from("pets")
+    .select(petSelectColumns)
+    .eq("id", petId)
+    .maybeSingle()
+    .then(unwrapSupabaseMaybeData<PetRow>);
+
+  if (!pet || pet.owner_user_id !== account.id) {
+    throw new Error("PET_NOT_FOUND");
+  }
+
+  if (pet.asset_bundle_url === starterPetAssetBundleUrl) {
+    throw new Error("PET_READONLY");
+  }
+
+  return pet;
 }
 
 async function fetchProfile(userId: string) {
@@ -1572,7 +1612,8 @@ function mapPetRow(row: PetRow, viewerUserId?: string): Pet {
     ownership,
     locationStatus: row.location_status,
     sourceImageUrl: row.source_image_url,
-    frontImageUrl: row.front_image_url ?? row.avatar_url
+    frontImageUrl: row.front_image_url ?? row.avatar_url,
+    isReadonly: row.asset_bundle_url === starterPetAssetBundleUrl
   };
 }
 

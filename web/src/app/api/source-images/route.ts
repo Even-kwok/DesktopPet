@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { saveAccountPetImages } from "@/lib/server/account-data-store";
+import { assertAccountPetEditable, saveAccountPetImages } from "@/lib/server/account-data-store";
 import { getCurrentAuthContext } from "@/lib/server/auth";
 import { getBackendStatus, getStorageBuckets, getSupabaseAdminClient } from "@/lib/supabase/server";
-import type { SourceImageUploadResponse } from "@/lib/types";
+import type { CurrentUser, SourceImageUploadResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +62,12 @@ export async function POST(request: Request) {
       },
       { status: 413 }
     );
+  }
+
+  const editabilityResponse = await assertEditablePetResponse(auth.user, petId);
+
+  if (editabilityResponse) {
+    return editabilityResponse;
   }
 
   const bucket = getStorageBuckets().sourceImages;
@@ -139,4 +145,32 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ ...response, pet });
+}
+
+async function assertEditablePetResponse(
+  account: CurrentUser,
+  petId: string
+) {
+  try {
+    await assertAccountPetEditable({ account, petId });
+    return null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "SOURCE_IMAGE_UPLOAD_FAILED";
+
+    return NextResponse.json(
+      {
+        error:
+          message === "PET_NOT_FOUND" || message === "PET_READONLY"
+            ? message
+            : "SOURCE_IMAGE_UPLOAD_FAILED",
+        details:
+          message === "PET_NOT_FOUND"
+            ? "没有找到可上传形象图的猫咪。"
+            : message === "PET_READONLY"
+              ? "体验猫不能更换形象图，可以添加新的猫咪后上传。"
+              : message
+      },
+      { status: message === "PET_NOT_FOUND" ? 404 : message === "PET_READONLY" ? 403 : 500 }
+    );
+  }
 }

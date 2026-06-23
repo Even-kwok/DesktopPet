@@ -1,4 +1,5 @@
 import { materialSlots } from "./material-slots.ts";
+import { getStarterPetSeed } from "./starter-pet-seed.ts";
 import type { CurrentUser, Friend, HostingRequest, Pet, PetAsset } from "./types.ts";
 
 export const currentUser: CurrentUser = {
@@ -8,22 +9,28 @@ export const currentUser: CurrentUser = {
   credits: 10120
 };
 
+const starterPetSeed = getStarterPetSeed();
+const starterPetAssetUrls = new Map(
+  starterPetSeed.assets.map((asset) => [asset.slot, asset.videoUrl])
+);
+
 export const pets: Pet[] = [
   {
     id: "pet_orange",
     petNumber: "CAT-20260616-0001",
     ownerUserId: currentUser.id,
     currentHostUserId: currentUser.id,
-    name: "栗子",
+    name: starterPetSeed.name,
     type: "cat",
     status: "在我的桌面",
-    materialsReady: 8,
+    materialsReady: starterPetSeed.assets.length,
     mood: "好奇",
     host: "me",
     ownership: "owned",
     locationStatus: "at_owner_desktop",
-    sourceImageUrl: null,
-    frontImageUrl: null
+    sourceImageUrl: starterPetSeed.imageUrl,
+    frontImageUrl: starterPetSeed.imageUrl,
+    isReadonly: true
   },
   {
     id: "pet_white",
@@ -65,10 +72,16 @@ export const readyMaterialIds = new Set([
 ]);
 
 export const petAssets: PetAsset[] = pets.flatMap((pet) =>
-  materialSlots.map((slot) => ({
-    petId: pet.id,
-    slot: slot.id,
-    status: pet.id === "pet_orange" && readyMaterialIds.has(slot.id) ? "ready" : "missing",
-    videoUrl: null
-  }))
+  materialSlots.map((slot) => {
+    const starterVideoUrl = pet.id === "pet_orange" ? starterPetAssetUrls.get(slot.id) : null;
+
+    return {
+      petId: pet.id,
+      slot: slot.id,
+      status: starterVideoUrl || (pet.id === "pet_orange" && readyMaterialIds.has(slot.id))
+        ? "ready"
+        : "missing",
+      videoUrl: starterVideoUrl ?? null
+    };
+  })
 );

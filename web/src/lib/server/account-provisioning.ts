@@ -1,4 +1,5 @@
 import { nextPetNumber } from "@/lib/account-data-state";
+import { getStarterPetSeed } from "@/lib/starter-pet-seed";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const initialCreditBalance = 10120;
@@ -59,18 +60,44 @@ export async function provisionSupabaseAccount(input: ProvisionInput) {
     .from("pets")
     .select("pet_number")
     .then(unwrapSupabaseData<Array<{ pet_number: string }>>);
+  const starterPet = getStarterPetSeed();
+  const starterImageUrl = starterPet.imageUrl;
 
-  await supabase
+  const insertedPet = await supabase
     .from("pets")
     .insert({
       pet_number: nextPetNumber(petNumbers.map((pet) => ({ petNumber: pet.pet_number }))),
       owner_user_id: input.userId,
       current_host_user_id: input.userId,
-      name: "猫咪 1",
+      name: starterPet.name,
       species: "cat",
+      avatar_url: starterImageUrl,
+      source_image_url: starterImageUrl,
+      front_image_url: starterImageUrl,
+      asset_bundle_url: starterPet.assetBundleUrl,
       location_status: "at_owner_desktop",
       updated_at: now
     })
+    .select("id")
+    .single()
+    .then(unwrapSupabaseData<{ id: string }>);
+
+  if (starterPet.assets.length === 0) {
+    return;
+  }
+
+  await supabase
+    .from("pet_assets")
+    .upsert(
+      starterPet.assets.map((asset) => ({
+        pet_id: insertedPet.id,
+        slot: asset.slot,
+        status: "ready",
+        video_url: asset.videoUrl,
+        updated_at: now
+      })),
+      { onConflict: "pet_id,slot" }
+    )
     .then(unwrapSupabaseResult);
 }
 

@@ -51,12 +51,17 @@ export async function PATCH(
     return NextResponse.json(
       {
         error:
-          message === "PET_NOT_FOUND" || message === "PET_NAME_REQUIRED"
+          message === "PET_NOT_FOUND" || message === "PET_NAME_REQUIRED" || message === "PET_READONLY"
             ? message
             : "UPDATE_PET_FAILED",
-        details: message === "PET_NOT_FOUND" ? "没有找到可修改的猫咪。" : message
+        details:
+          message === "PET_NOT_FOUND"
+            ? "没有找到可修改的猫咪。"
+            : message === "PET_READONLY"
+              ? "体验猫不能改名，可以添加新的猫咪后编辑。"
+              : message
       },
-      { status: message === "PET_NOT_FOUND" ? 404 : 500 }
+      { status: message === "PET_NOT_FOUND" ? 404 : message === "PET_READONLY" ? 403 : 500 }
     );
   }
 }

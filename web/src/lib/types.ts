@@ -23,6 +23,7 @@ export type Pet = {
   locationStatus: PetLocationStatus;
   sourceImageUrl?: string | null;
   frontImageUrl?: string | null;
+  isReadonly?: boolean;
 };
 
 export type PetOwnership = "owned" | "hosted" | "away";

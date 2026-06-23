@@ -8,6 +8,7 @@ import type {
   PetAsset,
   PetAssetStatus
 } from "./types";
+import { isReadonlyPet, sortPetsForAccount } from "./starter-pet.ts";
 
 export type AccountDataState = {
   users: CurrentUser[];
@@ -74,7 +75,7 @@ export function loadMockAccountDataSnapshot(
   state: AccountDataState
 ): AccountDataSnapshot {
   const user = state.users.find((item) => item.id === account.id || item.email === account.email) ?? account;
-  const visiblePets = state.pets.filter((pet) => canAccountSeePet(account, pet));
+  const visiblePets = sortPetsForAccount(state.pets.filter((pet) => canAccountSeePet(account, pet)));
   const visiblePetIds = new Set(visiblePets.map((pet) => pet.id));
   const visibleAssets = state.assets.filter((asset) => visiblePetIds.has(asset.petId));
   const visibleJobs = state.generationJobs.filter(
@@ -119,13 +120,15 @@ export function createPetInState(
   account: CurrentUser,
   input: PetCreateInput = {}
 ): Pet {
-  const ownedPetCount = state.pets.filter((pet) => pet.ownerUserId === account.id).length;
+  const ownedEditablePetCount = state.pets.filter(
+    (pet) => pet.ownerUserId === account.id && !isReadonlyPet(pet)
+  ).length;
   const pet: Pet = {
     id: input.id ?? `pet_${globalThis.crypto.randomUUID()}`,
     petNumber: nextPetNumber(state.pets, input.now ?? new Date()),
     ownerUserId: account.id,
     currentHostUserId: account.id,
-    name: cleanPetName(input.name) ?? `猫咪 ${ownedPetCount + 1}`,
+    name: cleanPetName(input.name) ?? `猫咪 ${ownedEditablePetCount + 1}`,
     type: "cat",
     status: "在我的桌面",
     materialsReady: 0,
@@ -137,7 +140,16 @@ export function createPetInState(
     frontImageUrl: null
   };
 
-  state.pets.push(pet);
+  const starterPetIndex = state.pets.findIndex(
+    (item) => item.ownerUserId === account.id && isReadonlyPet(item)
+  );
+
+  if (starterPetIndex >= 0) {
+    state.pets.splice(starterPetIndex, 0, pet);
+  } else {
+    state.pets.push(pet);
+  }
+
   return pet;
 }
 
@@ -282,6 +294,10 @@ export function upsertPetAssetInState(
     throw new Error("PET_NOT_FOUND");
   }
 
+  if (isReadonlyPet(pet)) {
+    throw new Error("PET_READONLY");
+  }
+
   const asset: PetAsset = {
     petId: input.petId,
     slot: input.slot,
@@ -311,6 +327,10 @@ export function createGenerationJobInState(
 
   if (!pet) {
     throw new Error("PET_NOT_FOUND");
+  }
+
+  if (isReadonlyPet(pet)) {
+    throw new Error("PET_READONLY");
   }
 
   const activeJob = findActiveGenerationJobInState(state, account, {
@@ -548,6 +568,10 @@ export function updatePetImagesInState(
     throw new Error("PET_NOT_FOUND");
   }
 
+  if (isReadonlyPet(state.pets[petIndex])) {
+    throw new Error("PET_READONLY");
+  }
+
   state.pets[petIndex] = {
     ...state.pets[petIndex],
     sourceImageUrl: input.imageUrl,
@@ -579,6 +603,10 @@ export function updatePetNameInState(
 
   if (petIndex < 0) {
     throw new Error("PET_NOT_FOUND");
+  }
+
+  if (isReadonlyPet(state.pets[petIndex])) {
+    throw new Error("PET_READONLY");
   }
 
   state.pets[petIndex] = {

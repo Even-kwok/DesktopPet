@@ -24,6 +24,7 @@ import {
 } from "@/lib/generation-job-polling";
 import type { MaterialSlot, MaterialUnlockTier } from "@/lib/material-slots";
 import { canDeletePetForAccount } from "@/lib/pet-permissions";
+import { isReadonlyPet, sortPetsForAccount } from "@/lib/starter-pet";
 import {
   accountNameEditControlCopy,
   assetStatusAfterGenerationFailure,
@@ -173,6 +174,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
   const readyCount = selectedPetAssets.filter((asset) => asset.status === "ready").length;
   const hasFrameImage = selectedPet ? Boolean(selectedPet.frontImageUrl || selectedPet.sourceImageUrl) : false;
+  const selectedPetIsReadonly = selectedPet ? isReadonlyPet(selectedPet) : false;
   const accountEditControlCopy = accountNameEditControlCopy(user.name);
 
   function setPetPatch(petId: string, patch: Partial<Pet>) {
@@ -466,6 +468,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       return;
     }
 
+    if (isReadonlyPet(selectedPet)) {
+      setMessage({ tone: "info", text: "体验猫不能更换形象图，可以添加新的猫咪后上传。" });
+      return;
+    }
+
     const previewUrl = URL.createObjectURL(file);
     setSourcePreviewUrl(previewUrl);
     setSelectedFileName(file.name);
@@ -520,6 +527,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
   async function handleGenerateAction(slot: MaterialSlot) {
     if (!selectedPet) {
+      return;
+    }
+
+    if (isReadonlyPet(selectedPet)) {
+      setMessage({ tone: "info", text: "体验猫的素材不能重新生成，可以添加新的猫咪后编辑。" });
       return;
     }
 
@@ -596,6 +608,11 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
     if (!pet) {
       setMessage({ tone: "error", text: "原猫咪已删除，无法应用到动作包。" });
+      return;
+    }
+
+    if (isReadonlyPet(pet)) {
+      setMessage({ tone: "info", text: "体验猫的素材不能被覆盖，可以添加新的猫咪后编辑。" });
       return;
     }
 
@@ -795,7 +812,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
     try {
       const response = await createPet();
-      const nextPets = [...pets, response.pet];
+      const nextPets = sortPetsForAccount([...pets, response.pet]);
 
       setPets(nextPets);
       handleSelectPet(response.pet.id);
@@ -954,6 +971,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             selectedFileName={selectedFileName}
             sourcePreviewUrl={sourcePreviewUrl}
             isCreatingPet={isCreatingPet}
+            isReadonly={selectedPetIsReadonly}
             onSelectPet={(petId) => {
               handleSelectPet(petId);
               setActiveTab("materials");
@@ -986,6 +1004,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             <MaterialsTab
               slots={initialData.materialSlots}
               hasFrameImage={hasFrameImage}
+              canEditMaterials={!selectedPetIsReadonly}
               assetFor={assetFor}
               generationErrorForSlot={generationErrorForSlot}
               isSubmittingAction={isSubmittingSlot}
@@ -1168,6 +1187,7 @@ function PetPanel({
   selectedFileName,
   sourcePreviewUrl,
   isCreatingPet,
+  isReadonly,
   onSelectPet,
   onCreatePet,
   onImageSelected
@@ -1178,6 +1198,7 @@ function PetPanel({
   selectedFileName: string;
   sourcePreviewUrl: string | null;
   isCreatingPet: boolean;
+  isReadonly: boolean;
   onSelectPet: (petId: string) => void;
   onCreatePet: () => void;
   onImageSelected: (file: File | undefined) => void;
@@ -1211,11 +1232,12 @@ function PetPanel({
       </div>
 
       <div className="pet-upload-block">
-        <label className="button file-button pet-upload-button">
-          上传猫咪形象图
+        <label className={isReadonly ? "button file-button pet-upload-button disabled" : "button file-button pet-upload-button"}>
+          {isReadonly ? "体验猫不可编辑" : "上传猫咪形象图"}
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
+            disabled={isReadonly}
             onChange={(event) => void onImageSelected(event.target.files?.[0])}
           />
         </label>
@@ -1254,6 +1276,7 @@ function PetPanel({
 function MaterialsTab({
   slots,
   hasFrameImage,
+  canEditMaterials,
   assetFor,
   generationErrorForSlot,
   isSubmittingAction,
@@ -1262,6 +1285,7 @@ function MaterialsTab({
 }: {
   slots: MaterialSlot[];
   hasFrameImage: boolean;
+  canEditMaterials: boolean;
   assetFor: (slot: string) => PetAsset | undefined;
   generationErrorForSlot: (slot: string) => string | undefined;
   isSubmittingAction: (slot: string) => boolean;
@@ -1306,6 +1330,7 @@ function MaterialsTab({
                 <MaterialCard
                   asset={assetFor(slot.id)}
                   activeJob={jobForSlot(slot.id)}
+                  canEdit={canEditMaterials}
                   generationError={generationErrorForSlot(slot.id)}
                   hasFrameImage={hasFrameImage}
                   isSubmitting={isSubmittingAction(slot.id)}
@@ -1364,6 +1389,7 @@ function MaterialCard({
   slot,
   asset,
   activeJob,
+  canEdit,
   generationError,
   hasFrameImage,
   isSubmitting,
@@ -1372,6 +1398,7 @@ function MaterialCard({
   slot: MaterialSlot;
   asset: PetAsset | undefined;
   activeJob: GenerationJob | undefined;
+  canEdit: boolean;
   generationError: string | undefined;
   hasFrameImage: boolean;
   isSubmitting: boolean;
@@ -1427,8 +1454,16 @@ function MaterialCard({
           </p>
         ) : null}
         <div className="card-actions">
-          <button className="button" disabled={!hasFrameImage || isGenerating} onClick={onGenerate}>
-            {isSubmitting ? "提交中" : isGenerating ? "生成中" : isReady ? `重新生成 ${slot.cost} 分` : `生成 ${slot.cost} 分`}
+          <button className="button" disabled={!canEdit || !hasFrameImage || isGenerating} onClick={onGenerate}>
+            {!canEdit
+              ? "体验素材"
+              : isSubmitting
+                ? "提交中"
+                : isGenerating
+                  ? "生成中"
+                  : isReady
+                    ? `重新生成 ${slot.cost} 分`
+                    : `生成 ${slot.cost} 分`}
           </button>
         </div>
       </div>
@@ -1502,7 +1537,8 @@ function PetsTab({
       <PanelTitle icon="🐾" title="我的宠物" subtitle="给每只小家伙整理名字、位置和动作包。" />
       <div className="pet-list-grid">
         {pets.map((pet) => {
-          const canEditPet = canDeletePetForAccount(currentUser, pet);
+          const canDeletePet = canDeletePetForAccount(currentUser, pet);
+          const canEditPet = canDeletePet && !isReadonlyPet(pet);
           const renameLabel = canEditPet ? `改名：${pet.name}` : null;
           const isEditing = editingPetId === pet.id;
           const isDeleting = deletingPetId === pet.id;
@@ -1555,7 +1591,7 @@ function PetsTab({
                   改名
                 </button>
               ) : null}
-              {canEditPet ? (
+              {canDeletePet ? (
                 <button
                   className="button danger"
                   disabled={isDeleting || isSavingPetName}

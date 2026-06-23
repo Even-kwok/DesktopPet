@@ -15,6 +15,7 @@ import {
   updateGenerationJobInState,
   updatePetImagesInState,
   updatePetNameInState,
+  upsertPetAssetInState,
   updateUserProfileInState
 } from "../account-data-state.ts";
 import type { CurrentUser, Pet, PetAsset } from "../types.ts";
@@ -83,6 +84,14 @@ const otherPet: Pet = {
   sourceImageUrl: null,
   frontImageUrl: null
 };
+
+const starterPet = {
+  ...ownPet,
+  id: "pet_starter",
+  petNumber: "CAT-20260616-0000",
+  name: "体验猫",
+  isReadonly: true
+} as Pet & { isReadonly: true };
 
 test("mock account snapshot only exposes owned or hosted pets", () => {
   const state = createMockAccountDataState({
@@ -216,6 +225,84 @@ test("deletePetFromState cascades pet assets and protects other accounts", () =>
   assert.throws(() => deletePetFromState(state, account, "pet_other"), /PET_NOT_FOUND/);
 });
 
+test("readonly starter pets sort after user-added pets in account snapshots", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [starterPet, ownPet],
+    assets: []
+  });
+
+  const snapshot = loadMockAccountDataSnapshot(account, state);
+
+  assert.deepEqual(
+    snapshot.pets.map((pet) => pet.id),
+    ["pet_orange", "pet_starter"]
+  );
+});
+
+test("readonly starter pets can be deleted by their owner", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [starterPet],
+    assets: [
+      {
+        petId: starterPet.id,
+        slot: "idle_loop",
+        status: "ready",
+        videoUrl: "https://example.com/starter-idle.mp4"
+      }
+    ]
+  });
+
+  assert.deepEqual(deletePetFromState(state, account, starterPet.id), {
+    deletedPetId: starterPet.id,
+    deletedAssets: 1
+  });
+  assert.deepEqual(state.pets, []);
+});
+
+test("readonly starter pets cannot be renamed, reimaged, or regenerated", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [starterPet],
+    assets: []
+  });
+
+  assert.throws(
+    () => updatePetNameInState(state, account, { petId: starterPet.id, name: "新名字" }),
+    /PET_READONLY/
+  );
+  assert.throws(
+    () => updatePetImagesInState(state, account, {
+      petId: starterPet.id,
+      imageUrl: "https://example.com/new.png"
+    }),
+    /PET_READONLY/
+  );
+  assert.throws(
+    () =>
+      upsertPetAssetInState(state, account, {
+        petId: starterPet.id,
+        slot: "idle_loop",
+        videoUrl: "https://example.com/new-idle.mp4"
+      }),
+    /PET_READONLY/
+  );
+  assert.throws(
+    () =>
+      createGenerationJobInState(state, account, {
+        jobId: "jimeng_starter",
+        type: "action_video",
+        status: "queued",
+        cost: 18,
+        petId: starterPet.id,
+        slot: "idle_loop",
+        resultUrl: null
+      }),
+    /PET_READONLY/
+  );
+});
+
 test("updatePetNameInState persists owned pet names in account snapshots", () => {
   const state = createMockAccountDataState({
     users: [account],
@@ -260,6 +347,25 @@ test("createPetInState adds an owned desktop pet with the next account name and 
   assert.equal(pet.currentHostUserId, account.id);
   assert.equal(pet.status, "在我的桌面");
   assert.equal(state.pets.at(-1)?.id, "pet_new");
+});
+
+test("createPetInState inserts new pets before readonly starter pets", () => {
+  const state = createMockAccountDataState({
+    users: [account],
+    pets: [starterPet],
+    assets: []
+  });
+
+  const pet = createPetInState(state, account, {
+    id: "pet_new",
+    now: new Date("2026-06-17T00:00:00.000Z")
+  });
+
+  assert.equal(pet.name, "猫咪 1");
+  assert.deepEqual(
+    state.pets.map((item) => item.id),
+    ["pet_new", "pet_starter"]
+  );
 });
 
 test("addFriendToState adds a friend by email and counts pets hosted by that friend", () => {

@@ -70,10 +70,16 @@ export async function PATCH(
 
     return NextResponse.json(
       {
-        error: message === "PET_NOT_FOUND" ? "PET_NOT_FOUND" : "SAVE_MATERIAL_FAILED",
-        details: message
+        error:
+          message === "PET_NOT_FOUND" || message === "PET_READONLY"
+            ? message
+            : "SAVE_MATERIAL_FAILED",
+        details:
+          message === "PET_READONLY"
+            ? "体验猫的素材不能重新保存，可以添加新的猫咪后编辑。"
+            : message
       },
-      { status: message === "PET_NOT_FOUND" ? 404 : 500 }
+      { status: message === "PET_NOT_FOUND" ? 404 : message === "PET_READONLY" ? 403 : 500 }
     );
   }
 }
