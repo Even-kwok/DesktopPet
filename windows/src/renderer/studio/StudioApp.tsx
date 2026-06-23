@@ -21,6 +21,8 @@ import {
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
   statusMessageForRecallAction,
+  statusMessageForSignInAction,
+  statusMessageForSignOutAction,
   statusMessageForSyncAction,
   statusMessageForActionResult
 } from "./studio-action-result.ts";
@@ -150,7 +152,7 @@ export function StudioApp() {
               onClick={() =>
                 void runAction(
                   () => bridge?.signOut?.(),
-                  "已退出账号。",
+                  statusMessageForSignOutAction(),
                   (result) => setFriendEmail(nextFriendEmailDraftAfterSignOutAction(friendEmail, result))
                 )
               }
@@ -191,7 +193,9 @@ export function StudioApp() {
           </label>
           <button
             className="primary-action"
-            onClick={() => void runAction(() => bridge?.signIn?.(email, password), "登录成功。")}
+            onClick={() =>
+              void runAction(() => bridge?.signIn?.(email, password), statusMessageForSignInAction())
+            }
           >
             登录
           </button>

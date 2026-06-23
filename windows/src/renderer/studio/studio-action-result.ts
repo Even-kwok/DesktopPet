@@ -21,6 +21,14 @@ export function statusMessageForSyncAction(result: unknown) {
   return `已从网页同步 ${summary.petCount} 只宠物、${summary.materialCount} 个动作素材。`;
 }
 
+export function statusMessageForSignInAction() {
+  return "登录成功。点击同步获取账号下的猫咪。";
+}
+
+export function statusMessageForSignOutAction() {
+  return "已退出账号。本地已同步的猫咪资料和视频素材已保留。";
+}
+
 export function statusMessageForAddFriendAction(result: unknown) {
   const friendName = addedFriendNameFromActionResult(result);
   return friendName ? `已添加好友 ${friendName}。` : "已添加好友。";

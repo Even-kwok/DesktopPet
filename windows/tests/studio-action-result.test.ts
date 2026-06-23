@@ -8,6 +8,8 @@ import {
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
   statusMessageForRecallAction,
+  statusMessageForSignInAction,
+  statusMessageForSignOutAction,
   statusMessageForSyncAction,
   statusMessageForActionResult
 } from "../src/renderer/studio/studio-action-result.ts";
@@ -42,6 +44,14 @@ test("uses Mac-parity copy for add-friend success", () => {
 
 test("uses Mac-parity copy for remove-friend success", () => {
   assert.equal(statusMessageForRemoveFriendAction("阿雯"), "已删除好友 阿雯。");
+});
+
+test("uses Mac-parity copy for account sign-in success", () => {
+  assert.equal(statusMessageForSignInAction(), "登录成功。点击同步获取账号下的猫咪。");
+});
+
+test("uses Mac-parity copy for account sign-out success", () => {
+  assert.equal(statusMessageForSignOutAction(), "已退出账号。本地已同步的猫咪资料和视频素材已保留。");
 });
 
 test("clears friend email draft after signing out", () => {
