@@ -1,4 +1,5 @@
 import { BrowserWindow } from "electron";
+import { studioRendererLoadTarget } from "./studio-window-policy.js";
 
 export type StudioWindowControllerOptions = {
   preloadPath: string;
@@ -22,10 +23,15 @@ export class StudioWindowController {
   show() {
     const window = this.#window ?? this.#createWindow();
     this.#isVisible = true;
-    if (this.#options.studioRendererURL) {
-      void window.loadURL(this.#options.studioRendererURL);
-    } else if (!window.webContents.getURL()) {
-      void window.loadFile(this.#options.studioRendererFile);
+    const loadTarget = studioRendererLoadTarget({
+      currentURL: window.webContents.getURL(),
+      studioRendererURL: this.#options.studioRendererURL,
+      studioRendererFile: this.#options.studioRendererFile
+    });
+    if (loadTarget.type === "url") {
+      void window.loadURL(loadTarget.value);
+    } else if (loadTarget.type === "file") {
+      void window.loadFile(loadTarget.value);
     }
     window.show();
     window.focus();
