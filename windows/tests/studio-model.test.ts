@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   accountDetail,
   canRequestHosting,
+  resolveHostingRequestTarget,
   shouldShowRecallAction,
   statusTextForSyncedPet
 } from "../src/shared/studio-model.ts";
@@ -30,4 +31,30 @@ test("computes pet status and available actions", () => {
   assert.equal(canRequestHosting({ ownership: "hosted", displayState: "active" }), false);
   assert.equal(shouldShowRecallAction({ ownership: "away", displayState: "unavailable" }, true), true);
   assert.equal(shouldShowRecallAction({ ownership: "away", displayState: "unavailable" }, false), false);
+});
+
+test("validates hosting requests like the Mac studio action entry", () => {
+  const syncedPetCards = [
+    { id: "pet_owned", ownership: "owned", displayState: "active" },
+    { id: "pet_hosted", ownership: "hosted", displayState: "active" }
+  ];
+  const friendCards = [{ id: "friend_1" }];
+
+  assert.deepEqual(
+    resolveHostingRequestTarget("pet_owned", "friend_1", syncedPetCards, friendCards),
+    { petId: "pet_owned", toUserId: "friend_1" }
+  );
+
+  assert.throws(
+    () => resolveHostingRequestTarget("", "friend_1", syncedPetCards, friendCards),
+    /请先同步并选择一只猫咪。/
+  );
+  assert.throws(
+    () => resolveHostingRequestTarget("pet_hosted", "friend_1", syncedPetCards, friendCards),
+    /这只猫现在不在我的桌面，先召回再寄养。/
+  );
+  assert.throws(
+    () => resolveHostingRequestTarget("pet_owned", "", syncedPetCards, friendCards),
+    /请选择一位好友。/
+  );
 });

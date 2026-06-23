@@ -35,6 +35,7 @@ import {
 import { allPetActionSlots } from "../shared/pet-action-slots.ts";
 import { reviewPetVideoImport } from "../shared/video-import-review.ts";
 import { remoteMaterialDestinationPath, writeRemoteMaterialAtomically } from "../shared/remote-material-cache.ts";
+import { resolveHostingRequestTarget } from "../shared/studio-model.ts";
 import type { DesktopPetBundleMaterial } from "../shared/desktop-sync-client.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 
@@ -261,7 +262,13 @@ async function bootstrap() {
     },
     requestHosting: async (petId, toUserId) => {
       const account = requireAccount(settingsStore.currentAccount);
-      await desktopSyncClient.requestHosting(petId, toUserId, account.accessToken);
+      const target = resolveHostingRequestTarget(
+        petId,
+        toUserId,
+        settingsStore.syncedPetCards,
+        settingsStore.friendCards
+      );
+      await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
       return studioState();
     },
     recallPet: async (petId) => {

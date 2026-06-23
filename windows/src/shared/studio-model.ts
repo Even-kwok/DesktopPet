@@ -5,6 +5,14 @@ type SyncedPetState = {
   displayState?: string | null;
 };
 
+type SyncedPetActionState = SyncedPetState & {
+  id: string;
+};
+
+type FriendActionState = {
+  id: string;
+};
+
 export function accountDetail(account: DesktopAccountSession | undefined) {
   if (!account) {
     return "登录后可同步网页端账号下的宠物数据。";
@@ -36,4 +44,30 @@ export function canRecall(pet: SyncedPetState) {
 
 export function shouldShowRecallAction(pet: SyncedPetState, isSelected: boolean) {
   return isSelected && canRecall(pet);
+}
+
+export function resolveHostingRequestTarget(
+  petId: string,
+  toUserId: string,
+  syncedPetCards: readonly SyncedPetActionState[],
+  friendCards: readonly FriendActionState[]
+) {
+  const selectedPet = syncedPetCards.find((pet) => pet.id === petId);
+  if (!selectedPet) {
+    throw new Error("请先同步并选择一只猫咪。");
+  }
+
+  const selectedFriend = friendCards.find((friend) => friend.id === toUserId);
+  if (!selectedFriend) {
+    throw new Error("请选择一位好友。");
+  }
+
+  if (!canRequestHosting(selectedPet)) {
+    throw new Error("这只猫现在不在我的桌面，先召回再寄养。");
+  }
+
+  return {
+    petId: selectedPet.id,
+    toUserId: selectedFriend.id
+  };
 }
