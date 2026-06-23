@@ -15,6 +15,7 @@ import {
 } from "../../shared/studio-model.ts";
 import {
   nextFriendEmailDraftAfterAddFriendAction,
+  nextFriendEmailDraftAfterSignOutAction,
   statusMessageForActionResult
 } from "./studio-action-result.ts";
 import {
@@ -139,7 +140,17 @@ export function StudioApp() {
         </div>
         <div className="studio-topbar-actions">
           {account ? (
-            <button onClick={() => void runAction(() => bridge?.signOut?.(), "已退出账号。")}>退出</button>
+            <button
+              onClick={() =>
+                void runAction(
+                  () => bridge?.signOut?.(),
+                  "已退出账号。",
+                  (result) => setFriendEmail(nextFriendEmailDraftAfterSignOutAction(friendEmail, result))
+                )
+              }
+            >
+              退出
+            </button>
           ) : null}
           <button onClick={() => void runAction(() => bridge?.sync?.(), "已同步网页端素材。")} disabled={!account}>
             同步

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   nextFriendEmailDraftAfterAddFriendAction,
+  nextFriendEmailDraftAfterSignOutAction,
   statusMessageForActionResult
 } from "../src/renderer/studio/studio-action-result.ts";
 
@@ -22,6 +23,14 @@ test("clears friend email draft after a successful add-friend action", () => {
   assert.equal(nextFriendEmailDraftAfterAddFriendAction("friend@example.com", { friendAdded: true }), "");
   assert.equal(
     nextFriendEmailDraftAfterAddFriendAction("friend@example.com", { canceled: true }),
+    "friend@example.com"
+  );
+});
+
+test("clears friend email draft after signing out", () => {
+  assert.equal(nextFriendEmailDraftAfterSignOutAction("friend@example.com", undefined), "");
+  assert.equal(
+    nextFriendEmailDraftAfterSignOutAction("friend@example.com", { canceled: true }),
     "friend@example.com"
   );
 });

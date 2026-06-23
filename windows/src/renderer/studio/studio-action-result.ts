@@ -3,6 +3,14 @@ export function statusMessageForActionResult(result: unknown, successMessage: st
 }
 
 export function nextFriendEmailDraftAfterAddFriendAction(currentDraft: string, result: unknown) {
+  return nextFriendEmailDraftAfterSuccessfulAction(currentDraft, result);
+}
+
+export function nextFriendEmailDraftAfterSignOutAction(currentDraft: string, result: unknown) {
+  return nextFriendEmailDraftAfterSuccessfulAction(currentDraft, result);
+}
+
+function nextFriendEmailDraftAfterSuccessfulAction(currentDraft: string, result: unknown) {
   return isCanceledResult(result) ? currentDraft : "";
 }
 
