@@ -17,6 +17,7 @@ export type MenuTemplateItem = {
   type?: "separator" | "normal" | "checkbox";
   checked?: boolean;
   enabled?: boolean;
+  accelerator?: string;
   submenu?: MenuTemplateItem[];
   action?: string;
   payload?: unknown;
@@ -41,7 +42,7 @@ export type TrayMenuState = {
 
 export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] {
   return [
-    { label: "打开素材工作台", action: "openStudio" },
+    { label: "打开素材工作台", accelerator: "CommandOrControl+,", action: "openStudio" },
     { type: "separator" },
     {
       label: "选择状态视频",
@@ -57,23 +58,26 @@ export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] 
     },
     {
       label: state.isVisible ? "隐藏宠物" : "显示宠物",
+      accelerator: "CommandOrControl+S",
       action: "toggleVisibility"
     },
     {
       label: "切换点击穿透",
       type: "checkbox",
       checked: state.isClickThrough,
+      accelerator: "CommandOrControl+T",
       action: "toggleClickThrough"
     },
     {
       label: "切换鼠标经过抓虫",
       type: "checkbox",
       checked: state.isMouseoverCatchEnabled,
+      accelerator: "CommandOrControl+W",
       action: "toggleMouseoverCatch"
     },
-    { label: "重置位置", action: "resetPositions" },
+    { label: "重置位置", accelerator: "CommandOrControl+R", action: "resetPositions" },
     { type: "separator" },
-    { label: "退出", action: "quit" }
+    { label: "退出", accelerator: "CommandOrControl+Q", action: "quit" }
   ];
 }
 
@@ -111,6 +115,7 @@ function chooseStateVideoSubmenu(state: TrayMenuState, petIndex: number): MenuTe
     label: petActionSlotDisplayName(slot),
     type: "checkbox",
     checked: state.hasVideo(slot, petIndex),
+    accelerator: petIndex === 0 && slot === "idle_loop" ? "CommandOrControl+O" : undefined,
     action: "chooseStateVideo",
     payload: { petIndex, slot }
   }));
@@ -137,7 +142,7 @@ function petsSubmenu(state: TrayMenuState): MenuTemplateItem[] {
       enabled: false
     },
     { type: "separator" },
-    { label: "添加宠物", action: "addPet" },
+    { label: "添加宠物", accelerator: "CommandOrControl+N", action: "addPet" },
     {
       label: "重命名宠物",
       enabled: state.petCount > 0,
