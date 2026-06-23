@@ -5,7 +5,7 @@ import { buildSeedanceRequestBody } from "./seedance-request.ts";
 
 test("builds a Seedance first-last-frame request with matching images by default", () => {
   const body = buildSeedanceRequestBody({
-    model: "doubao-seedance-2-0-fast-260128",
+    model: "doubao-seed-2-0-mini-260428",
     prompt: "green screen cat yawning",
     sourceImageUrl: "https://example.com/cat.png",
     settings: {

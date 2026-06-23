@@ -9,6 +9,9 @@ import {
 
 const providerEnvKeys = [
   "mini_API_KEY",
+  "MINI_API_KEY",
+  "DOUBAO_SEED_API_KEY",
+  "JIMENG_MINI_API_KEY",
   "JIMENG_API_KEY",
   "ARK_API_KEY",
   "JIMENG_VIDEO_MODEL",
@@ -44,15 +47,15 @@ function withProviderEnv<T>(env: Record<string, string | undefined>, run: () => 
   }
 }
 
-test("Jimeng config defaults to the API-capable Seedance fast model", () => {
-  withProviderEnv({ ARK_API_KEY: " fast-secret " }, () => {
-    assert.equal(getJimengApiKey(), "fast-secret");
-    assert.equal(defaultJimengVideoModel, "doubao-seedance-2-0-fast-260128");
-    assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-fast-260128");
+test("Jimeng config defaults to the Doubao Seed 2.0 mini model", () => {
+  withProviderEnv({ ARK_API_KEY: " ark-secret " }, () => {
+    assert.equal(getJimengApiKey(), "ark-secret");
+    assert.equal(defaultJimengVideoModel, "doubao-seed-2-0-mini-260428");
+    assert.equal(getJimengVideoModel(), "doubao-seed-2-0-mini-260428");
   });
 });
 
-test("Jimeng config prefers the mini API key when the mini model is selected", () => {
+test("Jimeng config prefers the mini API key when the Doubao Seed model is selected", () => {
   withProviderEnv(
     {
       mini_API_KEY: " mini-secret ",
@@ -60,20 +63,20 @@ test("Jimeng config prefers the mini API key when the mini model is selected", (
       ARK_API_KEY: "ark-secret"
     },
     () => {
-      assert.equal(getJimengApiKey("doubao-seedance-2-0-mini-260615"), "mini-secret");
+      assert.equal(getJimengApiKey("doubao-seed-2-0-mini-260428"), "mini-secret");
     }
   );
 });
 
-test("Jimeng config uses legacy provider keys when the fast model is selected", () => {
+test("Jimeng config ignores legacy Seedance env model overrides", () => {
   withProviderEnv(
     {
       mini_API_KEY: "mini-secret",
-      ARK_API_KEY: " fast-secret "
+      ARK_API_KEY: "ark-secret",
+      JIMENG_VIDEO_MODEL: "doubao-seedance-2-0-fast-260128"
     },
     () => {
-      assert.equal(getJimengApiKey("doubao-seedance-2-0-fast-260128"), "fast-secret");
-      assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-fast-260128");
+      assert.equal(getJimengVideoModel(), "doubao-seed-2-0-mini-260428");
     }
   );
 });

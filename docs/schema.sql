@@ -282,6 +282,7 @@ insert into public.app_settings (key, value, updated_at)
 values (
   'video_generation_settings',
   '{
+    "model": "doubao-seed-2-0-mini-260428",
     "durationSeconds": 10,
     "ratio": "adaptive",
     "resolution": "720p",
