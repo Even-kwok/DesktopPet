@@ -8,6 +8,7 @@ test("lists the stable preload IPC channels", () => {
     signIn: "studio:sign-in",
     signOut: "studio:sign-out",
     sync: "studio:sync",
+    selectSyncedPet: "studio:select-synced-pet",
     addPet: "pets:add",
     renamePet: "pets:rename",
     importVideo: "pets:import-video",

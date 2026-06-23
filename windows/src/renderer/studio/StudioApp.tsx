@@ -225,7 +225,10 @@ export function StudioApp() {
                 <button
                   className={`synced-card ${pet.id === selectedSyncedPet?.id ? "selected" : ""}`}
                   key={pet.id}
-                  onClick={() => setSelectedSyncedPetID(pet.id)}
+                  onClick={() => {
+                    setSelectedSyncedPetID(pet.id);
+                    void bridge?.selectSyncedPet?.(pet.id);
+                  }}
                 >
                   <span>{pet.name}</span>
                   <small>

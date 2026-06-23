@@ -6,6 +6,7 @@ const desktopPet = {
   signIn: (email: string, password: string) => ipcRenderer.invoke(ipcChannels.signIn, email, password),
   signOut: () => ipcRenderer.invoke(ipcChannels.signOut),
   sync: () => ipcRenderer.invoke(ipcChannels.sync),
+  selectSyncedPet: (petId: string) => ipcRenderer.invoke(ipcChannels.selectSyncedPet, petId),
   addPet: () => ipcRenderer.invoke(ipcChannels.addPet),
   renamePet: (petIndex: number, name: string) => ipcRenderer.invoke(ipcChannels.renamePet, petIndex, name),
   importVideo: (petIndex: number, slot: string) => ipcRenderer.invoke(ipcChannels.importVideo, petIndex, slot),

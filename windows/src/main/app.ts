@@ -132,6 +132,12 @@ async function bootstrap() {
       refreshTray();
       return { summary, ...studioState() };
     },
+    selectSyncedPet: (petId) => {
+      if (settingsStore.syncedPetCards.some((pet) => pet.id === petId)) {
+        settingsStore.selectedSyncedPetID = petId;
+      }
+      return studioState();
+    },
     addPet: () => {
       const petIndex = petColonyController.addPet();
       refreshTray();
