@@ -218,6 +218,29 @@ test("maps malformed friend list responses to invalid response", async () => {
   }
 });
 
+test("maps malformed add-friend responses to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: {
+      friend: { id: "friend_1", name: "阿雯", status: "在线", hostedPets: "one" }
+    }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.addFriend("friend@example.com", "desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("describes local videos replaced by cloud sync", () => {
   const bundle = {
     version: 1,
