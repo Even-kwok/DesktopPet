@@ -74,16 +74,16 @@ export class SettingsStore {
   }
 
   get petCount() {
-    return Math.max(0, this.#data.petCount ?? 1);
+    return normalizedPetCount(this.#data.petCount, 1);
   }
 
   set petCount(count: number) {
-    this.#data.petCount = Math.max(0, Math.trunc(count));
+    this.#data.petCount = normalizedPetCount(count, 0);
     this.#write();
   }
 
   get isPetVisible() {
-    return this.#data.isPetVisible ?? false;
+    return booleanOrDefault(this.#data.isPetVisible, false);
   }
 
   set isPetVisible(value: boolean) {
@@ -92,7 +92,7 @@ export class SettingsStore {
   }
 
   get isClickThrough() {
-    return this.#data.isClickThrough ?? false;
+    return booleanOrDefault(this.#data.isClickThrough, false);
   }
 
   set isClickThrough(value: boolean) {
@@ -101,7 +101,7 @@ export class SettingsStore {
   }
 
   get isMouseoverCatchEnabled() {
-    return this.#data.isMouseoverCatchEnabled ?? true;
+    return booleanOrDefault(this.#data.isMouseoverCatchEnabled, true);
   }
 
   set isMouseoverCatchEnabled(value: boolean) {
@@ -257,7 +257,7 @@ export class SettingsStore {
   }
 
   #pet(index: number) {
-    const pets = [...(this.#data.pets ?? [])];
+    const pets = Array.isArray(this.#data.pets) ? [...this.#data.pets] : [];
     while (pets.length <= index) {
       pets.push({});
     }
@@ -302,4 +302,14 @@ export function applyPetSizeScale(frame: Rect, scale: number): Rect {
     width,
     height
   };
+}
+
+function normalizedPetCount(count: unknown, fallback: number) {
+  return typeof count === "number" && Number.isFinite(count)
+    ? Math.max(0, Math.trunc(count))
+    : fallback;
+}
+
+function booleanOrDefault(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }

@@ -44,6 +44,32 @@ test("defaults match Mac desktop behavior", () => {
   }
 });
 
+test("falls back to Mac defaults for malformed setting values", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        petCount: "many",
+        isPetVisible: "yes",
+        isClickThrough: "no",
+        isMouseoverCatchEnabled: "maybe",
+        pets: "invalid"
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+    assert.equal(reloaded.petCount, 1);
+    assert.equal(reloaded.isPetVisible, false);
+    assert.equal(reloaded.isClickThrough, false);
+    assert.equal(reloaded.isMouseoverCatchEnabled, true);
+    assert.equal(reloaded.petName(0), "Pet 1");
+    assert.deepEqual(reloaded.savedVideoSlots(0), []);
+  } finally {
+    cleanup();
+  }
+});
+
 test("persists pet names, size, frame, video paths, and session", () => {
   const { store, cleanup } = makeStore();
   try {
