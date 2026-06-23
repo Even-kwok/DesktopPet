@@ -114,13 +114,19 @@ export class DesktopPetSyncClient {
     this.#fetch = fetchImplementation;
   }
 
-  login(email: string, password: string) {
-    return this.#sendJSON<DesktopLoginResponse>({
+  async login(email: string, password: string) {
+    const response = await this.#sendJSON<unknown>({
       path: "/api/desktop/auth/login",
       method: "POST",
       body: { email, password },
       unauthorizedError: DesktopPetSyncError.loginFailed()
     });
+
+    if (!isDesktopLoginResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response;
   }
 
   fetchBundle(accessToken?: string) {
@@ -274,6 +280,45 @@ function isRemoteMaterialCachePath(filePath: string) {
 
 function isDeprecatedMaterialSlot(slot: PetActionSlot) {
   return slot === "drag_loop";
+}
+
+function isDesktopLoginResponse(value: unknown): value is DesktopLoginResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.mode) &&
+    isString(value.tokenType) &&
+    isString(value.accessToken) &&
+    isInteger(value.expiresIn) &&
+    isDesktopSyncAccount(value.account)
+  );
+}
+
+function isDesktopSyncAccount(value: unknown): value is DesktopSyncAccount {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isString(value.name) &&
+    isString(value.email) &&
+    isInteger(value.credits)
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isString(value: unknown) {
+  return typeof value === "string";
+}
+
+function isInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value);
 }
 
 export function safeRemoteMaterialPathComponent(value: string) {
