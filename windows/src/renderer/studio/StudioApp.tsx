@@ -13,6 +13,7 @@ import {
   shouldShowRecallAction,
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
+import { statusMessageForActionResult } from "./studio-action-result.ts";
 
 declare global {
   interface Window {
@@ -96,9 +97,9 @@ export function StudioApp() {
 
   const runAction = async (action: () => Promise<unknown> | unknown, successMessage: string) => {
     try {
-      await action();
+      const result = await action();
       await refreshState();
-      setStatusMessage(successMessage);
+      setStatusMessage(statusMessageForActionResult(result, successMessage));
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "操作失败，请稍后重试。");
     }
