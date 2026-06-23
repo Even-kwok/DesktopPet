@@ -12,6 +12,15 @@ export function nextSelectedPetIndexAfterAction(
   return clampPetIndex(resultPetIndex ?? currentPetIndex, state.petCount);
 }
 
+export function nextSelectedPetIndexAfterStudioCommand(
+  currentPetIndex: number,
+  state: StudioSelectionState,
+  command: unknown
+) {
+  const requestedPetIndex = petIndexFromStudioCommand(command);
+  return clampPetIndex(requestedPetIndex ?? currentPetIndex, state.petCount);
+}
+
 export function petNameDraftForIndex(state: StudioSelectionState, petIndex: number) {
   return state.petNames[petIndex] ?? `Pet ${petIndex + 1}`;
 }
@@ -39,6 +48,17 @@ function petIndexFromActionResult(actionResult: unknown) {
 
   const candidate = (actionResult as { petIndex?: unknown }).petIndex;
   return Number.isInteger(candidate) ? (candidate as number) : undefined;
+}
+
+function petIndexFromStudioCommand(command: unknown) {
+  if (!command || typeof command !== "object") {
+    return undefined;
+  }
+
+  const record = command as { type?: unknown; petIndex?: unknown };
+  return record.type === "selectPet" && Number.isInteger(record.petIndex)
+    ? (record.petIndex as number)
+    : undefined;
 }
 
 function isSyncedPetIDInCards(petID: string | undefined, syncedPetCards: readonly { id: string }[]) {

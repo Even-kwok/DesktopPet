@@ -1,5 +1,7 @@
 import { BrowserWindow } from "electron";
 import { studioRendererLoadTarget } from "./studio-window-policy.js";
+import type { StudioWindowCommand } from "./studio-window-policy.js";
+import { ipcChannels } from "./ipc.js";
 
 export type StudioWindowControllerOptions = {
   preloadPath: string;
@@ -20,7 +22,7 @@ export class StudioWindowController {
     return this.#window?.isVisible() ?? this.#isVisible;
   }
 
-  show() {
+  show(command?: StudioWindowCommand) {
     const window = this.#window ?? this.#createWindow();
     this.#isVisible = true;
     const loadTarget = studioRendererLoadTarget({
@@ -28,13 +30,22 @@ export class StudioWindowController {
       studioRendererURL: this.#options.studioRendererURL,
       studioRendererFile: this.#options.studioRendererFile
     });
+    let loadPromise: Promise<void> | undefined;
     if (loadTarget.type === "url") {
-      void window.loadURL(loadTarget.value);
+      loadPromise = window.loadURL(loadTarget.value);
     } else if (loadTarget.type === "file") {
-      void window.loadFile(loadTarget.value);
+      loadPromise = window.loadFile(loadTarget.value);
     }
     window.show();
     window.focus();
+    if (command) {
+      const sendCommand = () => window.webContents.send(ipcChannels.studioCommand, command);
+      if (loadPromise) {
+        void loadPromise.then(sendCommand).catch(() => {});
+      } else {
+        sendCommand();
+      }
+    }
   }
 
   hide() {

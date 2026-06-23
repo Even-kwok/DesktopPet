@@ -9,6 +9,11 @@ export type StudioRendererLoadTarget =
   | { type: "file"; value: string }
   | { type: "none" };
 
+export type StudioWindowCommand = {
+  type: "selectPet";
+  petIndex: number;
+};
+
 export function studioRendererLoadTarget(input: StudioRendererLoadInput): StudioRendererLoadTarget {
   if (input.currentURL) {
     return { type: "none" };
@@ -19,4 +24,17 @@ export function studioRendererLoadTarget(input: StudioRendererLoadInput): Studio
   }
 
   return { type: "file", value: input.studioRendererFile };
+}
+
+export function studioCommandFromPetPayload(payload: unknown): StudioWindowCommand | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+
+  const petIndex = Number((payload as { petIndex?: unknown }).petIndex);
+  if (!Number.isInteger(petIndex) || petIndex < 0) {
+    return undefined;
+  }
+
+  return { type: "selectPet", petIndex };
 }

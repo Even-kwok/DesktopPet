@@ -38,6 +38,7 @@ import {
 } from "./studio-action-result.ts";
 import {
   nextSelectedPetIndexAfterAction,
+  nextSelectedPetIndexAfterStudioCommand,
   nextSelectedSyncedPetID,
   petNameDraftForIndex
 } from "./studio-selection.ts";
@@ -120,6 +121,16 @@ export function StudioApp() {
   useEffect(() => {
     void refreshState();
   }, []);
+
+  useEffect(() => {
+    return bridge?.onStudioCommand?.((command) => {
+      setSelectedPetIndex((current) => {
+        const nextPetIndex = nextSelectedPetIndexAfterStudioCommand(current, state, command);
+        setPetNameDraft(petNameDraftForIndex(state, nextPetIndex));
+        return nextPetIndex;
+      });
+    });
+  }, [bridge, state]);
 
   const groupedSlots = useMemo(() => {
     const groups = new Map<PetMaterialGroup, PetActionSlot[]>();

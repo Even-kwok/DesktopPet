@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { ipcChannels } from "../main/ipc.ts";
 
+const studioCommandListeners = new Set<(command: unknown) => void>();
+let pendingStudioCommand: unknown;
+
+ipcRenderer.on(ipcChannels.studioCommand, (_event, command: unknown) => {
+  pendingStudioCommand = command;
+  for (const listener of studioCommandListeners) {
+    listener(command);
+    pendingStudioCommand = undefined;
+  }
+});
+
 const desktopPet = {
   getStudioState: () => ipcRenderer.invoke(ipcChannels.getStudioState),
   signIn: (email: string, password: string) => ipcRenderer.invoke(ipcChannels.signIn, email, password),
@@ -35,6 +46,17 @@ const desktopPet = {
     ipcRenderer.on("pet:command", listener);
     return () => {
       ipcRenderer.removeListener("pet:command", listener);
+    };
+  },
+  onStudioCommand: (callback: (command: unknown) => void) => {
+    studioCommandListeners.add(callback);
+    if (pendingStudioCommand !== undefined) {
+      const command = pendingStudioCommand;
+      pendingStudioCommand = undefined;
+      queueMicrotask(() => callback(command));
+    }
+    return () => {
+      studioCommandListeners.delete(callback);
     };
   }
 };

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { studioRendererLoadTarget } from "../src/main/studio-window-policy.ts";
+import {
+  studioCommandFromPetPayload,
+  studioRendererLoadTarget
+} from "../src/main/studio-window-policy.ts";
 
 test("loads the Studio renderer only before the window has navigated", () => {
   const rendererFile = "/app/out/renderer/index.html";
@@ -38,4 +41,13 @@ test("loads the Studio renderer only before the window has navigated", () => {
     }),
     { type: "none" }
   );
+});
+
+test("builds a Studio pet selection command from a tray pet payload", () => {
+  assert.deepEqual(studioCommandFromPetPayload({ petIndex: 1 }), {
+    type: "selectPet",
+    petIndex: 1
+  });
+  assert.equal(studioCommandFromPetPayload({ petIndex: Number.NaN }), undefined);
+  assert.equal(studioCommandFromPetPayload({}), undefined);
 });

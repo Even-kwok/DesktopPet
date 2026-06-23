@@ -15,6 +15,7 @@ import {
   bindMenuActions,
   buildTrayMenuTemplate
 } from "./tray-controller.ts";
+import { studioCommandFromPetPayload } from "./studio-window-policy.ts";
 import {
   firstRunIdleLoopPromptOptions,
   firstRunIdleLoopPromptPlan,
@@ -396,7 +397,7 @@ async function bootstrap() {
               .then(refreshTray)
               .catch(showActionError);
           },
-          renamePet: () => studioWindowController?.show(),
+          renamePet: (payload) => studioWindowController?.show(studioCommandFromPetPayload(payload)),
           removePet: (payload) => {
             const petIndex = payloadPetIndex(payload);
             settingsStore.isPetVisible = settingsStore.isPetVisible && petColonyController.removePet(petIndex);

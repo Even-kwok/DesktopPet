@@ -4,6 +4,7 @@ export const ipcChannels = {
   signOut: "studio:sign-out",
   sync: "studio:sync",
   selectSyncedPet: "studio:select-synced-pet",
+  studioCommand: "studio:command",
   addPet: "pets:add",
   removePet: "pets:remove",
   renamePet: "pets:rename",
