@@ -17,6 +17,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForAddFriendAction,
+  statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
   statusMessageForRecallAction,
@@ -397,7 +398,10 @@ export function StudioApp() {
                     <button
                       disabled={!account}
                       onClick={() =>
-                        void runAction(() => bridge?.removeFriend?.(friend.id), `已删除 ${friend.name}。`)
+                        void runAction(
+                          () => bridge?.removeFriend?.(friend.id),
+                          statusMessageForRemoveFriendAction(friend.name)
+                        )
                       }
                     >
                       删除

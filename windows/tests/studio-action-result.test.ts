@@ -4,6 +4,7 @@ import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForAddFriendAction,
+  statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
   statusMessageForRecallAction,
@@ -37,6 +38,10 @@ test("uses Mac-parity copy for add-friend success", () => {
     statusMessageForAddFriendAction({ addedFriend: { name: "阿雯" } }),
     "已添加好友 阿雯。"
   );
+});
+
+test("uses Mac-parity copy for remove-friend success", () => {
+  assert.equal(statusMessageForRemoveFriendAction("阿雯"), "已删除好友 阿雯。");
 });
 
 test("clears friend email draft after signing out", () => {

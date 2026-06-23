@@ -26,6 +26,10 @@ export function statusMessageForAddFriendAction(result: unknown) {
   return friendName ? `已添加好友 ${friendName}。` : "已添加好友。";
 }
 
+export function statusMessageForRemoveFriendAction(friendName: string) {
+  return `已删除好友 ${friendName}。`;
+}
+
 export function statusMessageForHostingRequestAction(friendName: string, petName: string) {
   return `已向 ${friendName} 发起「${petName}」寄养请求。`;
 }
