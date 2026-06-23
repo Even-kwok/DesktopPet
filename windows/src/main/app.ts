@@ -8,6 +8,7 @@ import { PetWindowController } from "./pet-window-controller.ts";
 import { StudioWindowController } from "./studio-window-controller.ts";
 import { registerIpcHandlers } from "./ipc.ts";
 import { bindMenuActions, buildTrayMenuTemplate } from "./tray-controller.ts";
+import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { SettingsStore } from "../shared/settings-store.ts";
 import { SleepRecoveryCoordinator } from "../shared/sleep-recovery-coordinator.ts";
 import {
@@ -320,6 +321,11 @@ async function bootstrap() {
   };
   refreshTray();
 
+  if (settingsStore.isPetVisible) {
+    settingsStore.isPetVisible = petColonyController.showAll();
+    refreshTray();
+  }
+
   studioWindowController.show();
 }
 
@@ -426,10 +432,11 @@ async function importLocalVideo(input: {
 
   const videoPath = result.filePaths[0];
   const fileStats = await stat(videoPath);
+  const videoMetadata = await probeLocalVideoMetadata(videoPath);
   const review = reviewPetVideoImport({
     fileSizeBytes: fileStats.size,
-    durationSeconds: 1,
-    hasVideoTrack: isSupportedVideoFile(videoPath)
+    durationSeconds: videoMetadata.durationSeconds,
+    hasVideoTrack: videoMetadata.hasVideoTrack && isSupportedVideoFile(videoPath)
   });
 
   if (!review.canImport) {

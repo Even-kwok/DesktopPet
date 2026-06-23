@@ -92,7 +92,9 @@ export class PetWindowController implements PetWindowControllerLike {
     }
   }
 
-  refreshDisplayName() {}
+  refreshDisplayName() {
+    this.#window?.setTitle(this.#windowTitle());
+  }
 
   resetPosition() {
     const frame = applyPetSizeScale(
@@ -163,6 +165,7 @@ export class PetWindowController implements PetWindowControllerLike {
     const frame = this.#settingsStore.petFrame(this.#petIndex);
     const window = new BrowserWindow({
       ...this.#rectToBounds(frame),
+      title: this.#windowTitle(),
       transparent: true,
       frame: false,
       resizable: false,
@@ -472,6 +475,10 @@ export class PetWindowController implements PetWindowControllerLike {
       width: Math.round(rect.width),
       height: Math.round(rect.height)
     };
+  }
+
+  #windowTitle() {
+    return `CatDesktopPet - ${this.#settingsStore.petName(this.#petIndex)}`;
   }
 }
 
