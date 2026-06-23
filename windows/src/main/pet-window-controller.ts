@@ -95,6 +95,15 @@ export class PetWindowController implements PetWindowControllerLike {
     }
   }
 
+  bringToFront() {
+    if (!this.isVisible || !this.#window) {
+      return;
+    }
+
+    this.#window.showInactive();
+    this.#window.moveTop();
+  }
+
   refreshDisplayName() {
     this.#window?.setTitle(this.#windowTitle());
   }

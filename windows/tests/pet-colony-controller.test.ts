@@ -14,6 +14,7 @@ class FakePetWindow {
   sizeScale = 1;
   frame = { x: 0, y: 0, width: 150, height: 150 };
   triggeredSlots: PetActionSlot[] = [];
+  bringToFrontCount = 0;
   readonly settingsStore: SettingsStore;
   readonly petIndex: number;
 
@@ -46,6 +47,10 @@ class FakePetWindow {
   refreshDisplayName() {}
   resetPosition() {
     this.frame = { x: 0, y: 0, width: 150, height: 150 };
+  }
+
+  bringToFront() {
+    this.bringToFrontCount += 1;
   }
 
   randomNearbyPetInteractionSlot(side: PetInteractionSide) {
@@ -109,6 +114,23 @@ test("hideAll hides every controller and click-through forwards to all controlle
 
     assert.deepEqual(windows.map((window) => window.clickThrough), [true, true]);
     assert.deepEqual(windows.map((window) => window.isVisible), [false, false]);
+  } finally {
+    cleanup();
+  }
+});
+
+test("brings active pet windows to the front", () => {
+  const { settingsStore, colony, windows, cleanup } = makeHarness();
+  try {
+    settingsStore.petCount = 2;
+    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
+    settingsStore.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
+    colony.showAll();
+    settingsStore.petCount = 1;
+
+    colony.bringToFront();
+
+    assert.deepEqual(windows.map((window) => window.bringToFrontCount), [1, 0]);
   } finally {
     cleanup();
   }

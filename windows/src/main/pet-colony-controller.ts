@@ -12,6 +12,7 @@ export type PetWindowControllerLike = {
   refreshPlayback: () => void;
   prepareForSystemSleep: () => void;
   resumeAfterSystemWake: () => void;
+  bringToFront?: () => void;
   refreshDisplayName: () => void;
   resetPosition: () => void;
   dragBy?: (delta: { x: number; y: number }) => void;
@@ -129,6 +130,10 @@ export class PetColonyController {
     this.#ensurePetControllers(this.#settingsStore.petCount);
     this.#petControllers.forEach((controller) => controller.hide());
     this.#stopProximityInteractionTimer();
+  }
+
+  bringToFront() {
+    this.#activePetControllers().forEach((controller) => controller.bringToFront?.());
   }
 
   setClickThrough(isClickThrough: boolean) {
