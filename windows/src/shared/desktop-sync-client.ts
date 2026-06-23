@@ -1,3 +1,4 @@
+import { allPetActionSlots } from "./pet-action-slots.ts";
 import type { PetActionSlot } from "./pet-action-slots.ts";
 import type { DesktopSyncedPetCard } from "./settings-store.ts";
 
@@ -129,12 +130,18 @@ export class DesktopPetSyncClient {
     return response;
   }
 
-  fetchBundle(accessToken?: string) {
-    return this.#sendJSON<DesktopPetBundle>({
+  async fetchBundle(accessToken?: string) {
+    const response = await this.#sendJSON<unknown>({
       path: "/api/desktop/pets",
       accessToken,
       unauthorizedError: DesktopPetSyncError.sessionExpired()
     });
+
+    if (!isDesktopPetBundle(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response;
   }
 
   async fetchFriends(accessToken: string) {
@@ -309,12 +316,88 @@ function isDesktopSyncAccount(value: unknown): value is DesktopSyncAccount {
   );
 }
 
+function isDesktopPetBundle(value: unknown): value is DesktopPetBundle {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isInteger(value.version) &&
+    isString(value.generatedAt) &&
+    isOptionalDesktopSyncAccount(value.account) &&
+    isOptionalDesktopSyncMetadata(value.sync) &&
+    Array.isArray(value.pets) &&
+    value.pets.every(isDesktopPetBundlePet)
+  );
+}
+
+function isDesktopPetBundlePet(value: unknown): value is DesktopPetBundlePet {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isOptionalString(value.petNumber) &&
+    isOptionalString(value.ownerUserId) &&
+    isOptionalString(value.currentHostUserId) &&
+    isString(value.name) &&
+    isString(value.type) &&
+    isOptionalString(value.ownership) &&
+    isOptionalString(value.displayState) &&
+    isOptionalString(value.avatarUrl) &&
+    Array.isArray(value.materials) &&
+    value.materials.every(isDesktopPetBundleMaterial)
+  );
+}
+
+function isDesktopPetBundleMaterial(value: unknown): value is DesktopPetBundleMaterial {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isPetActionSlot(value.slot) &&
+    isString(value.name) &&
+    isString(value.videoUrl) &&
+    isString(value.status)
+  );
+}
+
+function isOptionalDesktopSyncAccount(value: unknown) {
+  return value === undefined || value === null || isDesktopSyncAccount(value);
+}
+
+function isOptionalDesktopSyncMetadata(value: unknown) {
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.mode) &&
+    isString(value.source) &&
+    isInteger(value.recommendedPollSeconds)
+  );
+}
+
+function isPetActionSlot(value: unknown): value is PetActionSlot {
+  return isString(value) && (value === "drag_loop" || allPetActionSlots.some((slot) => slot === value));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function isString(value: unknown) {
   return typeof value === "string";
+}
+
+function isOptionalString(value: unknown) {
+  return value === undefined || value === null || isString(value);
 }
 
 function isInteger(value: unknown) {
