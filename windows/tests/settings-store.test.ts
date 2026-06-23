@@ -17,6 +17,13 @@ function makeStore() {
   };
 }
 
+function saveVideoFile(store: SettingsStore, fileName: string, slot = "idle_loop" as const, index = 0) {
+  const videoPath = path.join(path.dirname(store.filePath), fileName);
+  writeFileSync(videoPath, "");
+  store.saveVideoPath(videoPath, slot, index);
+  return videoPath;
+}
+
 test("defaults match Mac desktop behavior", () => {
   const { store, cleanup } = makeStore();
   try {
@@ -45,7 +52,7 @@ test("persists pet names, size, frame, video paths, and session", () => {
     store.setPetName("团子", 1);
     store.setPetSizeScale(0.1, 0);
     store.setPetFrame({ x: 12, y: 34, width: 45, height: 67 }, 0);
-    store.saveVideoPath("C:/cats/idle.mp4", "idle_loop", 0);
+    const idlePath = saveVideoFile(store, "idle.mp4");
     store.saveAccountSession({
       id: "user_demo",
       name: "栗子主人",
@@ -60,7 +67,7 @@ test("persists pet names, size, frame, video paths, and session", () => {
     assert.equal(reloaded.petName(1), "团子");
     assert.equal(reloaded.petSizeScale(0), 0.3);
     assert.deepEqual(reloaded.petFrame(0), { x: 12, y: 34, width: 45, height: 67 });
-    assert.equal(reloaded.restoreVideoPath("idle_loop", 0), "C:/cats/idle.mp4");
+    assert.equal(reloaded.restoreVideoPath("idle_loop", 0), idlePath);
     assert.equal(reloaded.currentAccount?.accessToken, "desktop-token");
   } finally {
     cleanup();
@@ -75,15 +82,15 @@ test("removing a pet compacts later pet data", () => {
     store.setPetName("团子", 1);
     store.setPetSizeScale(0.8, 0);
     store.setPetSizeScale(0.3, 1);
-    store.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
-    store.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
+    saveVideoFile(store, "first.mp4", "idle_loop", 0);
+    const secondPath = saveVideoFile(store, "second.mp4", "idle_loop", 1);
 
     store.removePet(0);
 
     assert.equal(store.petCount, 1);
     assert.equal(store.petName(0), "团子");
     assert.equal(store.petSizeScale(0), 0.3);
-    assert.equal(store.restoreVideoPath("idle_loop", 0), "C:/cats/second.mp4");
+    assert.equal(store.restoreVideoPath("idle_loop", 0), secondPath);
     assert.equal(store.restoreVideoPath("idle_loop", 1), undefined);
   } finally {
     cleanup();
@@ -110,6 +117,18 @@ test("ignores unknown saved video slot keys like the Mac settings store", () => 
 
     const reloaded = new SettingsStore(store.filePath);
     assert.deepEqual(reloaded.savedVideoSlots(0), ["idle_loop"]);
+  } finally {
+    cleanup();
+  }
+});
+
+test("does not restore missing video files while retaining saved slot references", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.saveVideoPath(path.join(path.dirname(store.filePath), "missing.mp4"), "idle_loop", 0);
+
+    assert.equal(store.restoreVideoPath("idle_loop", 0), undefined);
+    assert.deepEqual(store.savedVideoSlots(0), ["idle_loop"]);
   } finally {
     cleanup();
   }

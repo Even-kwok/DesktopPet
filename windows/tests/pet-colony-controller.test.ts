@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -85,11 +85,23 @@ function makeHarness(options?: ConstructorParameters<typeof PetColonyController>
   };
 }
 
+function saveVideoFile(
+  settingsStore: SettingsStore,
+  fileName: string,
+  slot: PetActionSlot = "idle_loop",
+  petIndex = 0
+) {
+  const videoPath = path.join(path.dirname(settingsStore.filePath), fileName);
+  writeFileSync(videoPath, "");
+  settingsStore.saveVideoPath(videoPath, slot, petIndex);
+  return videoPath;
+}
+
 test("showAll shows only pets with idle_loop videos", () => {
   const { settingsStore, colony, windows, cleanup } = makeHarness();
   try {
     settingsStore.petCount = 2;
-    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
 
     const didShowAny = colony.showAll();
 
@@ -105,8 +117,8 @@ test("hideAll hides every controller and click-through forwards to all controlle
   const { settingsStore, colony, windows, cleanup } = makeHarness();
   try {
     settingsStore.petCount = 2;
-    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
-    settingsStore.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
     colony.showAll();
 
     colony.setClickThrough(true);
@@ -123,8 +135,8 @@ test("brings active pet windows to the front", () => {
   const { settingsStore, colony, windows, cleanup } = makeHarness();
   try {
     settingsStore.petCount = 2;
-    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
-    settingsStore.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
     colony.showAll();
     settingsStore.petCount = 1;
 
@@ -142,8 +154,8 @@ test("removing a pet compacts settings and hides removed windows", () => {
     settingsStore.petCount = 2;
     settingsStore.setPetName("栗子", 0);
     settingsStore.setPetName("团子", 1);
-    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
-    settingsStore.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    const secondPath = saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
     settingsStore.isPetVisible = true;
     colony.showAll();
 
@@ -152,7 +164,7 @@ test("removing a pet compacts settings and hides removed windows", () => {
     assert.equal(didShowAny, true);
     assert.equal(settingsStore.petCount, 1);
     assert.equal(settingsStore.petName(0), "团子");
-    assert.equal(settingsStore.restoreVideoPath("idle_loop", 0), "C:/cats/second.mp4");
+    assert.equal(settingsStore.restoreVideoPath("idle_loop", 0), secondPath);
     assert.ok(windows[0].hideCount >= 1);
   } finally {
     cleanup();
@@ -169,10 +181,10 @@ test("nearby pets trigger paired interactions with cooldown", () => {
   });
   try {
     settingsStore.petCount = 2;
-    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
-    settingsStore.saveVideoPath("C:/cats/first-left.mp4", "head_rub_left", 0);
-    settingsStore.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
-    settingsStore.saveVideoPath("C:/cats/second-right.mp4", "head_rub_right", 1);
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "first-left.mp4", "head_rub_left", 0);
+    saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
+    saveVideoFile(settingsStore, "second-right.mp4", "head_rub_right", 1);
     colony.showAll();
     windows[0].frame = { x: 100, y: 100, width: 150, height: 150 };
     windows[1].frame = { x: 80, y: 100, width: 150, height: 150 };

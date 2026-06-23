@@ -236,7 +236,8 @@ export class SettingsStore {
   }
 
   restoreVideoPath(slot: PetActionSlot, index: number) {
-    return this.#pet(index).videos?.[slot];
+    const videoPath = this.#pet(index).videos?.[slot];
+    return videoPath && existsSync(videoPath) ? videoPath : undefined;
   }
 
   savedVideoSlots(index: number) {
