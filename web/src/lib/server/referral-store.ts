@@ -168,12 +168,20 @@ export async function listAdminReferralCodes(): Promise<ReferralCode[]> {
   }
 
   const supabase = getRequiredSupabaseAdminClient();
-  const rows = await supabase
-    .from("referral_codes")
-    .select("id, code, owner_user_id, status, created_by_user_id, created_at, updated_at")
-    .then(unwrapSupabaseData<ReferralCodeRow[]>);
+  try {
+    const rows = await supabase
+      .from("referral_codes")
+      .select("id, code, owner_user_id, status, created_by_user_id, created_at, updated_at")
+      .then(unwrapSupabaseData<ReferralCodeRow[]>);
 
-  return enrichSupabaseReferralCodes(rows);
+    return enrichSupabaseReferralCodes(rows);
+  } catch (error) {
+    if (isMissingReferralSchemaError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 export async function createAdminReferralCode(input: CreateReferralCodeInput): Promise<ReferralCode> {
@@ -385,7 +393,15 @@ export async function loadAccountReferralSummary(account: CurrentUser): Promise<
     };
   }
 
-  return loadSupabaseAccountReferralSummary(account, settings);
+  try {
+    return await loadSupabaseAccountReferralSummary(account, settings);
+  } catch (error) {
+    if (isMissingReferralSchemaError(error)) {
+      return emptyReferralSummary(settings);
+    }
+
+    throw error;
+  }
 }
 
 export async function recordAdminRecharge(
@@ -406,15 +422,23 @@ export async function listAdminReferralRewards(): Promise<ReferralRewardLedgerEn
   }
 
   const supabase = getRequiredSupabaseAdminClient();
-  const rows = await supabase
-    .from("referral_reward_ledger")
-    .select(
-      "id, referrer_user_id, referred_user_id, referral_code_id, recharge_record_id, amount_cents, currency, reward_percent, reward_amount_cents, reward_credits, status, created_at"
-    )
-    .order("created_at", { ascending: false })
-    .then(unwrapSupabaseData<ReferralRewardRow[]>);
+  try {
+    const rows = await supabase
+      .from("referral_reward_ledger")
+      .select(
+        "id, referrer_user_id, referred_user_id, referral_code_id, recharge_record_id, amount_cents, currency, reward_percent, reward_amount_cents, reward_credits, status, created_at"
+      )
+      .order("created_at", { ascending: false })
+      .then(unwrapSupabaseData<ReferralRewardRow[]>);
 
-  return enrichSupabaseReferralRewards(rows);
+    return enrichSupabaseReferralRewards(rows);
+  } catch (error) {
+    if (isMissingReferralSchemaError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 export async function listAdminRechargeRecords(): Promise<RechargeRecord[]> {
@@ -423,15 +447,58 @@ export async function listAdminRechargeRecords(): Promise<RechargeRecord[]> {
   }
 
   const supabase = getRequiredSupabaseAdminClient();
-  const rows = await supabase
-    .from("recharge_records")
-    .select(
-      "id, user_id, provider, provider_transaction_id, amount_cents, currency, credits_granted, status, discount_percent, discount_amount_cents, referral_code_id, referred_by_user_id, paid_at, note, created_at, updated_at"
-    )
-    .order("created_at", { ascending: false })
-    .then(unwrapSupabaseData<RechargeRecordRow[]>);
+  let rows: RechargeRecordRow[];
+
+  try {
+    rows = await supabase
+      .from("recharge_records")
+      .select(
+        "id, user_id, provider, provider_transaction_id, amount_cents, currency, credits_granted, status, discount_percent, discount_amount_cents, referral_code_id, referred_by_user_id, paid_at, note, created_at, updated_at"
+      )
+      .order("created_at", { ascending: false })
+      .then(unwrapSupabaseData<RechargeRecordRow[]>);
+  } catch (error) {
+    if (isMissingReferralSchemaError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 
   return rows.map(mapRechargeRecordRow);
+}
+
+export function emptyReferralSummary(settings: ReferralSettings): ReferralSummary {
+  return {
+    activeCode: null,
+    referredUsers: 0,
+    rewardAmountCents: 0,
+    rewardCredits: 0,
+    rewardPercent: settings.rewardPercent,
+    firstRechargeDiscountPercent: settings.firstRechargeDiscountPercent,
+    rewards: []
+  };
+}
+
+export function isMissingReferralSchemaError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const details = error as { code?: unknown; message?: unknown };
+  const code = typeof details.code === "string" ? details.code : "";
+  const message = typeof details.message === "string" ? details.message.toLowerCase() : "";
+
+  return (
+    code === "42P01" ||
+    code === "42703" ||
+    code === "PGRST205" ||
+    message.includes("referral_codes") ||
+    message.includes("user_referrals") ||
+    message.includes("referral_reward_ledger") ||
+    message.includes("discount_percent") ||
+    message.includes("discount_amount_cents")
+  );
 }
 
 async function createSupabaseReferralCode(input: CreateReferralCodeInput): Promise<ReferralCode> {

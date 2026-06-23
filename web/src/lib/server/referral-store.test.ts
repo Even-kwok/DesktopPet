@@ -6,6 +6,8 @@ import {
 } from "./mock-account-state.ts";
 import {
   createAdminReferralCode,
+  emptyReferralSummary,
+  isMissingReferralSchemaError,
   listAdminReferralRewards,
   loadAccountReferralSummary,
   recordAdminRecharge,
@@ -193,4 +195,35 @@ test("recordAdminRecharge applies first-recharge discount once while rewards con
   assert.equal((await listAdminReferralRewards()).length, 2);
   assert.equal(summary.rewardAmountCents, 3000);
   assert.equal(summary.rewardCredits, 30);
+});
+
+test("missing referral schema errors are recognized for backward-compatible deploys", () => {
+  assert.equal(isMissingReferralSchemaError({ code: "42P01" }), true);
+  assert.equal(isMissingReferralSchemaError({ code: "42703" }), true);
+  assert.equal(isMissingReferralSchemaError({ code: "PGRST205" }), true);
+  assert.equal(
+    isMissingReferralSchemaError({
+      message: 'relation "public.referral_codes" does not exist'
+    }),
+    true
+  );
+  assert.equal(isMissingReferralSchemaError({ code: "23505" }), false);
+});
+
+test("emptyReferralSummary keeps configured referral percentages without rewards", () => {
+  assert.deepEqual(
+    emptyReferralSummary({
+      rewardPercent: 12,
+      firstRechargeDiscountPercent: 25
+    }),
+    {
+      activeCode: null,
+      referredUsers: 0,
+      rewardAmountCents: 0,
+      rewardCredits: 0,
+      rewardPercent: 12,
+      firstRechargeDiscountPercent: 25,
+      rewards: []
+    }
+  );
 });

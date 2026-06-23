@@ -1,4 +1,8 @@
 import { StudioApp } from "@/components/studio/studio-app";
+import {
+  buildSignedOutAuthModeHref,
+  resolveSignedOutAuthMode
+} from "@/lib/auth-entry";
 import { sanitizeRedirectPath } from "@/lib/auth-policy";
 import { buildClientPlatformCards } from "@/lib/studio-layout";
 import { getCurrentAuthContext } from "@/lib/server/auth";
@@ -29,6 +33,7 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
   const error = firstParam(params.error);
   const notice = firstParam(params.notice);
   const next = sanitizeRedirectPath(firstParam(params.next), "/");
+  const authMode = resolveSignedOutAuthMode(firstParam(params.auth));
   const clientCards = buildClientPlatformCards(
     process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null
   );
@@ -43,7 +48,11 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
           </div>
         </div>
 
-        <form className="top-auth-form" method="post">
+        <form
+          action={authMode === "register" ? "/api/auth/register" : "/api/auth/login"}
+          className="top-auth-form"
+          method="post"
+        >
           <input type="hidden" name="next" value={next} />
           <input
             aria-label="邮箱"
@@ -60,25 +69,30 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
             className="input top-auth-input"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete={authMode === "register" ? "new-password" : "current-password"}
             defaultValue={backend.authConfigured ? "" : "123456"}
             placeholder="密码"
             required
           />
-          <input
-            aria-label="推荐码"
-            className="input top-auth-input referral-code-input"
-            name="referralCode"
-            type="text"
-            autoComplete="off"
-            placeholder="推荐码（选填）"
-          />
-          <button className="button" formAction="/api/auth/login" type="submit">
-            登录
+          {authMode === "register" ? (
+            <input
+              aria-label="推荐码"
+              className="input top-auth-input referral-code-input"
+              name="referralCode"
+              type="text"
+              autoComplete="off"
+              placeholder="推荐码（选填）"
+            />
+          ) : null}
+          <button className="button" type="submit">
+            {authMode === "register" ? "注册" : "登录"}
           </button>
-          <button className="button secondary" formAction="/api/auth/register" type="submit">
-            注册
-          </button>
+          <a
+            className="button secondary auth-mode-switch"
+            href={buildSignedOutAuthModeHref(authMode === "register" ? "login" : "register", next)}
+          >
+            {authMode === "register" ? "去登录" : "注册"}
+          </a>
           <a className="button ghost admin-entry-button" href="/admin/login">
             后台
           </a>
