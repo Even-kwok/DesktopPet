@@ -1,6 +1,6 @@
 import { app, dialog, ipcMain, Menu, nativeImage, powerMonitor, Tray } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { PetColonyController } from "./pet-colony-controller.ts";
@@ -17,11 +17,11 @@ import {
   displayablePets,
   localMaterialReplacementDescriptions,
   readyDesktopMaterials,
-  safeRemoteMaterialPathComponent,
   syncedPetCardsFromBundle
 } from "../shared/desktop-sync-client.ts";
 import { allPetActionSlots } from "../shared/pet-action-slots.ts";
 import { reviewPetVideoImport } from "../shared/video-import-review.ts";
+import { remoteMaterialDestinationPath, writeRemoteMaterialAtomically } from "../shared/remote-material-cache.ts";
 import type { DesktopPetBundleMaterial } from "../shared/desktop-sync-client.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 
@@ -406,11 +406,8 @@ async function downloadRemoteMaterial(
     throw DesktopPetSyncError.invalidResponse();
   }
 
-  const fileExtension = materialFileExtension(material.videoUrl);
-  const directory = path.join(remoteMaterialRoot, safeRemoteMaterialPathComponent(petID));
-  const destination = path.join(directory, `${material.slot}${fileExtension}`);
-  await mkdir(directory, { recursive: true });
-  await writeFile(destination, Buffer.from(await response.arrayBuffer()));
+  const destination = remoteMaterialDestinationPath(remoteMaterialRoot, petID, material);
+  await writeRemoteMaterialAtomically(destination, Buffer.from(await response.arrayBuffer()));
   return destination;
 }
 
@@ -504,15 +501,6 @@ function toPetActionSlot(slot: string): PetActionSlot {
   }
 
   return slot as PetActionSlot;
-}
-
-function materialFileExtension(videoUrl: string) {
-  try {
-    const extension = path.extname(new URL(videoUrl).pathname);
-    return extension || ".mp4";
-  } catch {
-    return path.extname(videoUrl) || ".mp4";
-  }
 }
 
 function isSupportedVideoFile(filePath: string) {
