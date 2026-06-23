@@ -23,6 +23,7 @@ import {
   statusMessageForHostingRequestAction,
   statusMessageForImportVideoAction,
   statusMessageForRecallAction,
+  statusMessageForRemoveVideoAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
   statusMessageForSyncAction,
@@ -461,7 +462,7 @@ export function StudioApp() {
                           onClick={() =>
                             void runAction(
                               () => bridge?.removeVideo?.(selectedPetIndex, slot),
-                              `已移除「${slotName}」。`
+                              statusMessageForRemoveVideoAction(slotName)
                             )
                           }
                         >

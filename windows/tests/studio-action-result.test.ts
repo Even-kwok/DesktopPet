@@ -10,6 +10,7 @@ import {
   statusMessageForHostingRequestAction,
   statusMessageForImportVideoAction,
   statusMessageForRecallAction,
+  statusMessageForRemoveVideoAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
   statusMessageForSyncAction,
@@ -40,6 +41,10 @@ test("uses Mac-parity copy for local video import results", () => {
     }),
     "已导入「点击互动」本地视频。 这段视频有点长，作为桌宠动作可能不够轻快。"
   );
+});
+
+test("uses Mac-parity copy for local video removal results", () => {
+  assert.equal(statusMessageForRemoveVideoAction("点击互动"), "已移除「点击互动」本地视频。");
 });
 
 test("clears friend email draft after a successful add-friend action", () => {

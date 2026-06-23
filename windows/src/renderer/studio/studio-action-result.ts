@@ -30,6 +30,10 @@ export function statusMessageForImportVideoAction(slotName: string, result: unkn
   return `已导入「${slotName}」本地视频。${warningText ? ` ${warningText}` : ""}`;
 }
 
+export function statusMessageForRemoveVideoAction(slotName: string) {
+  return `已移除「${slotName}」本地视频。`;
+}
+
 export function statusMessageForSignInAction() {
   return "登录成功。点击同步获取账号下的猫咪。";
 }
