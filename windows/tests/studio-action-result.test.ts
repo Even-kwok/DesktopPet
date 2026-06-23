@@ -5,6 +5,7 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
+  statusMessageForRecallAction,
   statusMessageForSyncAction,
   statusMessageForActionResult
 } from "../src/renderer/studio/studio-action-result.ts";
@@ -62,4 +63,8 @@ test("uses Mac-parity copy for hosting request success", () => {
     statusMessageForHostingRequestAction("阿雯", "栗子"),
     "已向 阿雯 发起「栗子」寄养请求。"
   );
+});
+
+test("uses Mac-parity copy for recall success", () => {
+  assert.equal(statusMessageForRecallAction("栗子"), "已召回「栗子」。");
 });

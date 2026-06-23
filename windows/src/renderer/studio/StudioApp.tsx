@@ -18,6 +18,7 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
+  statusMessageForRecallAction,
   statusMessageForSyncAction,
   statusMessageForActionResult
 } from "./studio-action-result.ts";
@@ -319,7 +320,7 @@ export function StudioApp() {
               onClick={() =>
                 void runAction(
                   () => bridge?.recallPet?.(selectedSyncedPet?.id ?? ""),
-                  "已发送召回请求。"
+                  selectedSyncedPet ? statusMessageForRecallAction(selectedSyncedPet.name) : "已发送召回请求。"
                 )
               }
             >

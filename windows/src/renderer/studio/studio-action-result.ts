@@ -25,6 +25,10 @@ export function statusMessageForHostingRequestAction(friendName: string, petName
   return `已向 ${friendName} 发起「${petName}」寄养请求。`;
 }
 
+export function statusMessageForRecallAction(petName: string) {
+  return `已召回「${petName}」。`;
+}
+
 export function nextFriendEmailDraftAfterAddFriendAction(currentDraft: string, result: unknown) {
   return nextFriendEmailDraftAfterSuccessfulAction(currentDraft, result);
 }
