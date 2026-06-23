@@ -32,6 +32,10 @@ export type TrayMenuState = {
   petSizeScale: (petIndex: number) => number;
 };
 
+export type VisibilityResultAfterShowingPets =
+  | { isPetVisible: true; importIdleLoop: false }
+  | { isPetVisible: false; importIdleLoop: true; petIndex: 0; slot: "idle_loop" };
+
 export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] {
   return [
     { label: "打开素材工作台", action: "openStudio" },
@@ -68,6 +72,14 @@ export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] 
     { type: "separator" },
     { label: "退出", action: "quit" }
   ];
+}
+
+export function visibilityResultAfterShowingPets(didShowAnyPet: boolean): VisibilityResultAfterShowingPets {
+  if (didShowAnyPet) {
+    return { isPetVisible: true, importIdleLoop: false };
+  }
+
+  return { isPetVisible: false, importIdleLoop: true, petIndex: 0, slot: "idle_loop" };
 }
 
 export function bindMenuActions(

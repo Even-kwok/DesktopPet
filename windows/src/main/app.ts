@@ -7,7 +7,11 @@ import { PetColonyController } from "./pet-colony-controller.ts";
 import { PetWindowController } from "./pet-window-controller.ts";
 import { StudioWindowController } from "./studio-window-controller.ts";
 import { registerIpcHandlers } from "./ipc.ts";
-import { bindMenuActions, buildTrayMenuTemplate } from "./tray-controller.ts";
+import {
+  bindMenuActions,
+  buildTrayMenuTemplate,
+  visibilityResultAfterShowingPets
+} from "./tray-controller.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
 import { SettingsStore } from "../shared/settings-store.ts";
@@ -281,8 +285,18 @@ async function bootstrap() {
               settingsStore.isPetVisible = false;
               petColonyController.hideAll();
             } else {
-              settingsStore.isPetVisible = true;
-              petColonyController.showAll();
+              const visibilityResult = visibilityResultAfterShowingPets(petColonyController.showAll());
+              settingsStore.isPetVisible = visibilityResult.isPetVisible;
+              if (visibilityResult.importIdleLoop) {
+                void importLocalVideo({
+                  petIndex: visibilityResult.petIndex,
+                  slot: visibilityResult.slot,
+                  settingsStore,
+                  petColonyController
+                })
+                  .then(refreshTray)
+                  .catch(showActionError);
+              }
             }
             refreshTray();
           },
