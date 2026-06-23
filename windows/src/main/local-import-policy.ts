@@ -1,5 +1,7 @@
 import type { PetActionSlot } from "../shared/pet-action-slots.ts";
 
+export type LocalVideoRemovalAction = "showAll" | "refreshPlayback";
+
 export function petCountAfterLocalVideoImport(
   currentPetCount: number,
   petIndex: number,
@@ -12,4 +14,11 @@ export function petCountAfterLocalVideoImport(
   }
 
   return Math.max(currentCount, targetPetIndex + 1);
+}
+
+export function localVideoRemovalAction(
+  slot: PetActionSlot,
+  isPetVisible: boolean
+): LocalVideoRemovalAction {
+  return slot === "idle_loop" && isPetVisible ? "showAll" : "refreshPlayback";
 }

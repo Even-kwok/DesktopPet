@@ -11,7 +11,10 @@ import {
   bindMenuActions,
   buildTrayMenuTemplate
 } from "./tray-controller.ts";
-import { petCountAfterLocalVideoImport } from "./local-import-policy.ts";
+import {
+  localVideoRemovalAction,
+  petCountAfterLocalVideoImport
+} from "./local-import-policy.ts";
 import { showPetsActionPlan } from "./pet-visibility-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
@@ -163,8 +166,14 @@ async function bootstrap() {
       return { result, ...studioState() };
     },
     removeVideo: (petIndex, slot) => {
-      settingsStore.removeVideo(toPetActionSlot(slot), petIndex);
-      petColonyController.refreshPlayback();
+      const videoSlot = toPetActionSlot(slot);
+      const removalAction = localVideoRemovalAction(videoSlot, settingsStore.isPetVisible);
+      settingsStore.removeVideo(videoSlot, petIndex);
+      if (removalAction === "showAll") {
+        settingsStore.isPetVisible = petColonyController.showAll();
+      } else {
+        petColonyController.refreshPlayback();
+      }
       refreshTray();
       return studioState();
     },
@@ -338,8 +347,14 @@ async function bootstrap() {
           },
           removeStateVideo: (payload) => {
             const record = payloadRecord(payload);
-            settingsStore.removeVideo(toPetActionSlot(String(record.slot ?? "")), Number(record.petIndex));
-            petColonyController.refreshPlayback();
+            const videoSlot = toPetActionSlot(String(record.slot ?? ""));
+            const removalAction = localVideoRemovalAction(videoSlot, settingsStore.isPetVisible);
+            settingsStore.removeVideo(videoSlot, Number(record.petIndex));
+            if (removalAction === "showAll") {
+              settingsStore.isPetVisible = petColonyController.showAll();
+            } else {
+              petColonyController.refreshPlayback();
+            }
             refreshTray();
           },
           quit: () => app.quit()
