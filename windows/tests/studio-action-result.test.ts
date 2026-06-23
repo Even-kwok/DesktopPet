@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  statusMessageForRefreshFriendsAction,
   statusMessageForActionResult
 } from "../src/renderer/studio/studio-action-result.ts";
 
@@ -32,5 +33,16 @@ test("clears friend email draft after signing out", () => {
   assert.equal(
     nextFriendEmailDraftAfterSignOutAction("friend@example.com", { canceled: true }),
     "friend@example.com"
+  );
+});
+
+test("uses Mac-parity copy for refreshed friend list results", () => {
+  assert.equal(
+    statusMessageForRefreshFriendsAction({ friendCards: [] }),
+    "好友列表为空，可以用邮箱添加好友。"
+  );
+  assert.equal(
+    statusMessageForRefreshFriendsAction({ friendCards: [{ id: "friend_1" }] }),
+    "好友列表已刷新。"
   );
 });

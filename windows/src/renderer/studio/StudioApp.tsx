@@ -16,6 +16,7 @@ import {
 import {
   nextFriendEmailDraftAfterAddFriendAction,
   nextFriendEmailDraftAfterSignOutAction,
+  statusMessageForRefreshFriendsAction,
   statusMessageForActionResult
 } from "./studio-action-result.ts";
 import {
@@ -115,13 +116,13 @@ export function StudioApp() {
   const runAction = async (
     action: () => Promise<unknown> | unknown,
     successMessage: string,
-    afterSuccess?: (result: unknown) => void
+    afterSuccess?: (result: unknown) => string | void
   ) => {
     try {
       const result = await action();
       await refreshState(result);
-      afterSuccess?.(result);
-      setStatusMessage(statusMessageForActionResult(result, successMessage));
+      const nextStatusMessage = afterSuccess?.(result);
+      setStatusMessage(nextStatusMessage ?? statusMessageForActionResult(result, successMessage));
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "操作失败，请稍后重试。");
     }
@@ -328,7 +329,13 @@ export function StudioApp() {
           <div className="button-grid">
             <button
               disabled={!account}
-              onClick={() => void runAction(() => bridge?.refreshFriends?.(), "好友列表已刷新。")}
+              onClick={() =>
+                void runAction(
+                  () => bridge?.refreshFriends?.(),
+                  "好友列表已刷新。",
+                  (result) => statusMessageForRefreshFriendsAction(result)
+                )
+              }
             >
               刷新好友
             </button>
