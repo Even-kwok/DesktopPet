@@ -71,6 +71,7 @@ async function bootstrap() {
     syncedPetCards: settingsStore.syncedPetCards,
     friendCards: settingsStore.friendCards,
     localVideoSlots: Array.from({ length: settingsStore.petCount }, (_, index) => settingsStore.savedVideoSlots(index)),
+    petSizeScales: Array.from({ length: settingsStore.petCount }, (_, index) => settingsStore.petSizeScale(index)),
     isPetVisible: settingsStore.isPetVisible,
     isClickThrough: settingsStore.isClickThrough,
     isMouseoverCatchEnabled: settingsStore.isMouseoverCatchEnabled

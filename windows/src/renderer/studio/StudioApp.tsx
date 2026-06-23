@@ -19,6 +19,10 @@ import {
   nextSelectedSyncedPetID,
   petNameDraftForIndex
 } from "./studio-selection.ts";
+import {
+  isSelectedStudioPetSize,
+  studioPetSizeOptions
+} from "./studio-size.ts";
 
 declare global {
   interface Window {
@@ -34,6 +38,7 @@ type StudioState = {
   syncedPetCards: DesktopSyncedPetCard[];
   friendCards: DesktopFriendCard[];
   localVideoSlots: PetActionSlot[][];
+  petSizeScales: number[];
   isPetVisible: boolean;
   isClickThrough: boolean;
   isMouseoverCatchEnabled: boolean;
@@ -47,6 +52,7 @@ const defaultStudioState: StudioState = {
   syncedPetCards: [],
   friendCards: [],
   localVideoSlots: [[]],
+  petSizeScales: [1],
   isPetVisible: false,
   isClickThrough: false,
   isMouseoverCatchEnabled: true
@@ -182,6 +188,28 @@ export function StudioApp() {
             宠物名称
             <input value={petNameDraft} onChange={(event) => setPetNameDraft(event.target.value)} />
           </label>
+          <div className="field-group">
+            <span>宠物大小</span>
+            <div className="segmented-row">
+              {studioPetSizeOptions().map((option) => {
+                const currentScale = state.petSizeScales[selectedPetIndex] ?? 1;
+                return (
+                  <button
+                    key={option.scale}
+                    className={isSelectedStudioPetSize(option.scale, currentScale) ? "selected" : ""}
+                    onClick={() =>
+                      void runAction(
+                        () => bridge?.setPetSize?.(selectedPetIndex, option.scale),
+                        "已调整宠物大小。"
+                      )
+                    }
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="button-grid">
             <button onClick={() => void runAction(() => bridge?.addPet?.(), "已添加宠物。")}>添加宠物</button>
             <button

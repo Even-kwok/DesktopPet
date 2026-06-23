@@ -100,7 +100,8 @@ body {
   font-weight: 700;
 }
 
-label {
+label,
+.field-group {
   display: grid;
   gap: 5px;
   color: #3f4752;
