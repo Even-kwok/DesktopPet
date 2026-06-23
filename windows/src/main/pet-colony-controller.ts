@@ -1,4 +1,6 @@
 import type { Rect, SettingsStore } from "../shared/settings-store.ts";
+import { matchingNearbyResponseSlot, nearbyPetInteractionSlots } from "../shared/pet-action-slots.ts";
+import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
 export type PetWindowControllerLike = {
   isVisible: boolean;
@@ -15,18 +17,46 @@ export type PetWindowControllerLike = {
   dragBy?: (delta: { x: number; y: number }) => void;
   click?: () => void;
   playbackEnded?: () => void;
+  dragStarted?: () => void;
+  dragEnded?: () => void;
+  randomNearbyPetInteractionSlot?: (side: PetInteractionSide) => PetActionSlot | undefined;
+  triggerNearbyPetInteraction?: (slot: PetActionSlot) => boolean;
 };
 
 export type PetWindowFactory = (petIndex: number) => PetWindowControllerLike;
 
+export type PetColonyControllerOptions = {
+  proximityCheckIntervalMs?: number;
+  proximityInteractionCooldownMs?: number;
+  proximityInteractionProbability?: number;
+  proximityMargin?: number;
+  random?: () => number;
+  now?: () => number;
+};
+
 export class PetColonyController {
   readonly #settingsStore: SettingsStore;
   readonly #makePetWindow: PetWindowFactory;
+  readonly #options: Required<PetColonyControllerOptions>;
   readonly #petControllers: PetWindowControllerLike[] = [];
+  readonly #lastProximityInteractionAt = new Map<number, number>();
+  #proximityInteractionTimer?: NodeJS.Timeout;
 
-  constructor(settingsStore: SettingsStore, makePetWindow: PetWindowFactory) {
+  constructor(
+    settingsStore: SettingsStore,
+    makePetWindow: PetWindowFactory,
+    options: PetColonyControllerOptions = {}
+  ) {
     this.#settingsStore = settingsStore;
     this.#makePetWindow = makePetWindow;
+    this.#options = {
+      proximityCheckIntervalMs: options.proximityCheckIntervalMs ?? 6000,
+      proximityInteractionCooldownMs: options.proximityInteractionCooldownMs ?? 24000,
+      proximityInteractionProbability: options.proximityInteractionProbability ?? 0.18,
+      proximityMargin: options.proximityMargin ?? 28,
+      random: options.random ?? Math.random,
+      now: options.now ?? Date.now
+    };
     this.#ensurePetControllers(settingsStore.petCount);
   }
 
@@ -47,6 +77,8 @@ export class PetColonyController {
 
     if (this.#settingsStore.isPetVisible) {
       this.showAll();
+    } else {
+      this.#updateProximityInteractionTimer();
     }
   }
 
@@ -68,10 +100,14 @@ export class PetColonyController {
     this.#settingsStore.removePet(index);
 
     if (!this.#settingsStore.isPetVisible) {
+      this.#updateProximityInteractionTimer();
       return false;
     }
 
-    return this.showAll();
+    const didShowAnyPet = this.showAll();
+    this.#lastProximityInteractionAt.clear();
+    this.#updateProximityInteractionTimer();
+    return didShowAnyPet;
   }
 
   showAll() {
@@ -84,6 +120,7 @@ export class PetColonyController {
       }
     });
     this.#inactivePetControllers().forEach((controller) => controller.hide());
+    this.#updateProximityInteractionTimer();
 
     return didShowAnyPet;
   }
@@ -91,6 +128,7 @@ export class PetColonyController {
   hideAll() {
     this.#ensurePetControllers(this.#settingsStore.petCount);
     this.#petControllers.forEach((controller) => controller.hide());
+    this.#stopProximityInteractionTimer();
   }
 
   setClickThrough(isClickThrough: boolean) {
@@ -106,6 +144,7 @@ export class PetColonyController {
     this.#ensurePetControllers(petIndex + 1);
     this.#settingsStore.setPetSizeScale(scale, petIndex);
     this.#petControllers[petIndex].setSizeScale(scale);
+    this.#updateProximityInteractionTimer();
   }
 
   refreshPlayback() {
@@ -113,6 +152,7 @@ export class PetColonyController {
   }
 
   prepareForSystemSleep() {
+    this.#stopProximityInteractionTimer();
     this.#activePetControllers().forEach((controller) => controller.prepareForSystemSleep());
   }
 
@@ -124,6 +164,7 @@ export class PetColonyController {
     const didShowAnyPet = this.showAll();
     this.#settingsStore.isPetVisible = didShowAnyPet;
     this.#activePetControllers().forEach((controller) => controller.resumeAfterSystemWake());
+    this.#updateProximityInteractionTimer();
     return didShowAnyPet;
   }
 
@@ -133,10 +174,21 @@ export class PetColonyController {
 
   resetPositions() {
     this.#activePetControllers().forEach((controller) => controller.resetPosition());
+    this.#updateProximityInteractionTimer();
+  }
+
+  dragPetStarted(petIndex: number) {
+    this.#petControllers[petIndex]?.dragStarted?.();
   }
 
   dragPetBy(petIndex: number, delta: { x: number; y: number }) {
     this.#petControllers[petIndex]?.dragBy?.(delta);
+    this.#updateProximityInteractionTimer();
+  }
+
+  dragPetEnded(petIndex: number) {
+    this.#petControllers[petIndex]?.dragEnded?.();
+    this.#updateProximityInteractionTimer();
   }
 
   clickPet(petIndex: number) {
@@ -145,6 +197,46 @@ export class PetColonyController {
 
   petPlaybackEnded(petIndex: number) {
     this.#petControllers[petIndex]?.playbackEnded?.();
+  }
+
+  checkNearbyPetInteractions() {
+    const visibleControllers = this.#activePetControllers()
+      .map((controller, index) => ({ controller, index }))
+      .filter(({ controller }) => controller.isVisible && controller.frame !== undefined);
+
+    if (visibleControllers.length < 2) {
+      this.#updateProximityInteractionTimer();
+      return;
+    }
+
+    for (let firstOffset = 0; firstOffset < visibleControllers.length - 1; firstOffset += 1) {
+      for (let secondOffset = firstOffset + 1; secondOffset < visibleControllers.length; secondOffset += 1) {
+        const first = visibleControllers[firstOffset];
+        const second = visibleControllers[secondOffset];
+        if (!first.controller.frame || !second.controller.frame) {
+          continue;
+        }
+
+        if (!arePetsClose(first.controller.frame, second.controller.frame, this.#options.proximityMargin)) {
+          continue;
+        }
+
+        if (this.#options.random() > this.#options.proximityInteractionProbability) {
+          continue;
+        }
+
+        const firstCenterX = first.controller.frame.x + first.controller.frame.width / 2;
+        const secondCenterX = second.controller.frame.x + second.controller.frame.width / 2;
+        const sideForFirst = secondCenterX < firstCenterX ? "left" : "right";
+        const sideForSecond = firstCenterX < secondCenterX ? "left" : "right";
+
+        if (this.#options.random() < 0.5) {
+          this.#tryTriggerPairedProximityInteraction(first, sideForFirst, second);
+        } else {
+          this.#tryTriggerPairedProximityInteraction(second, sideForSecond, first);
+        }
+      }
+    }
   }
 
   #ensurePetControllers(count: number) {
@@ -162,4 +254,71 @@ export class PetColonyController {
     this.#ensurePetControllers(this.#settingsStore.petCount);
     return this.#petControllers.slice(this.#settingsStore.petCount);
   }
+
+  #tryTriggerPairedProximityInteraction(
+    initiator: { controller: PetWindowControllerLike; index: number },
+    initiatorSide: PetInteractionSide,
+    responder: { controller: PetWindowControllerLike; index: number }
+  ) {
+    if (this.#isInProximityCooldown(initiator.index)) {
+      return;
+    }
+
+    const initiatorSlot =
+      initiator.controller.randomNearbyPetInteractionSlot?.(initiatorSide) ??
+      randomSlot(nearbyPetInteractionSlots(initiatorSide), this.#options.random);
+    if (!initiator.controller.triggerNearbyPetInteraction?.(initiatorSlot)) {
+      return;
+    }
+
+    this.#lastProximityInteractionAt.set(initiator.index, this.#options.now());
+    const responseSlot = matchingNearbyResponseSlot(initiatorSlot);
+    if (responseSlot && responder.controller.triggerNearbyPetInteraction?.(responseSlot)) {
+      this.#lastProximityInteractionAt.set(responder.index, this.#options.now());
+    }
+  }
+
+  #isInProximityCooldown(petIndex: number) {
+    const lastInteractionAt = this.#lastProximityInteractionAt.get(petIndex);
+    return lastInteractionAt !== undefined && this.#options.now() - lastInteractionAt < this.#options.proximityInteractionCooldownMs;
+  }
+
+  #updateProximityInteractionTimer() {
+    if (this.#activePetControllers().filter((controller) => controller.isVisible).length > 1) {
+      this.#startProximityInteractionTimer();
+    } else {
+      this.#stopProximityInteractionTimer();
+    }
+  }
+
+  #startProximityInteractionTimer() {
+    if (this.#proximityInteractionTimer) {
+      return;
+    }
+
+    this.#proximityInteractionTimer = setInterval(() => {
+      this.checkNearbyPetInteractions();
+    }, this.#options.proximityCheckIntervalMs);
+    this.#proximityInteractionTimer.unref?.();
+  }
+
+  #stopProximityInteractionTimer() {
+    if (this.#proximityInteractionTimer) {
+      clearInterval(this.#proximityInteractionTimer);
+      this.#proximityInteractionTimer = undefined;
+    }
+  }
+}
+
+function arePetsClose(first: Rect, second: Rect, margin: number) {
+  return !(
+    first.x - margin > second.x + second.width ||
+    first.x + first.width + margin < second.x ||
+    first.y - margin > second.y + second.height ||
+    first.y + first.height + margin < second.y
+  );
+}
+
+function randomSlot<T>(slots: T[], random: () => number) {
+  return slots[Math.min(slots.length - 1, Math.floor(random() * slots.length))];
 }

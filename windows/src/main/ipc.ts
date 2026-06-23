@@ -18,7 +18,9 @@ export const ipcChannels = {
   removeFriend: "friends:remove",
   requestHosting: "hosting:request",
   recallPet: "hosting:recall",
+  petDragStarted: "pet:drag-started",
   petDragBy: "pet:drag-by",
+  petDragEnded: "pet:drag-ended",
   petClick: "pet:click",
   petPlaybackEnded: "pet:playback-ended"
 } as const;
@@ -50,7 +52,9 @@ export type IpcDependencies = {
   removeFriend: (friendId: string) => unknown;
   requestHosting: (petId: string, toUserId: string) => unknown;
   recallPet: (petId: string) => unknown;
+  petDragStarted: (petIndex: number) => unknown;
   petDragBy: (petIndex: number, delta: { x: number; y: number }) => unknown;
+  petDragEnded: (petIndex: number) => unknown;
   petClick: (petIndex: number) => unknown;
   petPlaybackEnded: (petIndex: number) => unknown;
 };
@@ -87,9 +91,13 @@ export function registerIpcHandlers(ipcMain: IpcMainLike, dependencies: IpcDepen
     dependencies.requestHosting(String(petId ?? ""), String(toUserId ?? ""))
   );
   ipcMain.handle(ipcChannels.recallPet, (_event, petId) => dependencies.recallPet(String(petId ?? "")));
+  ipcMain.on(ipcChannels.petDragStarted, (_event, petIndex) =>
+    dependencies.petDragStarted(Number(petIndex))
+  );
   ipcMain.on(ipcChannels.petDragBy, (_event, petIndex, delta) =>
     dependencies.petDragBy(Number(petIndex), normalizeDelta(delta))
   );
+  ipcMain.on(ipcChannels.petDragEnded, (_event, petIndex) => dependencies.petDragEnded(Number(petIndex)));
   ipcMain.on(ipcChannels.petClick, (_event, petIndex) => dependencies.petClick(Number(petIndex)));
   ipcMain.on(ipcChannels.petPlaybackEnded, (_event, petIndex) =>
     dependencies.petPlaybackEnded(Number(petIndex))

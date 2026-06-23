@@ -223,8 +223,14 @@ async function bootstrap() {
       settingsStore.markSyncedPetRecalled(petId);
       return studioState();
     },
+    petDragStarted: (petIndex) => {
+      petColonyController.dragPetStarted(petIndex);
+    },
     petDragBy: (petIndex, delta) => {
       petColonyController.dragPetBy(petIndex, delta);
+    },
+    petDragEnded: (petIndex) => {
+      petColonyController.dragPetEnded(petIndex);
     },
     petClick: (petIndex) => {
       petColonyController.clickPet(petIndex);

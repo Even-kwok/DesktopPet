@@ -5,12 +5,15 @@ import path from "node:path";
 import test from "node:test";
 import { PetColonyController } from "../src/main/pet-colony-controller.ts";
 import { SettingsStore } from "../src/shared/settings-store.ts";
+import type { PetActionSlot, PetInteractionSide } from "../src/shared/pet-action-slots.ts";
 
 class FakePetWindow {
   isVisible = false;
   hideCount = 0;
   clickThrough = false;
   sizeScale = 1;
+  frame = { x: 0, y: 0, width: 150, height: 150 };
+  triggeredSlots: PetActionSlot[] = [];
   readonly settingsStore: SettingsStore;
   readonly petIndex: number;
 
@@ -41,10 +44,25 @@ class FakePetWindow {
   prepareForSystemSleep() {}
   resumeAfterSystemWake() {}
   refreshDisplayName() {}
-  resetPosition() {}
+  resetPosition() {
+    this.frame = { x: 0, y: 0, width: 150, height: 150 };
+  }
+
+  randomNearbyPetInteractionSlot(side: PetInteractionSide) {
+    return side === "left" ? "head_rub_left" : "head_rub_right";
+  }
+
+  triggerNearbyPetInteraction(slot: PetActionSlot) {
+    if (!this.settingsStore.restoreVideoPath(slot, this.petIndex)) {
+      return false;
+    }
+
+    this.triggeredSlots.push(slot);
+    return true;
+  }
 }
 
-function makeHarness() {
+function makeHarness(options?: ConstructorParameters<typeof PetColonyController>[2]) {
   const dir = mkdtempSync(path.join(tmpdir(), "cat-desktop-pet-colony-"));
   const settingsStore = new SettingsStore(path.join(dir, "settings.json"));
   const windows: FakePetWindow[] = [];
@@ -52,7 +70,7 @@ function makeHarness() {
     const window = new FakePetWindow(settingsStore, petIndex);
     windows.push(window);
     return window;
-  });
+  }, options);
 
   return {
     settingsStore,
@@ -114,6 +132,39 @@ test("removing a pet compacts settings and hides removed windows", () => {
     assert.equal(settingsStore.petName(0), "团子");
     assert.equal(settingsStore.restoreVideoPath("idle_loop", 0), "C:/cats/second.mp4");
     assert.ok(windows[0].hideCount >= 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test("nearby pets trigger paired interactions with cooldown", () => {
+  let now = 1000;
+  const { settingsStore, colony, windows, cleanup } = makeHarness({
+    random: () => 0,
+    now: () => now,
+    proximityInteractionProbability: 1,
+    proximityInteractionCooldownMs: 24000
+  });
+  try {
+    settingsStore.petCount = 2;
+    settingsStore.saveVideoPath("C:/cats/first.mp4", "idle_loop", 0);
+    settingsStore.saveVideoPath("C:/cats/first-left.mp4", "head_rub_left", 0);
+    settingsStore.saveVideoPath("C:/cats/second.mp4", "idle_loop", 1);
+    settingsStore.saveVideoPath("C:/cats/second-right.mp4", "head_rub_right", 1);
+    colony.showAll();
+    windows[0].frame = { x: 100, y: 100, width: 150, height: 150 };
+    windows[1].frame = { x: 80, y: 100, width: 150, height: 150 };
+
+    colony.checkNearbyPetInteractions();
+    assert.deepEqual(windows[0].triggeredSlots, ["head_rub_left"]);
+    assert.deepEqual(windows[1].triggeredSlots, ["head_rub_right"]);
+
+    colony.checkNearbyPetInteractions();
+    assert.deepEqual(windows[0].triggeredSlots, ["head_rub_left"]);
+
+    now += 25000;
+    colony.checkNearbyPetInteractions();
+    assert.deepEqual(windows[0].triggeredSlots, ["head_rub_left", "head_rub_left"]);
   } finally {
     cleanup();
   }

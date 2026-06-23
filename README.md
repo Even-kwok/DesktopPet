@@ -69,7 +69,7 @@ npm run build
 Current Windows MVP includes:
 
 - Tray menu labels and pet material slots aligned with the Mac app.
-- Transparent always-on-top Electron pet windows with click, drag, click-through, saved position, size controls, and sleep/wake recovery hooks.
+- Transparent always-on-top Electron pet windows with click, drag, click-through, saved position, size controls, sleep/wake recovery, mouseover catch, idle random actions, and nearby-pet paired interactions.
 - Local MP4/MOV state-video import and per-pet video persistence.
 - Canvas chroma-key rendering for green-screen pet videos.
 - Compact account/studio UI for login, sync, synced pet cards, local materials, friends, hosting, recall, and sign-out.

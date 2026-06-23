@@ -23,7 +23,9 @@ test("lists the stable preload IPC channels", () => {
     removeFriend: "friends:remove",
     requestHosting: "hosting:request",
     recallPet: "hosting:recall",
+    petDragStarted: "pet:drag-started",
     petDragBy: "pet:drag-by",
+    petDragEnded: "pet:drag-ended",
     petClick: "pet:click",
     petPlaybackEnded: "pet:playback-ended"
   });

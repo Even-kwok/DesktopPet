@@ -22,8 +22,10 @@ const desktopPet = {
   requestHosting: (petId: string, toUserId: string) =>
     ipcRenderer.invoke(ipcChannels.requestHosting, petId, toUserId),
   recallPet: (petId: string) => ipcRenderer.invoke(ipcChannels.recallPet, petId),
+  petDragStarted: (petIndex: number) => ipcRenderer.send(ipcChannels.petDragStarted, petIndex),
   petDragBy: (petIndex: number, delta: { x: number; y: number }) =>
     ipcRenderer.send(ipcChannels.petDragBy, petIndex, delta),
+  petDragEnded: (petIndex: number) => ipcRenderer.send(ipcChannels.petDragEnded, petIndex),
   petClick: (petIndex: number) => ipcRenderer.send(ipcChannels.petClick, petIndex),
   petPlaybackEnded: (petIndex: number) => ipcRenderer.send(ipcChannels.petPlaybackEnded, petIndex),
   onPetCommand: (callback: (command: unknown) => void) => {

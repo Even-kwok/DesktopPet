@@ -1,10 +1,16 @@
-import { BrowserWindow } from "electron";
+import { BrowserWindow, screen } from "electron";
 import type { Rectangle } from "electron";
 import type { Rect, SettingsStore } from "../shared/settings-store.ts";
 import { applyPetSizeScale, defaultPetFrame } from "../shared/settings-store.ts";
 import { PetStateMachine } from "../shared/pet-state-machine.ts";
 import type { PetWindowControllerLike } from "./pet-colony-controller.ts";
-import type { PetActionSlot } from "../shared/pet-action-slots.ts";
+import {
+  clickReactionSlots,
+  idleRandomActionSlots,
+  mouseoverCatchSlots,
+  nearbyPetInteractionSlots
+} from "../shared/pet-action-slots.ts";
+import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
 export type PetWindowControllerOptions = {
   preloadPath: string;
@@ -21,6 +27,11 @@ export class PetWindowController implements PetWindowControllerLike {
   #window?: BrowserWindow;
   #currentVideoPath?: string;
   #currentMode: "loop" | "playOnce" = "loop";
+  #mouseMonitorTimer?: NodeJS.Timeout;
+  #sleepTimer?: NodeJS.Timeout;
+  #idleActionTimer?: NodeJS.Timeout;
+  #pendingSocialInteractionSlots?: PetActionSlot[];
+  #wasMouseInsideCatchFrame = false;
   isVisible = false;
   frame?: Rect;
 
@@ -69,6 +80,9 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   prepareForSystemSleep() {
+    this.#stopMouseMonitor();
+    this.#stopSleepTimer();
+    this.#stopIdleActionTimer();
     this.#sendCommand({ type: "pause" });
   }
 
@@ -105,12 +119,34 @@ export class PetWindowController implements PetWindowControllerLike {
     this.#saveBounds(nextBounds);
   }
 
+  dragStarted() {
+    this.#stateMachine.send("dragStarted");
+  }
+
+  dragEnded() {
+    this.#stateMachine.send("dragEnded");
+  }
+
   click() {
     this.#stateMachine.send("click");
   }
 
   playbackEnded() {
     this.#stateMachine.send("reactionFinished");
+  }
+
+  randomNearbyPetInteractionSlot(side: PetInteractionSide) {
+    return this.#randomAvailableSlot(nearbyPetInteractionSlots(side));
+  }
+
+  triggerNearbyPetInteraction(slot: PetActionSlot) {
+    if (this.#stateMachine.state !== "idle" || !this.#settingsStore.restoreVideoPath(slot, this.#petIndex)) {
+      return false;
+    }
+
+    this.#pendingSocialInteractionSlots = [slot];
+    this.#stateMachine.send("nearbyPet");
+    return true;
   }
 
   async #showWindow() {
@@ -166,29 +202,93 @@ export class PetWindowController implements PetWindowControllerLike {
 
   #applyState(state: string) {
     if (state === "hidden") {
+      this.#stopMouseMonitor();
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#pendingSocialInteractionSlots = undefined;
       this.#sendCommand({ type: "pause" });
       return;
     }
 
     if (state === "clicked") {
-      this.#playFirstAvailable(["click_react", "happy", "disgusted", "clingy", "aloof", "belly_up"]);
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#playFirstAvailable(clickReactionSlots);
+      return;
+    }
+
+    if (state === "catchingBug") {
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#playFirstAvailable(mouseoverCatchSlots);
+      return;
+    }
+
+    if (state === "idleAction") {
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#playFirstAvailable(idleRandomActionSlots);
+      return;
+    }
+
+    if (state === "socialInteraction") {
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      const slots = this.#pendingSocialInteractionSlots ?? [];
+      this.#pendingSocialInteractionSlots = undefined;
+      this.#playFirstAvailable(slots);
+      return;
+    }
+
+    if (state === "sleeping") {
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#playVideo("sleep_loop", "playOnce");
+      this.#startMouseMonitor();
+      return;
+    }
+
+    if (state === "grabbed") {
+      this.#stopMouseMonitor();
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#pendingSocialInteractionSlots = undefined;
+      this.#playVideo("idle_loop", "loop");
+      return;
+    }
+
+    if (state === "dropped") {
+      this.#stopMouseMonitor();
+      this.#stopSleepTimer();
+      this.#stopIdleActionTimer();
+      this.#pendingSocialInteractionSlots = undefined;
       return;
     }
 
     if (state === "idle") {
-      const idleVideoPath = this.#settingsStore.restoreVideoPath("idle_loop", this.#petIndex);
-      if (idleVideoPath) {
-        this.#currentVideoPath = idleVideoPath;
-        this.#currentMode = "loop";
-        this.#sendCurrentVideo();
-      }
+      this.#playVideo("idle_loop", "loop");
+      this.#startMouseMonitorIfNeeded();
+      this.#scheduleSleepTimer();
+      this.#scheduleIdleActionTimer();
     }
   }
 
+  #playVideo(slot: PetActionSlot, mode: "loop" | "playOnce") {
+    const videoPath = this.#settingsStore.restoreVideoPath(slot, this.#petIndex);
+    if (!videoPath) {
+      if (slot === "sleep_loop") {
+        this.#stateMachine.send("wake");
+      }
+      return;
+    }
+
+    this.#currentVideoPath = videoPath;
+    this.#currentMode = mode;
+    this.#sendCurrentVideo();
+  }
+
   #playFirstAvailable(slots: PetActionSlot[]) {
-    const slot = slots.find((candidate) =>
-      this.#settingsStore.restoreVideoPath(candidate, this.#petIndex)
-    );
+    const slot = this.#randomAvailableSlot(slots);
     if (!slot) {
       this.#stateMachine.send("reactionFinished");
       return;
@@ -197,6 +297,149 @@ export class PetWindowController implements PetWindowControllerLike {
     this.#currentVideoPath = this.#settingsStore.restoreVideoPath(slot, this.#petIndex);
     this.#currentMode = "playOnce";
     this.#sendCurrentVideo();
+  }
+
+  #randomAvailableSlot(slots: PetActionSlot[]) {
+    const availableSlots = slots.filter((slot) => this.#settingsStore.restoreVideoPath(slot, this.#petIndex));
+    return availableSlots[Math.floor(Math.random() * availableSlots.length)];
+  }
+
+  #hasAvailableSlot(slots: PetActionSlot[]) {
+    return slots.some((slot) => this.#settingsStore.restoreVideoPath(slot, this.#petIndex));
+  }
+
+  #startMouseMonitorIfNeeded() {
+    if (
+      this.#settingsStore.restoreVideoPath("sleep_loop", this.#petIndex) ||
+      (this.#settingsStore.isMouseoverCatchEnabled && this.#hasAvailableSlot(mouseoverCatchSlots))
+    ) {
+      this.#startMouseMonitor();
+    } else {
+      this.#stopMouseMonitor();
+    }
+  }
+
+  #startMouseMonitor() {
+    if (this.#mouseMonitorTimer) {
+      return;
+    }
+
+    if (this.frame) {
+      this.#wasMouseInsideCatchFrame = rectContainsPoint(mouseoverCatchFrame(this.frame), screen.getCursorScreenPoint());
+    }
+
+    this.#mouseMonitorTimer = setInterval(() => {
+      this.#updateMouseMonitor();
+    }, 1000 / 30);
+    this.#mouseMonitorTimer.unref?.();
+  }
+
+  #stopMouseMonitor() {
+    if (this.#mouseMonitorTimer) {
+      clearInterval(this.#mouseMonitorTimer);
+      this.#mouseMonitorTimer = undefined;
+    }
+    this.#wasMouseInsideCatchFrame = false;
+  }
+
+  #scheduleSleepTimer() {
+    this.#stopSleepTimer();
+    if (!this.#settingsStore.restoreVideoPath("sleep_loop", this.#petIndex)) {
+      return;
+    }
+
+    this.#sleepTimer = setTimeout(() => {
+      this.#sleepTimer = undefined;
+      this.#tryEnterSleep();
+    }, 60000);
+    this.#sleepTimer.unref?.();
+  }
+
+  #stopSleepTimer() {
+    if (this.#sleepTimer) {
+      clearTimeout(this.#sleepTimer);
+      this.#sleepTimer = undefined;
+    }
+  }
+
+  #scheduleIdleActionTimer() {
+    this.#stopIdleActionTimer();
+    if (!this.#hasAvailableSlot(idleRandomActionSlots)) {
+      return;
+    }
+
+    this.#idleActionTimer = setTimeout(() => {
+      this.#idleActionTimer = undefined;
+      this.#tryPlayIdleRandomAction();
+    }, 12000 + Math.random() * 16000);
+    this.#idleActionTimer.unref?.();
+  }
+
+  #stopIdleActionTimer() {
+    if (this.#idleActionTimer) {
+      clearTimeout(this.#idleActionTimer);
+      this.#idleActionTimer = undefined;
+    }
+  }
+
+  #tryEnterSleep() {
+    if (this.#stateMachine.state !== "idle" || !this.frame || !this.isVisible) {
+      return;
+    }
+
+    if (rectContainsPoint(expandRect(this.frame, 70), screen.getCursorScreenPoint())) {
+      this.#scheduleSleepTimer();
+      return;
+    }
+
+    this.#stateMachine.send("sleep");
+  }
+
+  #tryPlayIdleRandomAction() {
+    if (this.#stateMachine.state !== "idle" || !this.frame || !this.isVisible) {
+      return;
+    }
+
+    if (rectContainsPoint(expandRect(this.frame, 35), screen.getCursorScreenPoint())) {
+      this.#scheduleIdleActionTimer();
+      return;
+    }
+
+    this.#stateMachine.send("idleActionDue");
+  }
+
+  #updateMouseMonitor() {
+    if (!this.frame || !this.isVisible) {
+      return;
+    }
+
+    const cursorPoint = screen.getCursorScreenPoint();
+    if (this.#stateMachine.state === "sleeping") {
+      if (rectContainsPoint(expandRect(this.frame, 35), cursorPoint)) {
+        this.#wasMouseInsideCatchFrame = rectContainsPoint(mouseoverCatchFrame(this.frame), cursorPoint);
+        this.#stateMachine.send("wake");
+      }
+      return;
+    }
+
+    const isInsideCatchFrame = rectContainsPoint(mouseoverCatchFrame(this.frame), cursorPoint);
+    if (!isInsideCatchFrame) {
+      this.#wasMouseInsideCatchFrame = false;
+      return;
+    }
+
+    if (this.#wasMouseInsideCatchFrame) {
+      return;
+    }
+
+    this.#wasMouseInsideCatchFrame = true;
+    if (
+      this.#stateMachine.state === "idle" &&
+      this.#settingsStore.isMouseoverCatchEnabled &&
+      this.#hasAvailableSlot(mouseoverCatchSlots)
+    ) {
+      this.#stateMachine.send("mouseOverPet");
+    }
   }
 
   #sendCurrentVideo() {
@@ -234,4 +477,21 @@ export class PetWindowController implements PetWindowControllerLike {
 
 function withTrailingSlash(value: string) {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+function mouseoverCatchFrame(frame: Rect) {
+  return expandRect(frame, 10);
+}
+
+function expandRect(frame: Rect, margin: number): Rect {
+  return {
+    x: frame.x - margin,
+    y: frame.y - margin,
+    width: frame.width + margin * 2,
+    height: frame.height + margin * 2
+  };
+}
+
+function rectContainsPoint(rect: Rect, point: { x: number; y: number }) {
+  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
 }

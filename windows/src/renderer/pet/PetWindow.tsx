@@ -22,6 +22,7 @@ export function PetWindow() {
   const lastDragLocationRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartLocationRef = useRef<{ x: number; y: number } | null>(null);
   const movedDuringClickRef = useRef(false);
+  const dragStartedRef = useRef(false);
   const petIndexRef = useRef(0);
   const modeRef = useRef<PetPlaybackMode>("loop");
   const [videoSource, setVideoSource] = useState("");
@@ -100,6 +101,7 @@ export function PetWindow() {
           lastDragLocationRef.current = { x: event.screenX, y: event.screenY };
           dragStartLocationRef.current = { x: event.screenX, y: event.screenY };
           movedDuringClickRef.current = false;
+          dragStartedRef.current = false;
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
@@ -112,6 +114,10 @@ export function PetWindow() {
           const totalX = event.screenX - dragStartLocation.x;
           const totalY = event.screenY - dragStartLocation.y;
           if (Math.hypot(totalX, totalY) > 3) {
+            if (!dragStartedRef.current) {
+              dragStartedRef.current = true;
+              window.desktopPet?.petDragStarted?.(petIndexRef.current);
+            }
             movedDuringClickRef.current = true;
           }
 
@@ -128,11 +134,14 @@ export function PetWindow() {
         onPointerUp={(event) => {
           if (!movedDuringClickRef.current) {
             window.desktopPet?.petClick?.(petIndexRef.current);
+          } else if (dragStartedRef.current) {
+            window.desktopPet?.petDragEnded?.(petIndexRef.current);
           }
 
           lastDragLocationRef.current = null;
           dragStartLocationRef.current = null;
           movedDuringClickRef.current = false;
+          dragStartedRef.current = false;
           event.currentTarget.releasePointerCapture(event.pointerId);
         }}
       />
