@@ -145,11 +145,16 @@ export class DesktopPetSyncClient {
   }
 
   async fetchFriends(accessToken: string) {
-    const response = await this.#sendJSON<{ friends: DesktopFriendCard[] }>({
+    const response = await this.#sendJSON<unknown>({
       path: "/api/friends",
       accessToken,
       unauthorizedError: DesktopPetSyncError.sessionExpired()
     });
+
+    if (!isDesktopFriendsResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
     return response.friends;
   }
 
@@ -361,6 +366,23 @@ function isDesktopPetBundleMaterial(value: unknown): value is DesktopPetBundleMa
     isString(value.name) &&
     isString(value.videoUrl) &&
     isString(value.status)
+  );
+}
+
+function isDesktopFriendsResponse(value: unknown): value is { friends: DesktopFriendCard[] } {
+  return isRecord(value) && Array.isArray(value.friends) && value.friends.every(isDesktopFriendCard);
+}
+
+function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isString(value.name) &&
+    isString(value.status) &&
+    isInteger(value.hostedPets)
   );
 }
 
