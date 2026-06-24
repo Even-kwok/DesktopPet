@@ -10,8 +10,13 @@ export function shouldFinishRendererShow(input: {
   requestRevision: number;
   currentRevision: number;
   isVisible: boolean;
+  canUseRendererTarget?: boolean;
 }) {
-  return input.isVisible && input.requestRevision === input.currentRevision;
+  return (
+    input.canUseRendererTarget !== false &&
+    input.isVisible &&
+    input.requestRevision === input.currentRevision
+  );
 }
 
 export function canSendRendererCommand(input: {

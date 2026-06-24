@@ -186,7 +186,9 @@ export class PetWindowController implements PetWindowControllerLike {
       !shouldFinishRendererShow({
         requestRevision: showRevision,
         currentRevision: this.#showRevision,
-        isVisible: this.isVisible
+        isVisible: this.isVisible,
+        canUseRendererTarget:
+          this.#window === window && !window.isDestroyed() && !window.webContents.isDestroyed()
       })
     ) {
       return;

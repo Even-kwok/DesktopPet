@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 226 tests.
+- `npm test`: passed, 227 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -116,6 +116,8 @@ Studio refresh coverage now verifies tray-side and other main-process state chan
 Renderer command coverage now verifies Windows only sends Studio and pet playback commands to live Electron web contents, avoiding stale sends after windows are closed or destroyed.
 
 Studio show-command coverage now verifies async Studio show completions skip refresh/select commands when the renderer command target has already gone away.
+
+Pet show-command coverage now verifies async pet renderer load completions stop before touching a destroyed BrowserWindow/webContents target, matching the stale-renderer guard used by Studio commands.
 
 Web studio publish-status coverage now verifies desktop sync success and failure copy refers to the shared desktop clients instead of only the Mac client, so generated materials point users toward both Mac and Windows desktop sync.
 

@@ -37,6 +37,18 @@ test("allows only the latest visible renderer show request to finish", () => {
   );
 });
 
+test("does not finish a renderer show when the target window is gone", () => {
+  assert.equal(
+    shouldFinishRendererShow({
+      requestRevision: 1,
+      currentRevision: 1,
+      isVisible: true,
+      canUseRendererTarget: false
+    }),
+    false
+  );
+});
+
 test("sends renderer commands only to live web contents", () => {
   assert.equal(
     canSendRendererCommand({
