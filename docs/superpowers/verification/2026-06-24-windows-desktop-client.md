@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 177 tests.
+- `npm test`: passed, 178 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -28,6 +28,8 @@ Settings-store coverage now also verifies that inactive boundary pet slots canno
 Settings-store studio-cache coverage now verifies negative synced-pet material counts and friend hosted-pet counts are treated as malformed instead of being shown in the Windows Studio.
 
 Desktop sync coverage now verifies remote friend-list responses with negative hosted-pet counts are rejected before they can enter the Windows Studio.
+
+Desktop sync account coverage now verifies login and bundle account records with negative credit balances are rejected before they can be shown in the Windows Studio.
 
 Colony-controller coverage now verifies invalid JavaScript pet-count values are ignored instead of collapsing active Windows pets or entering unsafe controller creation paths.
 

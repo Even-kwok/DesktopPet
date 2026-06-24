@@ -349,7 +349,7 @@ function isDesktopSyncAccount(value: unknown): value is DesktopSyncAccount {
     isString(value.id) &&
     isString(value.name) &&
     isString(value.email) &&
-    isInteger(value.credits)
+    isNonNegativeInteger(value.credits)
   );
 }
 
