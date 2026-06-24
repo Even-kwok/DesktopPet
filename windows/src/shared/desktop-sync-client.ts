@@ -439,7 +439,7 @@ function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
     isString(value.id) &&
     isString(value.name) &&
     isString(value.status) &&
-    isInteger(value.hostedPets)
+    isNonNegativeInteger(value.hostedPets)
   );
 }
 
@@ -492,8 +492,12 @@ function isOptionalString(value: unknown) {
   return value === undefined || value === null || isString(value);
 }
 
-function isInteger(value: unknown) {
+function isInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value);
+}
+
+function isNonNegativeInteger(value: unknown) {
+  return isInteger(value) && value >= 0;
 }
 
 export function safeRemoteMaterialPathComponent(value: string) {

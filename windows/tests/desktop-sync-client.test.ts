@@ -278,6 +278,29 @@ test("maps malformed friend list responses to invalid response", async () => {
   }
 });
 
+test("maps friend list responses with negative hosted-pet counts to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: {
+      friends: [{ id: "friend_1", name: "阿雯", status: "在线", hostedPets: -1 }]
+    }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.fetchFriends("desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("maps malformed add-friend responses to invalid response", async () => {
   const server = await withServer(() => ({
     status: 200,
