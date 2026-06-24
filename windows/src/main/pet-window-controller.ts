@@ -18,6 +18,7 @@ import {
   canSendRendererCommand,
   hasLoadedRendererURL,
   nextRendererShowRevision,
+  settleRendererShow,
   shouldFinishRendererShow
 } from "./renderer-load-policy.ts";
 import { petWindowBrowserOptions } from "./electron-window-options.ts";
@@ -181,24 +182,28 @@ export class PetWindowController implements PetWindowControllerLike {
 
   async #showWindow(showRevision: number) {
     const window = this.#window ?? this.#createWindow();
-    await this.#loadRenderer(window);
-    if (
-      !shouldFinishRendererShow({
-        requestRevision: showRevision,
-        currentRevision: this.#showRevision,
-        isVisible: this.isVisible,
-        canUseRendererTarget:
-          this.#window === window && !window.isDestroyed() && !window.webContents.isDestroyed()
-      })
-    ) {
-      return;
-    }
+    await settleRendererShow({
+      load: this.#loadRenderer(window),
+      finish: () => {
+        if (
+          !shouldFinishRendererShow({
+            requestRevision: showRevision,
+            currentRevision: this.#showRevision,
+            isVisible: this.isVisible,
+            canUseRendererTarget:
+              this.#window === window && !window.isDestroyed() && !window.webContents.isDestroyed()
+          })
+        ) {
+          return;
+        }
 
-    window.setBounds(this.#rectToBounds(this.#petFrameForCurrentScreen()));
-    window.setIgnoreMouseEvents(this.#options.getClickThrough(), { forward: true });
-    window.showInactive();
-    window.moveTop();
-    this.#sendCurrentVideo();
+        window.setBounds(this.#rectToBounds(this.#petFrameForCurrentScreen()));
+        window.setIgnoreMouseEvents(this.#options.getClickThrough(), { forward: true });
+        window.showInactive();
+        window.moveTop();
+        this.#sendCurrentVideo();
+      }
+    });
   }
 
   #createWindow() {

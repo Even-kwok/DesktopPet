@@ -19,6 +19,23 @@ export function shouldFinishRendererShow(input: {
   );
 }
 
+export async function settleRendererShow(input: {
+  load?: Promise<void>;
+  finish: () => void;
+}) {
+  if (!input.load) {
+    input.finish();
+    return;
+  }
+
+  try {
+    await input.load;
+    input.finish();
+  } catch {
+    // Renderer load failures leave the app shell alive; a later show can retry.
+  }
+}
+
 export function canSendRendererCommand(input: {
   hasWindow: boolean;
   isWebContentsDestroyed: boolean;

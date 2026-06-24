@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   canSendRendererCommand,
   nextRendererShowRevision,
+  settleRendererShow,
   shouldFinishRendererShow
 } from "../src/main/renderer-load-policy.ts";
 
@@ -71,4 +72,32 @@ test("sends renderer commands only to live web contents", () => {
     }),
     true
   );
+});
+
+test("settles failed renderer loads without running show completion", async () => {
+  let finishCount = 0;
+
+  await assert.doesNotReject(
+    settleRendererShow({
+      load: Promise.reject(new Error("renderer unavailable")),
+      finish: () => {
+        finishCount += 1;
+      }
+    })
+  );
+
+  assert.equal(finishCount, 0);
+});
+
+test("runs show completion after a successful renderer load", async () => {
+  let finishCount = 0;
+
+  await settleRendererShow({
+    load: Promise.resolve(),
+    finish: () => {
+      finishCount += 1;
+    }
+  });
+
+  assert.equal(finishCount, 1);
 });

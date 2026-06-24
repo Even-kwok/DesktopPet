@@ -7,7 +7,11 @@ import {
 } from "./studio-window-policy.js";
 import type { StudioWindowCommand } from "./studio-window-policy.js";
 import { ipcChannels } from "./ipc.js";
-import { canSendRendererCommand, nextRendererShowRevision } from "./renderer-load-policy.js";
+import {
+  canSendRendererCommand,
+  nextRendererShowRevision,
+  settleRendererShow
+} from "./renderer-load-policy.js";
 
 export type StudioWindowControllerOptions = {
   preloadPath: string;
@@ -61,11 +65,7 @@ export class StudioWindowController {
         window.webContents.send(ipcChannels.studioCommand, showCommand);
       }
     };
-    if (loadPromise) {
-      void loadPromise.then(sendCommand).catch(() => {});
-    } else {
-      sendCommand();
-    }
+    void settleRendererShow({ load: loadPromise, finish: sendCommand });
   }
 
   hide() {
