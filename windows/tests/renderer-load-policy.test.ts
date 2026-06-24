@@ -2,10 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canSendRendererCommand,
+  hasLoadedRendererURL,
   nextRendererShowRevision,
   settleRendererShow,
   shouldFinishRendererShow
 } from "../src/main/renderer-load-policy.ts";
+
+test("treats Electron error pages as not loaded so later shows can retry", () => {
+  assert.equal(hasLoadedRendererURL(""), false);
+  assert.equal(hasLoadedRendererURL("about:blank"), false);
+  assert.equal(hasLoadedRendererURL("chrome-error://chromewebdata/"), false);
+  assert.equal(hasLoadedRendererURL("file:///app/out/renderer/index.html"), true);
+  assert.equal(hasLoadedRendererURL("http://localhost:5173"), true);
+});
 
 test("allows only the latest visible renderer show request to finish", () => {
   const firstShow = nextRendererShowRevision(0);

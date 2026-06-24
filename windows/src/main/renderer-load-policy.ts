@@ -1,5 +1,5 @@
 export function hasLoadedRendererURL(currentURL: string) {
-  return currentURL !== "" && currentURL !== "about:blank";
+  return currentURL !== "" && currentURL !== "about:blank" && !currentURL.startsWith("chrome-error://");
 }
 
 export function nextRendererShowRevision(currentRevision: number) {

@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 229 tests.
+- `npm test`: passed, 230 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -119,7 +119,7 @@ Studio show-command coverage now verifies async Studio show completions skip ref
 
 Pet show-command coverage now verifies async pet renderer load completions stop before touching a destroyed BrowserWindow/webContents target, matching the stale-renderer guard used by Studio commands.
 
-Renderer load coverage now verifies failed Electron renderer loads settle without running show completion or producing an unhandled rejection, while successful loads still finish the Studio or pet show path.
+Renderer load coverage now verifies failed Electron renderer loads settle without running show completion or producing an unhandled rejection, Electron error pages are treated as unloaded so later show attempts can retry, and successful loads still finish the Studio or pet show path.
 
 Web studio publish-status coverage now verifies desktop sync success and failure copy refers to the shared desktop clients instead of only the Mac client, so generated materials point users toward both Mac and Windows desktop sync.
 
