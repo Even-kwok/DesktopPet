@@ -15,7 +15,7 @@ export function videoMetadataProbeScript(videoURL: string) {
         resolve(metadata);
       };
       const timeout = window.setTimeout(() => {
-        finish({ durationSeconds: 0, hasVideoTrack: false });
+        finish({ durationSeconds: 0, hasVideoTrack: false, readError: true });
       }, ${metadataProbeTimeoutMs});
       video.preload = "metadata";
       video.muted = true;
@@ -23,12 +23,13 @@ export function videoMetadataProbeScript(videoURL: string) {
         window.clearTimeout(timeout);
         finish({
           durationSeconds: Number.isFinite(video.duration) ? video.duration : 0,
-          hasVideoTrack: video.videoWidth > 0 && video.videoHeight > 0
+          hasVideoTrack: video.videoWidth > 0 && video.videoHeight > 0,
+          readError: false
         });
       };
       video.onerror = () => {
         window.clearTimeout(timeout);
-        finish({ durationSeconds: 0, hasVideoTrack: false });
+        finish({ durationSeconds: 0, hasVideoTrack: false, readError: true });
       };
       video.src = ${JSON.stringify(videoURL)};
     })

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { reviewPetVideoImport } from "../src/shared/video-import-review.ts";
+import {
+  reviewPetVideoImport,
+  unreadablePetVideoImportMessage
+} from "../src/shared/video-import-review.ts";
 
 test("accepts normal short clips", () => {
   const review = reviewPetVideoImport({
@@ -23,6 +26,10 @@ test("blocks files without video tracks", () => {
 
   assert.equal(review.canImport, false);
   assert.match(review.blockingMessages.join(" "), /视频画面/);
+});
+
+test("uses Mac-parity copy for unreadable video files", () => {
+  assert.equal(unreadablePetVideoImportMessage, "视频打不开，请换一个 MP4 或 MOV。");
 });
 
 test("blocks long and oversized files", () => {

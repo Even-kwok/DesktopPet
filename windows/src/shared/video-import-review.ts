@@ -10,6 +10,8 @@ export type PetVideoImportReview = {
   warningMessages: string[];
 };
 
+export const unreadablePetVideoImportMessage = "视频打不开，请换一个 MP4 或 MOV。";
+
 const maxImportVideoBytes = 300 * 1024 * 1024;
 const longImportVideoSeconds = 15;
 const maxImportVideoSeconds = 60;

@@ -5,6 +5,7 @@ import { videoMetadataProbeScript } from "../shared/local-video-metadata-script.
 export type LocalVideoMetadata = {
   durationSeconds: number;
   hasVideoTrack: boolean;
+  readError?: boolean;
 };
 
 export async function probeLocalVideoMetadata(videoPath: string): Promise<LocalVideoMetadata> {

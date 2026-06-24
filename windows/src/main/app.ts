@@ -40,7 +40,10 @@ import {
   localMaterialReplacementDescriptions
 } from "../shared/desktop-sync-client.ts";
 import { allPetActionSlots, petActionSlotDisplayName } from "../shared/pet-action-slots.ts";
-import { reviewPetVideoImport } from "../shared/video-import-review.ts";
+import {
+  reviewPetVideoImport,
+  unreadablePetVideoImportMessage
+} from "../shared/video-import-review.ts";
 import {
   resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
@@ -499,8 +502,19 @@ async function importLocalVideo(input: {
   }
 
   const videoPath = result.filePaths[0];
-  const fileStats = await stat(videoPath);
-  const videoMetadata = await probeLocalVideoMetadata(videoPath);
+  let fileStats: Awaited<ReturnType<typeof stat>>;
+  let videoMetadata: Awaited<ReturnType<typeof probeLocalVideoMetadata>>;
+  try {
+    fileStats = await stat(videoPath);
+    videoMetadata = await probeLocalVideoMetadata(videoPath);
+  } catch {
+    throw new Error(unreadablePetVideoImportMessage);
+  }
+
+  if (videoMetadata.readError) {
+    throw new Error(unreadablePetVideoImportMessage);
+  }
+
   const review = reviewPetVideoImport({
     fileSizeBytes: fileStats.size,
     durationSeconds: videoMetadata.durationSeconds,
