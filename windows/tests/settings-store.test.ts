@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -289,6 +289,33 @@ test("ignores invalid pet indexes when removing pets", () => {
     assert.equal(store.petCount, 2);
     assert.equal(store.petName(0), "栗子");
     assert.equal(store.petName(1), "团子");
+  } finally {
+    cleanup();
+  }
+});
+
+test("ignores out-of-range pet writes without expanding persisted pet data", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+    const ghostVideoPath = path.join(path.dirname(store.filePath), "ghost.mp4");
+    writeFileSync(ghostVideoPath, "");
+
+    store.setPetName("Ghost", 999);
+    store.setPetSizeScale(0.5, 999);
+    store.setPetFrame({ x: 1, y: 2, width: 150, height: 150 }, 999);
+    store.saveVideoPath(ghostVideoPath, "click_react", 999);
+    store.removeVideo("idle_loop", 999);
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: unknown[];
+    };
+    const reloaded = new SettingsStore(store.filePath);
+
+    assert.equal(reloaded.petCount, 1);
+    assert.equal(reloaded.petName(0), "Pet 1");
+    assert.deepEqual(reloaded.savedVideoSlots(0), []);
+    assert.ok((persisted.pets?.length ?? 0) <= 1);
   } finally {
     cleanup();
   }

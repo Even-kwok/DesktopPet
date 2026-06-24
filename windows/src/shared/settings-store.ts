@@ -208,6 +208,10 @@ export class SettingsStore {
   }
 
   setPetName(name: string, index: number) {
+    if (!isWritablePetIndex(index, this.petCount)) {
+      return;
+    }
+
     const trimmed = name.trim();
     const pet = this.#pet(index);
     if (trimmed) {
@@ -224,6 +228,10 @@ export class SettingsStore {
   }
 
   setPetSizeScale(scale: number, index: number) {
+    if (!isWritablePetIndex(index, this.petCount)) {
+      return;
+    }
+
     const pet = this.#pet(index);
     pet.sizeScale = clampPetSizeScale(scale);
     pet.frame = applyPetSizeScale(this.petFrame(index), pet.sizeScale);
@@ -239,11 +247,19 @@ export class SettingsStore {
   }
 
   setPetFrame(frame: Rect, index: number) {
+    if (!isWritablePetIndex(index, this.petCount)) {
+      return;
+    }
+
     this.#pet(index).frame = frame;
     this.#write();
   }
 
   saveVideoPath(videoPath: string, slot: PetActionSlot, index: number) {
+    if (!isWritablePetIndex(index, this.petCount)) {
+      return;
+    }
+
     const pet = this.#pet(index);
     const videos = isRecord(pet.videos) ? pet.videos : {};
     pet.videos = { ...videos, [slot]: videoPath };
@@ -251,6 +267,10 @@ export class SettingsStore {
   }
 
   removeVideo(slot: PetActionSlot, index: number) {
+    if (!isWritablePetIndex(index, this.petCount)) {
+      return;
+    }
+
     const pet = this.#pet(index);
     delete pet.videos?.[slot];
     this.#write();
@@ -432,4 +452,8 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isExistingPetIndex(index: number, petCount: number) {
   return Number.isInteger(index) && index >= 0 && index < petCount;
+}
+
+function isWritablePetIndex(index: number, petCount: number) {
+  return Number.isInteger(index) && index >= 0 && index <= petCount;
 }
