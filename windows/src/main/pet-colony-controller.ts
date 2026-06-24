@@ -158,7 +158,9 @@ export class PetColonyController {
   }
 
   refreshPlayback() {
-    this.#activePetControllers().forEach((controller) => controller.refreshPlayback());
+    this.#activePetControllers()
+      .filter((controller) => controller.isVisible)
+      .forEach((controller) => controller.refreshPlayback());
   }
 
   prepareForSystemSleep() {

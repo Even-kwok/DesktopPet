@@ -18,6 +18,7 @@ class FakePetWindow {
   dragByCount = 0;
   dragStartedCount = 0;
   dragEndedCount = 0;
+  refreshPlaybackCount = 0;
   readonly settingsStore: SettingsStore;
   readonly petIndex: number;
 
@@ -44,7 +45,9 @@ class FakePetWindow {
     this.sizeScale = scale;
   }
 
-  refreshPlayback() {}
+  refreshPlayback() {
+    this.refreshPlaybackCount += 1;
+  }
   prepareForSystemSleep() {}
   resumeAfterSystemWake() {}
   refreshDisplayName() {}
@@ -224,6 +227,21 @@ test("forwards clamped pet size scale to active windows", () => {
 
     assert.equal(settingsStore.petSizeScale(0), 0.3);
     assert.equal(windows[0].sizeScale, 0.3);
+  } finally {
+    cleanup();
+  }
+});
+
+test("refreshes playback only for visible pet windows like the Mac controller guard", () => {
+  const { settingsStore, colony, windows, cleanup } = makeHarness();
+  try {
+    settingsStore.petCount = 2;
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    colony.showAll();
+
+    colony.refreshPlayback();
+
+    assert.deepEqual(windows.map((window) => window.refreshPlaybackCount), [1, 0]);
   } finally {
     cleanup();
   }
