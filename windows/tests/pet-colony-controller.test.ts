@@ -227,3 +227,28 @@ test("nearby pets trigger paired interactions with cooldown", () => {
     cleanup();
   }
 });
+
+test("stops proximity checks when wake resumes while pets are hidden", () => {
+  let clearCount = 0;
+  const fakeTimer = {} as unknown as ReturnType<typeof setInterval>;
+  const { settingsStore, colony, cleanup } = makeHarness({
+    scheduleProximityCheck: () => fakeTimer,
+    clearProximityCheck: (timer) => {
+      assert.equal(timer, fakeTimer);
+      clearCount += 1;
+    }
+  });
+
+  try {
+    settingsStore.petCount = 2;
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
+    colony.showAll();
+    settingsStore.isPetVisible = false;
+
+    assert.equal(colony.resumeAfterSystemWake(), false);
+    assert.equal(clearCount, 1);
+  } finally {
+    cleanup();
+  }
+});

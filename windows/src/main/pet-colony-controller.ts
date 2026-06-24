@@ -25,6 +25,7 @@ export type PetWindowControllerLike = {
 };
 
 export type PetWindowFactory = (petIndex: number) => PetWindowControllerLike;
+type ProximityTimer = ReturnType<typeof setInterval>;
 
 export type PetColonyControllerOptions = {
   proximityCheckIntervalMs?: number;
@@ -33,6 +34,8 @@ export type PetColonyControllerOptions = {
   proximityMargin?: number;
   random?: () => number;
   now?: () => number;
+  scheduleProximityCheck?: (callback: () => void, intervalMs: number) => ProximityTimer;
+  clearProximityCheck?: (timer: ProximityTimer) => void;
 };
 
 export class PetColonyController {
@@ -41,7 +44,7 @@ export class PetColonyController {
   readonly #options: Required<PetColonyControllerOptions>;
   readonly #petControllers: PetWindowControllerLike[] = [];
   readonly #lastProximityInteractionAt = new Map<number, number>();
-  #proximityInteractionTimer?: NodeJS.Timeout;
+  #proximityInteractionTimer?: ProximityTimer;
 
   constructor(
     settingsStore: SettingsStore,
@@ -56,7 +59,9 @@ export class PetColonyController {
       proximityInteractionProbability: options.proximityInteractionProbability ?? 0.18,
       proximityMargin: options.proximityMargin ?? 28,
       random: options.random ?? Math.random,
-      now: options.now ?? Date.now
+      now: options.now ?? Date.now,
+      scheduleProximityCheck: options.scheduleProximityCheck ?? setInterval,
+      clearProximityCheck: options.clearProximityCheck ?? clearInterval
     };
     this.#ensurePetControllers(settingsStore.petCount);
   }
@@ -163,6 +168,7 @@ export class PetColonyController {
 
   resumeAfterSystemWake() {
     if (!this.#settingsStore.isPetVisible) {
+      this.#stopProximityInteractionTimer();
       return false;
     }
 
@@ -301,7 +307,7 @@ export class PetColonyController {
       return;
     }
 
-    this.#proximityInteractionTimer = setInterval(() => {
+    this.#proximityInteractionTimer = this.#options.scheduleProximityCheck(() => {
       this.checkNearbyPetInteractions();
     }, this.#options.proximityCheckIntervalMs);
     this.#proximityInteractionTimer.unref?.();
@@ -309,7 +315,7 @@ export class PetColonyController {
 
   #stopProximityInteractionTimer() {
     if (this.#proximityInteractionTimer) {
-      clearInterval(this.#proximityInteractionTimer);
+      this.#options.clearProximityCheck(this.#proximityInteractionTimer);
       this.#proximityInteractionTimer = undefined;
     }
   }
