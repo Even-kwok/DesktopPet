@@ -92,6 +92,15 @@ test("rejects malformed pet renderer load commands before normalizing video path
     petCommandFromUnknown({
       type: "loadVideo",
       petIndex: 0,
+      videoPath: "   ",
+      mode: "loop"
+    }),
+    undefined
+  );
+  assert.equal(
+    petCommandFromUnknown({
+      type: "loadVideo",
+      petIndex: 0,
       videoPath: "C:\\cats\\idle.mp4",
       mode: "bad"
     }),

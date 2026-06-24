@@ -56,7 +56,7 @@ export function petCommandFromUnknown(command: unknown): PetCommand | undefined 
   if (
     record.type === "loadVideo" &&
     isValidPetIndex(record.petIndex) &&
-    typeof record.videoPath === "string" &&
+    isNonBlankString(record.videoPath) &&
     isPetPlaybackMode(record.mode)
   ) {
     return {
@@ -90,4 +90,8 @@ function isPetPlaybackMode(value: unknown): value is PetPlaybackMode {
 
 function isValidPetIndex(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }

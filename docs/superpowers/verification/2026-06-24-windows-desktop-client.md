@@ -123,6 +123,8 @@ Studio refresh coverage now verifies tray-side and other main-process state chan
 
 Renderer command coverage now verifies Windows only sends Studio and pet playback commands to live Electron web contents, avoiding stale sends after windows are closed or destroyed.
 
+Pet renderer command coverage now verifies blank video paths are rejected before Windows normalizes local video URLs.
+
 Studio show-command coverage now verifies async Studio show completions skip refresh/select commands when the renderer command target has already gone away.
 
 Pet show-command coverage now verifies async pet renderer load completions stop before touching a destroyed BrowserWindow/webContents target, matching the stale-renderer guard used by Studio commands.
