@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   nextPetPlaybackRequest,
   nextPetVisualEffectRequest,
+  petCommandFromUnknown,
   toVideoSource
 } from "../src/renderer/pet/pet-playback-command.ts";
 
@@ -55,4 +56,54 @@ test("advances visual effect request revision for repeated drop bounces", () => 
   assert.equal(first.effect, "dropBounce");
   assert.equal(second.effect, "dropBounce");
   assert.equal(second.revision, first.revision + 1);
+});
+
+test("accepts only well-formed pet renderer commands", () => {
+  assert.deepEqual(petCommandFromUnknown({ type: "pause" }), { type: "pause" });
+  assert.deepEqual(petCommandFromUnknown({ type: "playDropBounce" }), {
+    type: "playDropBounce"
+  });
+  assert.deepEqual(
+    petCommandFromUnknown({
+      type: "loadVideo",
+      petIndex: 0,
+      videoPath: "C:\\cats\\idle.mp4",
+      mode: "loop"
+    }),
+    {
+      type: "loadVideo",
+      petIndex: 0,
+      videoPath: "C:\\cats\\idle.mp4",
+      mode: "loop"
+    }
+  );
+});
+
+test("rejects malformed pet renderer load commands before normalizing video paths", () => {
+  assert.equal(
+    petCommandFromUnknown({
+      type: "loadVideo",
+      petIndex: 0,
+      mode: "loop"
+    }),
+    undefined
+  );
+  assert.equal(
+    petCommandFromUnknown({
+      type: "loadVideo",
+      petIndex: 0,
+      videoPath: "C:\\cats\\idle.mp4",
+      mode: "bad"
+    }),
+    undefined
+  );
+  assert.equal(
+    petCommandFromUnknown({
+      type: "loadVideo",
+      petIndex: -1,
+      videoPath: "C:\\cats\\idle.mp4",
+      mode: "loop"
+    }),
+    undefined
+  );
 });

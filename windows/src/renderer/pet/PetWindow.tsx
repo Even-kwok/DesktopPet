@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { processChromaKeyFrame } from "./chroma-key.ts";
 import {
   nextPetPlaybackRequest,
-  nextPetVisualEffectRequest
+  nextPetVisualEffectRequest,
+  petCommandFromUnknown
 } from "./pet-playback-command.ts";
 import { createPetPointerInteraction } from "./pet-pointer-interaction.ts";
 import type {
@@ -10,20 +11,6 @@ import type {
   PetPlaybackRequest,
   PetVisualEffectRequest
 } from "./pet-playback-command.ts";
-
-type PetCommand =
-  | {
-      type: "loadVideo";
-      petIndex: number;
-      videoPath: string;
-      mode: PetPlaybackMode;
-    }
-  | {
-      type: "pause";
-    }
-  | {
-      type: "playDropBounce";
-    };
 
 export function PetWindow() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -46,8 +33,9 @@ export function PetWindow() {
 
   useEffect(() => {
     const bridge = window.desktopPet;
-    const unsubscribe = bridge?.onPetCommand?.((command) => {
-      if (!isPetCommand(command)) {
+    const unsubscribe = bridge?.onPetCommand?.((rawCommand) => {
+      const command = petCommandFromUnknown(rawCommand);
+      if (!command) {
         return;
       }
 
@@ -210,13 +198,4 @@ function aspectFit(sourceWidth: number, sourceHeight: number, targetWidth: numbe
   const width = sourceWidth * scale;
   const height = sourceHeight * scale;
   return [(targetWidth - width) / 2, (targetHeight - height) / 2, width, height] as const;
-}
-
-function isPetCommand(command: unknown): command is PetCommand {
-  if (!command || typeof command !== "object") {
-    return false;
-  }
-
-  const record = command as Record<string, unknown>;
-  return record.type === "pause" || record.type === "playDropBounce" || record.type === "loadVideo";
 }

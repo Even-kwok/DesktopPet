@@ -6,6 +6,17 @@ export type PetPlaybackLoadCommand = {
   mode: PetPlaybackMode;
 };
 
+export type PetCommand =
+  | ({
+      type: "loadVideo";
+    } & PetPlaybackLoadCommand)
+  | {
+      type: "pause";
+    }
+  | {
+      type: "playDropBounce";
+    };
+
 export type PetPlaybackRequest = {
   source: string;
   mode: PetPlaybackMode;
@@ -28,6 +39,33 @@ export function nextPetPlaybackRequest(
     mode: command.mode,
     revision: (current?.revision ?? 0) + 1
   };
+}
+
+export function petCommandFromUnknown(command: unknown): PetCommand | undefined {
+  if (!command || typeof command !== "object") {
+    return undefined;
+  }
+
+  const record = command as Record<string, unknown>;
+  if (record.type === "pause" || record.type === "playDropBounce") {
+    return { type: record.type };
+  }
+
+  if (
+    record.type === "loadVideo" &&
+    isValidPetIndex(record.petIndex) &&
+    typeof record.videoPath === "string" &&
+    isPetPlaybackMode(record.mode)
+  ) {
+    return {
+      type: "loadVideo",
+      petIndex: record.petIndex,
+      videoPath: record.videoPath,
+      mode: record.mode
+    };
+  }
+
+  return undefined;
 }
 
 export function nextPetVisualEffectRequest(
@@ -54,6 +92,14 @@ export function toVideoSource(videoPath: string) {
   return normalizedPath.startsWith("/")
     ? `file://${encodedPath}`
     : `file:///${encodedPath}`;
+}
+
+function isPetPlaybackMode(value: unknown): value is PetPlaybackMode {
+  return value === "loop" || value === "playOnce";
+}
+
+function isValidPetIndex(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function encodeLocalPath(filePath: string) {
