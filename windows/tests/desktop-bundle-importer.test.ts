@@ -82,6 +82,39 @@ test("caches synced pet cards before remote material downloads can fail", async 
   );
 });
 
+test("keeps existing local material paths when remote download fails", async () => {
+  const savedPaths = new Map([["0:idle_loop", "C:/local/old-idle.mp4"]]);
+  const settingsStore = {
+    petCount: 1,
+    isPetVisible: false,
+    setPetName: () => undefined,
+    saveVideoPath: (videoPath: string, slot: string, petIndex: number) => {
+      savedPaths.set(`${petIndex}:${slot}`, videoPath);
+    },
+    saveSyncedPetCards: () => undefined
+  };
+  const petColonyController = {
+    setPetCount: () => undefined,
+    refreshDisplayNames: () => undefined,
+    showAll: () => true
+  };
+
+  await assert.rejects(
+    importDesktopBundle(makeDisplayableBundle(), {
+      settingsStore,
+      petColonyController,
+      remoteMaterialRoot: "/tmp/remote-materials",
+      downloadRemoteMaterial: async () => {
+        throw new Error("download failed");
+      }
+    }),
+    /download failed/
+  );
+
+  assert.equal(savedPaths.get("0:idle_loop"), "C:/local/old-idle.mp4");
+  assert.equal(settingsStore.isPetVisible, false);
+});
+
 test("caches synced pet cards before empty material bundles fail", async () => {
   const savedCards: DesktopSyncedPetCard[][] = [];
   const settingsStore = {
