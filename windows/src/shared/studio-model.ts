@@ -83,9 +83,10 @@ export function friendEmailInputPlaceholder() {
 
 export function canSubmitFriendEmail(
   account: DesktopAccountSession | undefined,
-  friendEmail: string
+  friendEmail: string,
+  isSubmittingFriend = false
 ) {
-  return Boolean(account && friendEmail.trim());
+  return Boolean(account && !isSubmittingFriend && friendEmail.trim());
 }
 
 export function shouldSubmitFriendEmailKey(key: string) {

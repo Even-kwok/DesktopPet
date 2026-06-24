@@ -91,6 +91,7 @@ test("builds Mac-parity friend email submit behavior", () => {
   assert.equal(canSubmitFriendEmail(undefined, "friend@desktop.pet"), false);
   assert.equal(canSubmitFriendEmail(account, "   "), false);
   assert.equal(canSubmitFriendEmail(account, " friend@desktop.pet "), true);
+  assert.equal(canSubmitFriendEmail(account, "friend@desktop.pet", true), false);
   assert.equal(shouldSubmitFriendEmailKey("Enter"), true);
   assert.equal(shouldSubmitFriendEmailKey("Escape"), false);
 });

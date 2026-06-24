@@ -115,6 +115,7 @@ export function StudioApp() {
   const [selectedPetIndex, setSelectedPetIndex] = useState(0);
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
   const [previewingMaterialSlot, setPreviewingMaterialSlot] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState("");
@@ -182,21 +183,26 @@ export function StudioApp() {
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
   const displayedPetCount = studioPetCountForDisplay(state.petCount);
   const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
-  const submitFriendEmail = () => {
-    if (!canSubmitFriendEmail(account, friendEmail)) {
+  const submitFriendEmail = async () => {
+    if (!canSubmitFriendEmail(account, friendEmail, isAddingFriend)) {
       return;
     }
 
     setStatusMessage(pendingStatusMessageForAddFriendAction());
-    void runAction(
-      () => bridge?.addFriend?.(friendEmail),
-      "已添加好友。",
-      (result) => {
-        setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
-        return statusMessageForAddFriendAction(result);
-      },
-      () => statusMessageForAddFriendError()
-    );
+    setIsAddingFriend(true);
+    try {
+      await runAction(
+        () => bridge?.addFriend?.(friendEmail),
+        "已添加好友。",
+        (result) => {
+          setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
+          return statusMessageForAddFriendAction(result);
+        },
+        () => statusMessageForAddFriendError()
+      );
+    } finally {
+      setIsAddingFriend(false);
+    }
   };
 
   return (
@@ -421,7 +427,7 @@ export function StudioApp() {
               onKeyDown={(event) => {
                 if (shouldSubmitFriendEmailKey(event.key)) {
                   event.preventDefault();
-                  submitFriendEmail();
+                  void submitFriendEmail();
                 }
               }}
               placeholder={friendEmailInputPlaceholder()}
@@ -441,8 +447,8 @@ export function StudioApp() {
               刷新好友
             </button>
             <button
-              disabled={!canSubmitFriendEmail(account, friendEmail)}
-              onClick={submitFriendEmail}
+              disabled={!canSubmitFriendEmail(account, friendEmail, isAddingFriend)}
+              onClick={() => void submitFriendEmail()}
             >
               添加好友
             </button>

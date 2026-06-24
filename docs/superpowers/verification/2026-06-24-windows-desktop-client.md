@@ -77,7 +77,7 @@ Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 
 
 Studio friend-panel coverage now verifies Windows uses the Mac `好友` title, `N 位 · 可寄养和删除` summary, and the same empty-state guidance copy.
 
-Studio friend-add coverage now verifies Windows uses the Mac friend-email placeholder and supports Enter-to-add with the same signed-in/non-empty gating as the add button.
+Studio friend-add coverage now verifies Windows uses the Mac friend-email placeholder, supports Enter-to-add with the same signed-in/non-empty gating as the add button, and disables add submissions while a friend mutation is already in progress.
 
 Studio synced-pet-panel coverage now verifies Windows uses the Mac `我的猫咪` title, `N 只` summary, and the same empty sync-state guidance copy.
 
