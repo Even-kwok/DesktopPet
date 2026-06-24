@@ -31,7 +31,10 @@ import {
 import { showPetsActionPlan } from "./pet-visibility-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
-import { refreshedFriendCardsAfterSync } from "./sync-policy.ts";
+import {
+  refreshedFriendCardsAfterSync,
+  replacementWarningDialogOptions
+} from "./sync-policy.ts";
 import { importDesktopBundle } from "./desktop-bundle-importer.ts";
 import {
   refreshedAccountSessionFromSyncAccount,
@@ -152,15 +155,7 @@ async function bootstrap() {
       );
 
       if (replacements.length > 0) {
-        const response = await dialog.showMessageBox({
-          type: "warning",
-          buttons: ["继续同步", "取消"],
-          defaultId: 0,
-          cancelId: 1,
-          title: "同步会替换本地素材",
-          message: "网页端素材会替换这些本地导入的视频。",
-          detail: replacements.join("\n")
-        });
+        const response = await dialog.showMessageBox(replacementWarningDialogOptions(replacements));
 
         if (response.response === 1) {
           return { canceled: true, ...studioState() };
