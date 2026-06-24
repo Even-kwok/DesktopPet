@@ -28,6 +28,10 @@ export function desktopPublishFailureMessage(error: unknown) {
   return error instanceof Error ? `同步到桌面端失败：${error.message}` : "同步到桌面端失败。";
 }
 
+export function recallSuccessMessage() {
+  return "召回请求已发送。桌面 App 同步后会重新显示这只宠物。";
+}
+
 export type ClientPlatformId = "mac" | "windows" | "ios" | "android";
 
 export type ClientPlatformCard = {

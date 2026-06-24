@@ -12,7 +12,7 @@ Run from `windows/` on the current branch:
 Run from `web/` on the current branch:
 
 - `npm run lint`: passed.
-- `npm run test:unit`: passed, 102 tests.
+- `npm run test:unit`: passed, 103 tests.
 - `npm run build`: passed.
 
 Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
@@ -116,6 +116,8 @@ Renderer command coverage now verifies Windows only sends Studio and pet playbac
 Studio show-command coverage now verifies async Studio show completions skip refresh/select commands when the renderer command target has already gone away.
 
 Web studio publish-status coverage now verifies desktop sync success and failure copy refers to the shared desktop clients instead of only the Mac client, so generated materials point users toward both Mac and Windows desktop sync.
+
+Web studio recall-status coverage now verifies successful recall copy points to the shared desktop App sync path instead of only the Mac App, so Windows users get accurate post-recall guidance.
 
 ## Electron Smoke Evidence
 

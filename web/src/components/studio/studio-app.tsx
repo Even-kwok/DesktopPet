@@ -40,6 +40,7 @@ import {
   materialCardPreviewState,
   petPanelImageUrl,
   petPanelStats,
+  recallSuccessMessage,
   studioStatusMessageClassName
 } from "@/lib/studio-layout";
 import type {
@@ -712,7 +713,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     try {
       const response = await recallPet({ petId: selectedPet.id });
       setPetPatch(selectedPet.id, { status: response.status, host: "me" });
-      setMessage({ tone: "success", text: "召回请求已发送。Mac App 同步后会重新显示这只宠物。" });
+      setMessage({ tone: "success", text: recallSuccessMessage() });
     } catch (error) {
       setMessage({
         tone: "error",

@@ -12,6 +12,7 @@ import {
   petNameEditControlCopy,
   petPanelImageUrl,
   petPanelStats,
+  recallSuccessMessage,
   studioStatusMessageClassName
 } from "./studio-layout.ts";
 import { materialSlots } from "./material-slots.ts";
@@ -176,6 +177,10 @@ test("desktop publish status copy covers Mac and Windows clients", () => {
     "同步到桌面端失败：storage unavailable"
   );
   assert.equal(desktopPublishFailureMessage("failed"), "同步到桌面端失败。");
+});
+
+test("recall success copy points to the shared desktop clients", () => {
+  assert.equal(recallSuccessMessage(), "召回请求已发送。桌面 App 同步后会重新显示这只宠物。");
 });
 
 test("job display name uses the material name instead of slot code or provider id", async () => {
