@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 237 tests.
+- `npm test`: passed, 238 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -50,6 +50,8 @@ Local import target coverage now verifies renderer-supplied pet indexes are norm
 Local video metadata coverage now verifies Windows drive-letter paths and UNC network share paths are normalized into safe `file://` probe URLs before the hidden Electron metadata reader inspects imported videos.
 
 Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
+
+Settings-store video-path coverage now verifies blank local material paths are ignored and cannot overwrite an existing restorable Windows video reference.
 
 Settings-store display coverage now verifies invalid JavaScript pet indexes fall back to the first pet name and default frame instead of leaking `Pet NaN` or invalid coordinates into Windows UI surfaces.
 

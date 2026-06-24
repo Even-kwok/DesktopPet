@@ -259,7 +259,7 @@ export class SettingsStore {
   }
 
   saveVideoPath(videoPath: string, slot: PetActionSlot, index: number) {
-    if (!isExistingPetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount) || videoPath.trim().length === 0) {
       return;
     }
 

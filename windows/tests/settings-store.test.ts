@@ -520,6 +520,23 @@ test("does not save videos for inactive future pet slots", () => {
   }
 });
 
+test("does not persist blank video paths or overwrite existing videos with blanks", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.saveVideoPath("   ", "idle_loop", 0);
+    assert.deepEqual(store.savedVideoSlots(0), []);
+
+    const idlePath = saveVideoFile(store, "idle.mp4", "idle_loop", 0);
+    store.saveVideoPath("", "idle_loop", 0);
+    store.saveVideoPath("\n\t", "click_react", 0);
+
+    assert.equal(store.restoreVideoPath("idle_loop", 0), idlePath);
+    assert.deepEqual(store.savedVideoSlots(0), ["idle_loop"]);
+  } finally {
+    cleanup();
+  }
+});
+
 test("does not save pet names for the inactive boundary slot", () => {
   const { store, cleanup } = makeStore();
   try {
