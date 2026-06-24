@@ -21,6 +21,7 @@ test("builds Windows pet BrowserWindow options for transparent always-on-top des
       transparent: true,
       backgroundColor: "#00000000",
       frame: false,
+      focusable: false,
       resizable: false,
       alwaysOnTop: true,
       skipTaskbar: true,
