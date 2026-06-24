@@ -39,7 +39,9 @@ import {
 import {
   nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
-  petNameDraftForIndex
+  petNameDraftForIndex,
+  studioPetCountForDisplay,
+  studioPetIndexesForDisplay
 } from "./studio-selection.ts";
 import {
   isSelectedStudioPetSize,
@@ -163,6 +165,8 @@ export function StudioApp() {
   const account = state.account;
   const selectedSyncedPet =
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
+  const displayedPetCount = studioPetCountForDisplay(state.petCount);
+  const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
 
   return (
     <main className="studio-app">
@@ -233,16 +237,16 @@ export function StudioApp() {
         <div className="studio-panel">
           <div className="panel-heading">
             <h2>桌面宠物</h2>
-            <span>{state.petCount} 只</span>
+            <span>{displayedPetCount} 只</span>
           </div>
           <div className="segmented-row">
-            {Array.from({ length: Math.max(state.petCount, 1) }, (_, index) => (
+            {displayedPetIndexes.map((index) => (
               <button
                 key={index}
                 className={index === selectedPetIndex ? "selected" : ""}
                 onClick={() => {
                   setSelectedPetIndex(index);
-                  setPetNameDraft(state.petNames[index] ?? `Pet ${index + 1}`);
+                  setPetNameDraft(petNameDraftForIndex(state, index));
                 }}
               >
                 {state.petNames[index] ?? `Pet ${index + 1}`}
@@ -278,7 +282,7 @@ export function StudioApp() {
           <div className="button-grid">
             <button onClick={() => void runAction(() => bridge?.addPet?.(), "已添加宠物。")}>添加宠物</button>
             <button
-              disabled={state.petCount <= 0}
+              disabled={displayedPetCount <= 0}
               onClick={() =>
                 void runAction(() => bridge?.removePet?.(selectedPetIndex), "已删除宠物。")
               }

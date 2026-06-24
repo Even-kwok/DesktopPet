@@ -36,6 +36,14 @@ export function petNameDraftForIndex(state: StudioSelectionState, petIndex: numb
   return state.petNames[normalizedPetIndex] ?? `Pet ${normalizedPetIndex + 1}`;
 }
 
+export function studioPetCountForDisplay(petCount: number) {
+  return normalizedPetCount(petCount);
+}
+
+export function studioPetIndexesForDisplay(petCount: number) {
+  return Array.from({ length: Math.max(studioPetCountForDisplay(petCount), 1) }, (_, index) => index);
+}
+
 export function nextSelectedSyncedPetID(
   currentPetID: string | undefined,
   refreshedPetID: string | undefined,
@@ -77,8 +85,14 @@ function isSyncedPetIDInCards(petID: string | undefined, syncedPetCards: readonl
 }
 
 function clampPetIndex(petIndex: number, petCount: number) {
-  const normalizedPetCount = Number.isFinite(petCount) ? Math.max(Math.trunc(petCount), 0) : 0;
+  const petCountForClamp = normalizedPetCount(petCount);
   const normalizedPetIndex = Number.isInteger(petIndex) && petIndex >= 0 ? petIndex : 0;
-  const lastPetIndex = Math.max(normalizedPetCount - 1, 0);
+  const lastPetIndex = Math.max(petCountForClamp - 1, 0);
   return Math.min(normalizedPetIndex, lastPetIndex);
+}
+
+function normalizedPetCount(petCount: unknown) {
+  return typeof petCount === "number" && Number.isFinite(petCount)
+    ? Math.max(Math.trunc(petCount), 0)
+    : 0;
 }

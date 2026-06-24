@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 175 tests.
+- `npm test`: passed, 176 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -28,6 +28,8 @@ Settings-store coverage now also verifies that inactive boundary pet slots canno
 Colony-controller coverage now verifies invalid JavaScript pet-count values are ignored instead of collapsing active Windows pets or entering unsafe controller creation paths.
 
 Studio selection coverage now verifies invalid renderer pet indexes and malformed pet counts fall back to the first pet instead of leaking `NaN` into the selected pet or name draft.
+
+Studio renderer-list coverage now verifies malformed pet counts display as safe non-negative counts and keep a bounded placeholder pet selector instead of rendering invalid list lengths.
 
 Studio sync-result coverage now verifies malformed summary counts fall back to the generic success copy instead of showing `NaN`, infinite, or negative counts in the Windows UI.
 

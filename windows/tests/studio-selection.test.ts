@@ -5,7 +5,9 @@ import {
   nextSelectedPetIndexAfterStudioCommand,
   nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
-  petNameDraftForIndex
+  petNameDraftForIndex,
+  studioPetCountForDisplay,
+  studioPetIndexesForDisplay
 } from "../src/renderer/studio/studio-selection.ts";
 
 test("keeps current studio pet selection within the refreshed pet count", () => {
@@ -43,6 +45,17 @@ test("normalizes invalid studio pet counts to the first pet", () => {
 
   assert.equal(nextSelectedPetIndexAfterAction(1, state, undefined), 0);
   assert.equal(petNameDraftForIndex(state, 1), "Milo");
+});
+
+test("normalizes studio pet counts for renderer list display", () => {
+  assert.equal(studioPetCountForDisplay(2), 2);
+  assert.deepEqual(studioPetIndexesForDisplay(2), [0, 1]);
+
+  assert.equal(studioPetCountForDisplay(Number.NaN), 0);
+  assert.deepEqual(studioPetIndexesForDisplay(Number.NaN), [0]);
+
+  assert.equal(studioPetCountForDisplay(Number.POSITIVE_INFINITY), 0);
+  assert.deepEqual(studioPetIndexesForDisplay(-1), [0]);
 });
 
 test("selects the tray-requested pet from a Studio command", () => {
