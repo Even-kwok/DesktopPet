@@ -9,6 +9,10 @@ type SyncedPetActionState = SyncedPetState & {
   id: string;
 };
 
+type SyncedPetCardAction =
+  | { type: "select"; label: "选择" }
+  | { type: "recall"; label: "召回" };
+
 type HostingRequestState = {
   requestId?: string;
   status: string;
@@ -64,6 +68,21 @@ export function canRecall(pet: SyncedPetState) {
 
 export function shouldShowRecallAction(pet: SyncedPetState, isSelected: boolean) {
   return isSelected && canRecall(pet);
+}
+
+export function syncedPetCardAction(
+  pet: SyncedPetState,
+  isSelected: boolean
+): SyncedPetCardAction | undefined {
+  if (shouldShowRecallAction(pet, isSelected)) {
+    return { type: "recall", label: "召回" };
+  }
+
+  if (!isSelected) {
+    return { type: "select", label: "选择" };
+  }
+
+  return undefined;
 }
 
 export function resolveHostingRequestTarget(

@@ -11,7 +11,7 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   canRequestHosting,
   friendHostingDetail,
-  shouldShowRecallAction,
+  syncedPetCardAction,
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
 import {
@@ -332,38 +332,42 @@ export function StudioApp() {
             {state.syncedPetCards.length === 0 ? (
               <p className="empty-copy">同步后这里会显示网页端可下发到桌面的猫咪。</p>
             ) : (
-              state.syncedPetCards.map((pet) => (
-                <button
-                  className={`synced-card ${pet.id === selectedSyncedPet?.id ? "selected" : ""}`}
-                  key={pet.id}
-                  onClick={() => {
-                    setSelectedSyncedPetID(pet.id);
-                    void bridge?.selectSyncedPet?.(pet.id);
-                  }}
-                >
-                  <span>{pet.name}</span>
-                  <small>
-                    {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
-                  </small>
-                </button>
-              ))
-            )}
-          </div>
-          <div className="button-grid">
-            <button
-              disabled={!account || !selectedSyncedPet || !shouldShowRecallAction(selectedSyncedPet, true)}
-              onClick={() => {
-                if (selectedSyncedPet) {
-                  setStatusMessage(pendingStatusMessageForRecallAction(selectedSyncedPet.name));
-                }
-                void runAction(
-                  () => bridge?.recallPet?.(selectedSyncedPet?.id ?? ""),
-                  selectedSyncedPet ? statusMessageForRecallAction(selectedSyncedPet.name) : "已发送召回请求。"
+              state.syncedPetCards.map((pet) => {
+                const isSelected = pet.id === selectedSyncedPet?.id;
+                const cardAction = syncedPetCardAction(pet, isSelected);
+
+                return (
+                  <div className={`synced-card ${isSelected ? "selected" : ""}`} key={pet.id}>
+                    <div>
+                      <span>{pet.name}</span>
+                      <small>
+                        {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
+                      </small>
+                    </div>
+                    {cardAction ? (
+                      <button
+                        disabled={cardAction.type === "recall" && !account}
+                        onClick={() => {
+                          if (cardAction.type === "select") {
+                            setSelectedSyncedPetID(pet.id);
+                            void bridge?.selectSyncedPet?.(pet.id);
+                            return;
+                          }
+
+                          setStatusMessage(pendingStatusMessageForRecallAction(pet.name));
+                          void runAction(
+                            () => bridge?.recallPet?.(pet.id),
+                            statusMessageForRecallAction(pet.name)
+                          );
+                        }}
+                      >
+                        {cardAction.label}
+                      </button>
+                    ) : null}
+                  </div>
                 );
-              }}
-            >
-              召回选中宠物
-            </button>
+              })
+            )}
           </div>
         </div>
 

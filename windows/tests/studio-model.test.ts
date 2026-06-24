@@ -8,6 +8,7 @@ import {
   resolveHostingRequestTarget,
   resolveRecallPetTarget,
   shouldShowRecallAction,
+  syncedPetCardAction,
   statusTextForSyncedPet,
   syncedPetCardsAfterHostingRequest
 } from "../src/shared/studio-model.ts";
@@ -40,6 +41,25 @@ test("computes pet status and available actions", () => {
   assert.equal(canRequestHosting({ ownership: "hosted", displayState: "active" }), false);
   assert.equal(shouldShowRecallAction({ ownership: "away", displayState: "unavailable" }, true), true);
   assert.equal(shouldShowRecallAction({ ownership: "away", displayState: "unavailable" }, false), false);
+});
+
+test("builds Mac-parity per-card synced pet actions", () => {
+  assert.deepEqual(
+    syncedPetCardAction({ ownership: "owned", displayState: "active" }, false),
+    { type: "select", label: "选择" }
+  );
+  assert.equal(
+    syncedPetCardAction({ ownership: "owned", displayState: "active" }, true),
+    undefined
+  );
+  assert.deepEqual(
+    syncedPetCardAction({ ownership: "away", displayState: "unavailable" }, true),
+    { type: "recall", label: "召回" }
+  );
+  assert.deepEqual(
+    syncedPetCardAction({ ownership: "away", displayState: "unavailable" }, false),
+    { type: "select", label: "选择" }
+  );
 });
 
 test("validates hosting requests like the Mac studio action entry", () => {

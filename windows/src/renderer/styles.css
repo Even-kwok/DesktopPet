@@ -175,11 +175,22 @@ button:disabled {
 
 .synced-card {
   display: grid;
-  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   min-height: 46px;
   padding: 8px 10px;
   text-align: left;
+}
+
+.synced-card > div {
+  min-width: 0;
+}
+
+.synced-card span {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .synced-card small,
