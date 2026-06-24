@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   accountDetail,
   accountDisplayName,
+  canSubmitLogin,
   canSyncDesktopBundle,
   canSubmitFriendEmail,
   canRefreshFriends,
@@ -68,6 +69,13 @@ test("builds Mac-parity login panel copy for Windows", () => {
     loginPanelDetail(),
     "Windows 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。"
   );
+});
+
+test("gates Mac-parity login submits while pending", () => {
+  assert.equal(canSubmitLogin("demo@desktop.pet", "123456"), true);
+  assert.equal(canSubmitLogin("   ", "123456"), false);
+  assert.equal(canSubmitLogin("demo@desktop.pet", ""), false);
+  assert.equal(canSubmitLogin("demo@desktop.pet", "123456", true), false);
 });
 
 test("gates Mac-parity desktop sync while pending", () => {

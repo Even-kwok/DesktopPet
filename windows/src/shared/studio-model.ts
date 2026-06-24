@@ -57,6 +57,10 @@ export function loginPanelDetail() {
   return "Windows 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。";
 }
 
+export function canSubmitLogin(email: string, password: string, isLoggingIn = false) {
+  return Boolean(!isLoggingIn && email.trim() && password);
+}
+
 export function canSyncDesktopBundle(
   account: DesktopAccountSession | undefined,
   isSyncingDesktopBundle = false

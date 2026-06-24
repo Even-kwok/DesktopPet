@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 218 tests.
+- `npm test`: passed, 219 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -72,6 +72,8 @@ Studio selection coverage now verifies invalid renderer pet indexes and malforme
 Studio status coverage now verifies pets marked as `away` show the same friend-hosted status that drives the recall action, even if a refreshed card still reports an active display state.
 
 Studio login-panel coverage now verifies Windows uses the Mac `登录后同步你的猫咪` title and the same feature-boundary helper copy with the Windows platform name.
+
+Studio login-action coverage now verifies Windows follows the Mac login gate: empty credentials and in-flight login submissions cannot trigger another account login request.
 
 Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 N 只` detail copy as the Mac Studio for hosted-pet counts.
 

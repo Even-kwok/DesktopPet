@@ -14,6 +14,7 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   accountDetail,
   accountDisplayName,
+  canSubmitLogin,
   canSyncDesktopBundle,
   canRefreshFriends,
   canRequestFriendHosting,
@@ -115,6 +116,7 @@ export function StudioApp() {
   const [state, setState] = useState<StudioState>(defaultStudioState);
   const [email, setEmail] = useState("demo@desktop.pet");
   const [password, setPassword] = useState("123456");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedPetIndex, setSelectedPetIndex] = useState(0);
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
@@ -188,6 +190,20 @@ export function StudioApp() {
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
   const displayedPetCount = studioPetCountForDisplay(state.petCount);
   const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
+
+  const signIn = async () => {
+    if (!canSubmitLogin(email, password, isLoggingIn)) {
+      return;
+    }
+
+    setStatusMessage(pendingStatusMessageForSignInAction());
+    setIsLoggingIn(true);
+    try {
+      await runAction(() => bridge?.signIn?.(email, password), statusMessageForSignInAction());
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const syncDesktopBundle = async () => {
     if (!canSyncDesktopBundle(account, isSyncingDesktopBundle)) {
@@ -346,10 +362,8 @@ export function StudioApp() {
           </label>
           <button
             className="primary-action"
-            onClick={() => {
-              setStatusMessage(pendingStatusMessageForSignInAction());
-              void runAction(() => bridge?.signIn?.(email, password), statusMessageForSignInAction());
-            }}
+            disabled={!canSubmitLogin(email, password, isLoggingIn)}
+            onClick={() => void signIn()}
           >
             登录
           </button>
