@@ -50,6 +50,18 @@ export function processChromaKeyFrame(frame: ImageData) {
   return frame;
 }
 
+export function hasVisibleChromaKeyContent(frame: ImageData) {
+  const data = frame.data;
+
+  for (let offset = 3; offset < data.length; offset += 4) {
+    if (data[offset] > 8) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function smoothStep(edge0: number, edge1: number, value: number) {
   if (edge0 === edge1) {
     return value < edge0 ? 0 : 1;

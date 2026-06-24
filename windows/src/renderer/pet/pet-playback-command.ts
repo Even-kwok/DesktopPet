@@ -84,6 +84,14 @@ export function toVideoSource(videoPath: string) {
   return localVideoSourceURL(videoPath);
 }
 
+export function playOnceRecoveryDelayMs(durationSeconds: number) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return 65000;
+  }
+
+  return Math.min(Math.round(durationSeconds * 1000) + 750, 65000);
+}
+
 function isPetPlaybackMode(value: unknown): value is PetPlaybackMode {
   return value === "loop" || value === "playOnce";
 }

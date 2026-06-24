@@ -4,6 +4,7 @@ import {
   nextPetPlaybackRequest,
   nextPetVisualEffectRequest,
   petCommandFromUnknown,
+  playOnceRecoveryDelayMs,
   toVideoSource
 } from "../src/renderer/pet/pet-playback-command.ts";
 
@@ -56,6 +57,13 @@ test("advances visual effect request revision for repeated drop bounces", () => 
   assert.equal(first.effect, "dropBounce");
   assert.equal(second.effect, "dropBounce");
   assert.equal(second.revision, first.revision + 1);
+});
+
+test("builds a bounded one-shot playback recovery delay from video duration", () => {
+  assert.equal(playOnceRecoveryDelayMs(2), 2750);
+  assert.equal(playOnceRecoveryDelayMs(0), 65000);
+  assert.equal(playOnceRecoveryDelayMs(Number.NaN), 65000);
+  assert.equal(playOnceRecoveryDelayMs(120), 65000);
 });
 
 test("accepts only well-formed pet renderer commands", () => {
