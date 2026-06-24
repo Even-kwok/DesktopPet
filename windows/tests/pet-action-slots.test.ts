@@ -9,6 +9,7 @@ import {
   mouseoverCatchSlots,
   nearbyPetInteractionSlots,
   petActionSlotDisplayName,
+  petActionSlotTriggerDescription,
   petSizeScaleOptions
 } from "../src/shared/pet-action-slots.ts";
 
@@ -69,6 +70,18 @@ test("groups trigger pools like the Mac app", () => {
     "salary_cat_stinky_dance",
     "head_bob_dance"
   ]);
+});
+
+test("builds Mac-parity material trigger descriptions", () => {
+  assert.equal(petActionSlotTriggerDescription("idle_loop"), "默认循环");
+  assert.equal(petActionSlotTriggerDescription("sleep_loop"), "长时间无操作");
+  assert.equal(petActionSlotTriggerDescription("click_react"), "点击宠物");
+  assert.equal(petActionSlotTriggerDescription("catch_bug"), "鼠标经过宠物");
+  assert.equal(petActionSlotTriggerDescription("head_rub_left"), "另一只宠物靠近");
+  assert.equal(petActionSlotTriggerDescription("yawn"), "待机随机");
+  assert.equal(petActionSlotTriggerDescription("full_wash_face"), "吃饱后触发");
+  assert.equal(petActionSlotTriggerDescription("hungry_meow"), "饥饿时触发");
+  assert.equal(petActionSlotTriggerDescription("drag_loop"), "备用");
 });
 
 test("pairs nearby pet interactions by side and action type", () => {

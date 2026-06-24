@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   allPetActionSlots,
   materialGroupForSlot,
-  petActionSlotDisplayName
+  petActionSlotDisplayName,
+  petActionSlotTriggerDescription
 } from "../../shared/pet-action-slots.ts";
 import type { PetActionSlot, PetMaterialGroup } from "../../shared/pet-action-slots.ts";
 import type { DesktopFriendCard } from "../../shared/desktop-sync-client.ts";
@@ -476,6 +477,7 @@ export function StudioApp() {
                     <div className="material-row" key={slot}>
                       <span>
                         {slotName}
+                        <small>{petActionSlotTriggerDescription(slot)}</small>
                         <small>{localMaterialStatusText({ hasVideo })}</small>
                       </span>
                       <div>

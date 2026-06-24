@@ -81,6 +81,33 @@ const displayNames: Record<PetActionSlot, string> = {
   sleep_loop: "睡觉"
 };
 
+const triggerDescriptions: Record<PetActionSlot, string> = {
+  idle_loop: "默认循环",
+  sleep_loop: "长时间无操作",
+  catch_bug: "鼠标经过宠物",
+  catch_bug_up: "鼠标经过宠物",
+  click_react: "点击宠物",
+  head_rub_left: "另一只宠物靠近",
+  head_rub_right: "另一只宠物靠近",
+  angry_swipe_left: "另一只宠物靠近",
+  angry_swipe_right: "另一只宠物靠近",
+  yawn: "待机随机",
+  lick_belly: "待机随机",
+  lick_back: "待机随机",
+  stretch: "待机随机",
+  happy: "待机随机",
+  disgusted: "待机随机",
+  full_wash_face: "吃饱后触发",
+  hungry_meow: "饥饿时触发",
+  clingy: "待机随机",
+  aloof: "待机随机",
+  belly_up: "待机随机",
+  look_at_camera: "待机随机",
+  salary_cat_stinky_dance: "待机随机",
+  head_bob_dance: "待机随机",
+  drag_loop: "备用"
+};
+
 export const mouseoverCatchSlots: VisiblePetActionSlot[] = ["catch_bug", "catch_bug_up"];
 
 export const clickReactionSlots: VisiblePetActionSlot[] = [
@@ -111,6 +138,10 @@ export const idleRandomActionSlots: VisiblePetActionSlot[] = [
 
 export function petActionSlotDisplayName(slot: PetActionSlot) {
   return displayNames[slot];
+}
+
+export function petActionSlotTriggerDescription(slot: PetActionSlot) {
+  return triggerDescriptions[slot];
 }
 
 export function nearbyPetInteractionSlots(side: PetInteractionSide): VisiblePetActionSlot[] {
