@@ -411,7 +411,7 @@ function isDesktopAccountSession(value: unknown): value is DesktopAccountSession
     isString(value.id) &&
     isString(value.name) &&
     isString(value.email) &&
-    isInteger(value.credits) &&
+    isNonNegativeInteger(value.credits) &&
     isString(value.accessToken) &&
     isString(value.signedInAt)
   );
@@ -429,7 +429,7 @@ function isDesktopSyncedPetCard(value: unknown): value is DesktopSyncedPetCard {
     isString(value.ownership) &&
     isString(value.displayState) &&
     isOptionalString(value.avatarUrl) &&
-    isInteger(value.materialCount)
+    isNonNegativeInteger(value.materialCount)
   );
 }
 
@@ -442,7 +442,7 @@ function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
     isString(value.id) &&
     isString(value.name) &&
     isString(value.status) &&
-    isInteger(value.hostedPets)
+    isNonNegativeInteger(value.hostedPets)
   );
 }
 
@@ -454,8 +454,8 @@ function isOptionalString(value: unknown) {
   return value === undefined || value === null || isString(value);
 }
 
-function isInteger(value: unknown) {
-  return typeof value === "number" && Number.isInteger(value);
+function isNonNegativeInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function isFiniteNumber(value: unknown): value is number {

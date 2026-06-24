@@ -173,11 +173,20 @@ test("filters malformed account and studio cache records", () => {
             ownership: "owned",
             displayState: "active",
             materialCount: "many"
+          },
+          {
+            id: "pet_negative",
+            petNumber: "P3",
+            name: "负数缓存",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: -1
           }
         ],
         friendCards: [
           { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
-          { id: "friend_broken", name: "坏好友", status: "离线", hostedPets: "none" }
+          { id: "friend_broken", name: "坏好友", status: "离线", hostedPets: "none" },
+          { id: "friend_negative", name: "负数好友", status: "离线", hostedPets: -2 }
         ]
       })
     );
