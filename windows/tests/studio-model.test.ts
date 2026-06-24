@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   accountDetail,
+  accountDisplayName,
   canRequestHosting,
   friendPanelDetail,
   friendPanelEmptyDetail,
@@ -27,7 +28,19 @@ import {
 } from "../src/shared/studio-model.ts";
 
 test("builds account display copy", () => {
+  assert.equal(accountDisplayName(undefined), "未登录");
   assert.equal(accountDetail(undefined), "登录后可同步网页端账号下的宠物数据。");
+  assert.equal(
+    accountDisplayName({
+      id: "u1",
+      name: "栗子主人",
+      email: "demo@desktop.pet",
+      credits: 120,
+      accessToken: "token",
+      signedInAt: "now"
+    }),
+    "栗子主人"
+  );
   assert.equal(
     accountDetail({
       id: "u1",

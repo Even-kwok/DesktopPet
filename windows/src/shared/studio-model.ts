@@ -33,6 +33,10 @@ type LocalMaterialStatusState = {
   hasVideo: boolean;
 };
 
+export function accountDisplayName(account: DesktopAccountSession | undefined) {
+  return account?.name ?? "未登录";
+}
+
 export function accountDetail(account: DesktopAccountSession | undefined) {
   if (!account) {
     return "登录后可同步网页端账号下的宠物数据。";

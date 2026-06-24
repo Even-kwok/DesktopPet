@@ -12,6 +12,8 @@ import type { DesktopFriendCard } from "../../shared/desktop-sync-client.ts";
 import type { DesktopAccountSession, DesktopSyncedPetCard } from "../../shared/settings-store.ts";
 import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
+  accountDetail,
+  accountDisplayName,
   canRequestHosting,
   friendHostingDetail,
   friendPanelDetail,
@@ -177,8 +179,8 @@ export function StudioApp() {
     <main className="studio-app">
       <section className="studio-topbar">
         <div>
-          <h1>CatDesktopPet</h1>
-          <p>{account ? `${account.email} · ${account.credits} 积分` : "登录后同步网页端猫咪素材"}</p>
+          <h1>{accountDisplayName(account)}</h1>
+          <p>{accountDetail(account)}</p>
         </div>
         <div className="studio-topbar-actions">
           {account ? (

@@ -45,6 +45,8 @@ Settings-store synced-card coverage now verifies successful recall marks a pet a
 
 Settings-store account-session coverage now verifies cached account sessions with empty access tokens or blank identity/sign-in fields are ignored on restart instead of showing the Windows Studio as signed in with an unusable account.
 
+Studio account-display coverage now verifies Windows uses the same `未登录` fallback, account name, and `邮箱 · N 积分` detail copy as the Mac account panel.
+
 Desktop sync coverage now verifies remote friend-list responses with negative hosted-pet counts are rejected before they can enter the Windows Studio.
 
 Desktop sync identity coverage now verifies remote pet bundle and friend-list responses with empty pet `id`/`name`/`type` fields or friend `id`/`name` fields are rejected before they can enter the Windows Studio or sync cache.
