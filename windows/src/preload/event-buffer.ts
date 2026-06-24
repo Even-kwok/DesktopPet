@@ -4,27 +4,38 @@ export function createLatestEventBuffer<T>(
   schedule: EventScheduler = (callback) => queueMicrotask(callback)
 ) {
   const listeners = new Set<(event: T) => void>();
+  let hasPendingEvent = false;
   let pendingEvent: T | undefined;
+  let pendingRevision = 0;
 
   return {
     emit(event: T) {
       pendingEvent = event;
+      hasPendingEvent = true;
+      pendingRevision += 1;
+      let delivered = false;
       for (const listener of listeners) {
+        delivered = true;
         listener(event);
       }
-      if (listeners.size > 0) {
+      if (delivered) {
+        hasPendingEvent = false;
         pendingEvent = undefined;
       }
     },
     subscribe(listener: (event: T) => void) {
       listeners.add(listener);
-      if (pendingEvent !== undefined) {
-        const event = pendingEvent;
-        pendingEvent = undefined;
+      if (hasPendingEvent) {
+        const event = pendingEvent as T;
+        const revision = pendingRevision;
         schedule(() => {
-          if (listeners.has(listener)) {
-            listener(event);
+          if (!listeners.has(listener) || !hasPendingEvent || pendingRevision !== revision) {
+            return;
           }
+
+          hasPendingEvent = false;
+          pendingEvent = undefined;
+          listener(event);
         });
       }
 
