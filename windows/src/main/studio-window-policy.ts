@@ -65,7 +65,12 @@ export function studioCommandDispatchPlan(input: {
   requestRevision: number;
   currentRevision: number;
   isVisible: boolean;
+  canSendRendererCommand?: boolean;
 }): StudioWindowCommand | undefined {
+  if (input.canSendRendererCommand === false) {
+    return undefined;
+  }
+
   if (!shouldFinishRendererShow(input)) {
     return undefined;
   }

@@ -51,7 +51,11 @@ export class StudioWindowController {
         command,
         requestRevision: showRevision,
         currentRevision: this.#showRevision,
-        isVisible: this.#isVisible
+        isVisible: this.#isVisible,
+        canSendRendererCommand: canSendRendererCommand({
+          hasWindow: true,
+          isWebContentsDestroyed: window.webContents.isDestroyed()
+        })
       });
       if (showCommand) {
         window.webContents.send(ipcChannels.studioCommand, showCommand);

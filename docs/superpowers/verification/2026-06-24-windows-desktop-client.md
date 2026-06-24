@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 223 tests.
+- `npm test`: passed, 224 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -104,6 +104,8 @@ Studio action-runner coverage now verifies failed actions still refresh the late
 Studio refresh coverage now verifies tray-side and other main-process state changes send a refresh command to an already-open Studio window without opening hidden/unloaded Studio windows.
 
 Renderer command coverage now verifies Windows only sends Studio and pet playback commands to live Electron web contents, avoiding stale sends after windows are closed or destroyed.
+
+Studio show-command coverage now verifies async Studio show completions skip refresh/select commands when the renderer command target has already gone away.
 
 ## Electron Smoke Evidence
 

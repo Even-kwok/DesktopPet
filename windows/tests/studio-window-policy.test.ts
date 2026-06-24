@@ -135,3 +135,15 @@ test("sends only the latest visible Studio show command after renderer loading",
     { type: "refresh" }
   );
 });
+
+test("skips Studio show commands when the renderer target is gone", () => {
+  assert.equal(
+    studioCommandDispatchPlan({
+      requestRevision: 1,
+      currentRevision: 1,
+      isVisible: true,
+      canSendRendererCommand: false
+    }),
+    undefined
+  );
+});
