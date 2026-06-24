@@ -73,6 +73,28 @@ test("adds pet thumbnails to pet submenus like the Mac status menu", () => {
   assert.equal(template[4].submenu?.[5].submenu?.[1].icon, "icon-1");
 });
 
+test("normalizes malformed pet counts before building Windows tray menus", () => {
+  for (const petCount of [Number.NaN, Number.POSITIVE_INFINITY, -1.5]) {
+    const template = buildTrayMenuTemplate({
+      petCount,
+      isVisible: false,
+      isClickThrough: false,
+      isMouseoverCatchEnabled: true,
+      petName: () => "栗子",
+      hasVideo: () => false,
+      petSizeScale: () => 1
+    });
+
+    assert.equal(template[2].submenu?.length, 0);
+    assert.equal(template[3].submenu?.length, 0);
+    assert.equal(template[4].submenu?.[0].label, "当前宠物数：0");
+    assert.equal(template[4].submenu?.[2].label, "添加宠物");
+    assert.equal(template[4].submenu?.[3].enabled, false);
+    assert.equal(template[4].submenu?.[4].enabled, false);
+    assert.equal(template[4].submenu?.[5].enabled, false);
+  }
+});
+
 test("requests an idle-loop import when tray show cannot display a pet", () => {
   assert.deepEqual(visibilityResultAfterShowingPets(false), {
     isPetVisible: false,

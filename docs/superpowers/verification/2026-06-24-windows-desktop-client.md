@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 236 tests.
+- `npm test`: passed, 237 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -18,6 +18,8 @@ Run from `web/` on the current branch:
 Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, stay non-focusable like the Mac nonactivating panel, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
 
 The Windows tray menu now also has automated coverage for Mac-parity pet submenu thumbnails. A cached thumbnail provider requests 28x28 native thumbnails from each pet's `idle_loop` video, refreshes the tray when an icon becomes available, and falls back to a paw-style placeholder icon when no video is available or thumbnail generation fails.
+
+Tray menu robustness coverage now verifies malformed pet counts are normalized before building Windows tray submenus, avoiding `NaN`/infinite pet labels or unsafe submenu lengths.
 
 Material-slot coverage now verifies Windows exposes the same trigger descriptions as the Mac Studio cards, including `默认循环`, `点击宠物`, `鼠标经过宠物`, `另一只宠物靠近`, and `待机随机`.
 

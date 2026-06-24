@@ -43,20 +43,25 @@ export type TrayMenuState = {
 };
 
 export function buildTrayMenuTemplate(state: TrayMenuState): MenuTemplateItem[] {
+  const normalizedState = {
+    ...state,
+    petCount: normalizedPetCount(state.petCount)
+  };
+
   return [
     { label: "打开素材工作台", accelerator: "CommandOrControl+,", action: "openStudio" },
     { type: "separator" },
     {
       label: "选择状态视频",
-      submenu: petSubmenus(state, (petIndex) => chooseStateVideoSubmenu(state, petIndex))
+      submenu: petSubmenus(normalizedState, (petIndex) => chooseStateVideoSubmenu(normalizedState, petIndex))
     },
     {
       label: "删除状态视频",
-      submenu: petSubmenus(state, (petIndex) => removeStateVideoSubmenu(state, petIndex))
+      submenu: petSubmenus(normalizedState, (petIndex) => removeStateVideoSubmenu(normalizedState, petIndex))
     },
     {
       label: "宠物",
-      submenu: petsSubmenu(state)
+      submenu: petsSubmenu(normalizedState)
     },
     {
       label: state.isVisible ? "隐藏宠物" : "显示宠物",
@@ -199,4 +204,10 @@ function petSizeSubmenu(state: TrayMenuState, petIndex: number): MenuTemplateIte
     action: "setPetSize",
     payload: { petIndex, scale }
   }));
+}
+
+function normalizedPetCount(petCount: unknown) {
+  return typeof petCount === "number" && Number.isFinite(petCount)
+    ? Math.max(0, Math.trunc(petCount))
+    : 0;
 }
