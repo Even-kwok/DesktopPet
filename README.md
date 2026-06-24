@@ -32,6 +32,8 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` and `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` in `web/.env.local` to enable the corresponding download buttons in the client center.
+
 Current web MVP includes:
 
 - Game-like material studio UI with selectable pets, portrait preview, material cards, jobs, friends, and billing mock panels.

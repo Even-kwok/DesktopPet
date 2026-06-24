@@ -83,7 +83,8 @@ const materialTierSections: Array<{
 ];
 
 const macClientDownloadUrl = process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null;
-const clientPlatformCards = buildClientPlatformCards(macClientDownloadUrl);
+const windowsClientDownloadUrl = process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL?.trim() || null;
+const clientPlatformCards = buildClientPlatformCards(macClientDownloadUrl, windowsClientDownloadUrl);
 
 export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [user, setUser] = useState<CurrentUser>(initialData.user);
@@ -1143,7 +1144,7 @@ function ClientCenter({ cards }: { cards: ClientPlatformCard[] }) {
       <div className="client-center-copy">
         <span className="eyebrow">客户端中心</span>
         <h2>把生成好的宠物同步到你的设备</h2>
-        <p>先生成基础动作，再下载安装到设备上。Mac 端优先准备，Windows 和手机端入口先预留。</p>
+        <p>先生成基础动作，再下载安装到桌面端同步。手机端入口先预留。</p>
       </div>
       <div className="client-platform-grid">
         {cards.map((card) => (
@@ -1371,6 +1372,7 @@ function StarterSteps({
     basicTotalCount,
     hasFrameImage,
     hasMacDownload: Boolean(macClientDownloadUrl),
+    hasWindowsDownload: Boolean(windowsClientDownloadUrl),
     totalReadyCount
   });
 

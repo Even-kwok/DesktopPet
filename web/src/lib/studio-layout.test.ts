@@ -66,8 +66,8 @@ test("account name edit control uses a compact pencil glyph with an accessible l
   });
 });
 
-test("client platform cards expose Mac priority and future platform states", () => {
-  assert.deepEqual(buildClientPlatformCards(null), [
+test("client platform cards expose desktop download states and future mobile states", () => {
+  assert.deepEqual(buildClientPlatformCards(null, null), [
     {
       id: "mac",
       title: "Mac 端",
@@ -80,9 +80,9 @@ test("client platform cards expose Mac priority and future platform states", () 
     {
       id: "windows",
       title: "Windows 端",
-      description: "未来支持 Windows 桌面宠物展示与同步。",
-      statusLabel: "即将开放",
-      actionLabel: "即将开放",
+      description: "Windows 桌面宠物客户端，同步账号内已生成动作。",
+      statusLabel: "安装包准备中",
+      actionLabel: "安装包准备中",
       actionUrl: null,
       isEnabled: false
     },
@@ -106,7 +106,10 @@ test("client platform cards expose Mac priority and future platform states", () 
     }
   ]);
 
-  const [mac] = buildClientPlatformCards("https://example.com/CatDesktopPet.dmg");
+  const [mac, windows] = buildClientPlatformCards(
+    "https://example.com/CatDesktopPet.dmg",
+    "https://example.com/CatDesktopPetSetup.exe"
+  );
 
   assert.deepEqual(mac, {
     id: "mac",
@@ -115,6 +118,15 @@ test("client platform cards expose Mac priority and future platform states", () 
     statusLabel: "可下载",
     actionLabel: "下载 Mac 版",
     actionUrl: "https://example.com/CatDesktopPet.dmg",
+    isEnabled: true
+  });
+  assert.deepEqual(windows, {
+    id: "windows",
+    title: "Windows 端",
+    description: "Windows 桌面宠物客户端，同步账号内已生成动作。",
+    statusLabel: "可下载",
+    actionLabel: "下载 Windows 版",
+    actionUrl: "https://example.com/CatDesktopPetSetup.exe",
     isEnabled: true
   });
 });
@@ -142,12 +154,13 @@ test("material workflow steps describe the current generation path", () => {
       basicReadyCount: 4,
       basicTotalCount: 4,
       totalReadyCount: 6,
-      hasMacDownload: true
+      hasMacDownload: false,
+      hasWindowsDownload: true
     }),
     [
       { title: "上传绿幕图", state: "已就位" },
       { title: "补齐基础版", state: "4/4" },
-      { title: "准备客户端", state: "Mac 可下载" },
+      { title: "准备客户端", state: "Windows 可下载" },
       { title: "同步到桌面", state: "可同步" }
     ]
   );

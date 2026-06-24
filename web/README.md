@@ -13,6 +13,8 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` and `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` in `.env.local` to enable the corresponding desktop download buttons in the client center.
+
 ## First MVP
 
 - User login at `/login`, admin login at `/admin/login`, shared logout route, and server-side cookie/session checks

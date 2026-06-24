@@ -32,8 +32,12 @@ export type ClientPlatformCard = {
   isEnabled: boolean;
 };
 
-export function buildClientPlatformCards(macDownloadUrl: string | null): ClientPlatformCard[] {
+export function buildClientPlatformCards(
+  macDownloadUrl: string | null,
+  windowsDownloadUrl: string | null = null
+): ClientPlatformCard[] {
   const normalizedMacUrl = macDownloadUrl?.trim() || null;
+  const normalizedWindowsUrl = windowsDownloadUrl?.trim() || null;
 
   return [
     {
@@ -48,11 +52,11 @@ export function buildClientPlatformCards(macDownloadUrl: string | null): ClientP
     {
       id: "windows",
       title: "Windows 端",
-      description: "未来支持 Windows 桌面宠物展示与同步。",
-      statusLabel: "即将开放",
-      actionLabel: "即将开放",
-      actionUrl: null,
-      isEnabled: false
+      description: "Windows 桌面宠物客户端，同步账号内已生成动作。",
+      statusLabel: normalizedWindowsUrl ? "可下载" : "安装包准备中",
+      actionLabel: normalizedWindowsUrl ? "下载 Windows 版" : "安装包准备中",
+      actionUrl: normalizedWindowsUrl,
+      isEnabled: Boolean(normalizedWindowsUrl)
     },
     {
       id: "ios",
@@ -86,6 +90,7 @@ export function buildMaterialWorkflowSteps(input: {
   basicTotalCount: number;
   totalReadyCount: number;
   hasMacDownload: boolean;
+  hasWindowsDownload?: boolean;
 }): MaterialWorkflowStep[] {
   return [
     {
@@ -98,13 +103,29 @@ export function buildMaterialWorkflowSteps(input: {
     },
     {
       title: "准备客户端",
-      state: input.hasMacDownload ? "Mac 可下载" : "安装包准备中"
+      state: clientDownloadState(input)
     },
     {
       title: "同步到桌面",
       state: input.totalReadyCount > 0 ? "可同步" : "待动作"
     }
   ];
+}
+
+function clientDownloadState(input: { hasMacDownload: boolean; hasWindowsDownload?: boolean }) {
+  if (input.hasMacDownload && input.hasWindowsDownload) {
+    return "桌面端可下载";
+  }
+
+  if (input.hasMacDownload) {
+    return "Mac 可下载";
+  }
+
+  if (input.hasWindowsDownload) {
+    return "Windows 可下载";
+  }
+
+  return "安装包准备中";
 }
 
 function nameEditControlCopy(label: string, name: string) {

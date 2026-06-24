@@ -35,7 +35,8 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
   const next = sanitizeRedirectPath(firstParam(params.next), "/");
   const authMode = resolveSignedOutAuthMode(firstParam(params.auth));
   const clientCards = buildClientPlatformCards(
-    process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null
+    process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null,
+    process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL?.trim() || null
   );
 
   return (
