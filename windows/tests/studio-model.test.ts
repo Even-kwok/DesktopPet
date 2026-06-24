@@ -16,6 +16,7 @@ import {
   friendPanelEmptyTitle,
   friendPanelTitle,
   friendEmailInputPlaceholder,
+  friendEmailValidationMessage,
   friendHostingDetail,
   loginPanelDetail,
   loginPanelTitle,
@@ -120,6 +121,9 @@ test("builds Mac-parity friend email submit behavior", () => {
   };
 
   assert.equal(friendEmailInputPlaceholder(), "输入好友邮箱");
+  assert.equal(friendEmailValidationMessage(undefined, "friend@desktop.pet"), "请先登录账号。");
+  assert.equal(friendEmailValidationMessage(account, "   "), "请输入好友邮箱。");
+  assert.equal(friendEmailValidationMessage(account, " friend@desktop.pet "), undefined);
   assert.equal(canSubmitFriendEmail(undefined, "friend@desktop.pet"), false);
   assert.equal(canSubmitFriendEmail(account, "   "), false);
   assert.equal(canSubmitFriendEmail(account, " friend@desktop.pet "), true);

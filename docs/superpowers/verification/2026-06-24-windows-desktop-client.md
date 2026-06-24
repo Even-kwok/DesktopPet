@@ -79,7 +79,7 @@ Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 
 
 Studio friend-panel coverage now verifies Windows uses the Mac `好友` title, `N 位 · 可寄养和删除` summary, and the same empty-state guidance copy.
 
-Studio friend-add coverage now verifies Windows uses the Mac friend-email placeholder, supports Enter-to-add with the same signed-in/non-empty gating as the add button, and disables add submissions while a friend mutation is already in progress.
+Studio friend-add coverage now verifies Windows uses the Mac friend-email placeholder, supports Enter-to-add, shows the same `请先登录账号。` / `请输入好友邮箱。` validation copy, and disables add submissions while a friend mutation is already in progress.
 
 Studio friend-action coverage now verifies Windows follows the Mac pending-state gates for friend refreshes and friend mutations, so refresh, delete, hosting request, and recall controls are disabled while their corresponding account action is already in progress.
 

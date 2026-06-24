@@ -96,6 +96,17 @@ export function friendEmailInputPlaceholder() {
   return "输入好友邮箱";
 }
 
+export function friendEmailValidationMessage(
+  account: DesktopAccountSession | undefined,
+  friendEmail: string
+) {
+  if (!account) {
+    return "请先登录账号。";
+  }
+
+  return friendEmail.trim() ? undefined : "请输入好友邮箱。";
+}
+
 export function canSubmitFriendEmail(
   account: DesktopAccountSession | undefined,
   friendEmail: string,

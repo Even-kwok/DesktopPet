@@ -21,6 +21,7 @@ import {
   canRunFriendMutation,
   canSubmitFriendEmail,
   friendEmailInputPlaceholder,
+  friendEmailValidationMessage,
   friendHostingDetail,
   friendPanelDetail,
   friendPanelEmptyDetail,
@@ -267,6 +268,16 @@ export function StudioApp() {
   };
 
   const submitFriendEmail = async () => {
+    if (isMutatingFriend) {
+      return;
+    }
+
+    const validationMessage = friendEmailValidationMessage(account, friendEmail);
+    if (validationMessage) {
+      setStatusMessage(validationMessage);
+      return;
+    }
+
     if (!canSubmitFriendEmail(account, friendEmail, isMutatingFriend)) {
       return;
     }
