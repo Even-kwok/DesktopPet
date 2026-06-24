@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 201 tests.
+- `npm test`: passed, 202 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -53,7 +53,7 @@ Desktop sync account coverage now verifies login and bundle account records with
 
 Desktop sync session coverage now verifies login responses with negative token expiry values are rejected before the Windows client caches a bearer session.
 
-Desktop sync bearer-session coverage now verifies login responses with empty access tokens or unsupported token types are rejected before the Windows client stores an unusable session.
+Desktop sync bearer-session coverage now verifies login responses with empty modes, empty access tokens, or unsupported token types are rejected before the Windows client stores an unusable session.
 
 Desktop sync bundle metadata coverage now verifies negative bundle versions, negative recommended polling intervals, empty bundle timestamps, and empty sync mode/source values are rejected before they can influence Windows sync behavior.
 

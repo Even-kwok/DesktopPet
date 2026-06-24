@@ -336,7 +336,7 @@ function isDesktopLoginResponse(value: unknown): value is DesktopLoginResponse {
   }
 
   return (
-    isString(value.mode) &&
+    isNonEmptyString(value.mode) &&
     isBearerTokenType(value.tokenType) &&
     isNonEmptyString(value.accessToken) &&
     isNonNegativeInteger(value.expiresIn) &&

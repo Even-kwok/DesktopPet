@@ -95,6 +95,33 @@ test("maps malformed login responses to invalid response", async () => {
   }
 });
 
+test("maps login responses with empty modes to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: {
+      mode: " ",
+      tokenType: "bearer",
+      accessToken: "desktop-token",
+      expiresIn: 3600,
+      account: { id: "user_demo", name: "栗子主人", email: "demo@desktop.pet", credits: 120 }
+    }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.login("demo@desktop.pet", "123456"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("maps login responses with negative account credits to invalid response", async () => {
   const server = await withServer(() => ({
     status: 200,
