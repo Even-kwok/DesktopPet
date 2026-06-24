@@ -21,6 +21,16 @@ export function nextSelectedPetIndexAfterStudioCommand(
   return clampPetIndex(requestedPetIndex ?? currentPetIndex, state.petCount);
 }
 
+export function nextSelectedPetIndexAfterStudioRefresh(
+  currentPetIndex: number,
+  state: StudioSelectionState,
+  actionResult: unknown,
+  command: unknown
+) {
+  const actionPetIndex = nextSelectedPetIndexAfterAction(currentPetIndex, state, actionResult);
+  return nextSelectedPetIndexAfterStudioCommand(actionPetIndex, state, command);
+}
+
 export function petNameDraftForIndex(state: StudioSelectionState, petIndex: number) {
   return state.petNames[petIndex] ?? `Pet ${petIndex + 1}`;
 }

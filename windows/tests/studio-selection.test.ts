@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   nextSelectedPetIndexAfterAction,
   nextSelectedPetIndexAfterStudioCommand,
+  nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
   petNameDraftForIndex
 } from "../src/renderer/studio/studio-selection.ts";
@@ -36,6 +37,30 @@ test("selects the tray-requested pet from a Studio command", () => {
   assert.equal(nextSelectedPetIndexAfterStudioCommand(0, state, { type: "selectPet", petIndex: 1 }), 1);
   assert.equal(nextSelectedPetIndexAfterStudioCommand(0, state, { type: "selectPet", petIndex: 7 }), 1);
   assert.equal(nextSelectedPetIndexAfterStudioCommand(1, state, { type: "unknown", petIndex: 0 }), 1);
+});
+
+test("applies Studio commands against refreshed pet state", () => {
+  const refreshedState = { petCount: 3, petNames: ["Milo", "Luna", "Nico"] };
+
+  assert.equal(
+    nextSelectedPetIndexAfterStudioRefresh(
+      0,
+      refreshedState,
+      undefined,
+      { type: "selectPet", petIndex: 2 }
+    ),
+    2
+  );
+
+  assert.equal(
+    nextSelectedPetIndexAfterStudioRefresh(
+      7,
+      { petCount: 2, petNames: ["Milo", "Luna"] },
+      undefined,
+      { type: "refresh" }
+    ),
+    1
+  );
 });
 
 test("keeps synced pet selection on a valid refreshed card", () => {

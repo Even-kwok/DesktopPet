@@ -9,10 +9,14 @@ export type StudioRendererLoadTarget =
   | { type: "file"; value: string }
   | { type: "none" };
 
-export type StudioWindowCommand = {
-  type: "selectPet";
-  petIndex: number;
-};
+export type StudioWindowCommand =
+  | {
+      type: "selectPet";
+      petIndex: number;
+    }
+  | {
+      type: "refresh";
+    };
 
 export function studioRendererLoadTarget(input: StudioRendererLoadInput): StudioRendererLoadTarget {
   if (input.currentURL) {
@@ -37,4 +41,8 @@ export function studioCommandFromPetPayload(payload: unknown): StudioWindowComma
   }
 
   return { type: "selectPet", petIndex };
+}
+
+export function studioCommandForShow(command?: StudioWindowCommand): StudioWindowCommand {
+  return command ?? { type: "refresh" };
 }

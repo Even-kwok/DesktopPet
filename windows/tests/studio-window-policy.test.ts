@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  studioCommandForShow,
   studioCommandFromPetPayload,
   studioRendererLoadTarget
 } from "../src/main/studio-window-policy.ts";
@@ -50,4 +51,11 @@ test("builds a Studio pet selection command from a tray pet payload", () => {
   });
   assert.equal(studioCommandFromPetPayload({ petIndex: Number.NaN }), undefined);
   assert.equal(studioCommandFromPetPayload({}), undefined);
+});
+
+test("refreshes Studio state when showing without a specific command", () => {
+  const selectCommand = { type: "selectPet" as const, petIndex: 2 };
+
+  assert.deepEqual(studioCommandForShow(undefined), { type: "refresh" });
+  assert.equal(studioCommandForShow(selectCommand), selectCommand);
 });

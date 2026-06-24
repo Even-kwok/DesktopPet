@@ -1,5 +1,5 @@
 import { BrowserWindow } from "electron";
-import { studioRendererLoadTarget } from "./studio-window-policy.js";
+import { studioCommandForShow, studioRendererLoadTarget } from "./studio-window-policy.js";
 import type { StudioWindowCommand } from "./studio-window-policy.js";
 import { ipcChannels } from "./ipc.js";
 
@@ -38,13 +38,12 @@ export class StudioWindowController {
     }
     window.show();
     window.focus();
-    if (command) {
-      const sendCommand = () => window.webContents.send(ipcChannels.studioCommand, command);
-      if (loadPromise) {
-        void loadPromise.then(sendCommand).catch(() => {});
-      } else {
-        sendCommand();
-      }
+    const showCommand = studioCommandForShow(command);
+    const sendCommand = () => window.webContents.send(ipcChannels.studioCommand, showCommand);
+    if (loadPromise) {
+      void loadPromise.then(sendCommand).catch(() => {});
+    } else {
+      sendCommand();
     }
   }
 

@@ -37,8 +37,7 @@ import {
   statusMessageForActionResult
 } from "./studio-action-result.ts";
 import {
-  nextSelectedPetIndexAfterAction,
-  nextSelectedPetIndexAfterStudioCommand,
+  nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
   petNameDraftForIndex
 } from "./studio-selection.ts";
@@ -102,13 +101,18 @@ export function StudioApp() {
 
   const bridge = window.desktopPet;
 
-  const refreshState = async (actionResult?: unknown) => {
+  const refreshState = async (actionResult?: unknown, studioCommand?: unknown) => {
     const nextState = (await bridge?.getStudioState?.()) as StudioState | undefined;
     if (nextState) {
       const mergedState = { ...defaultStudioState, ...nextState };
       setState(mergedState);
       setSelectedPetIndex((current) => {
-        const nextPetIndex = nextSelectedPetIndexAfterAction(current, mergedState, actionResult);
+        const nextPetIndex = nextSelectedPetIndexAfterStudioRefresh(
+          current,
+          mergedState,
+          actionResult,
+          studioCommand
+        );
         setPetNameDraft(petNameDraftForIndex(mergedState, nextPetIndex));
         return nextPetIndex;
       });
@@ -124,13 +128,9 @@ export function StudioApp() {
 
   useEffect(() => {
     return bridge?.onStudioCommand?.((command) => {
-      setSelectedPetIndex((current) => {
-        const nextPetIndex = nextSelectedPetIndexAfterStudioCommand(current, state, command);
-        setPetNameDraft(petNameDraftForIndex(state, nextPetIndex));
-        return nextPetIndex;
-      });
+      void refreshState(undefined, command);
     });
-  }, [bridge, state]);
+  }, [bridge]);
 
   const groupedSlots = useMemo(() => {
     const groups = new Map<PetMaterialGroup, PetActionSlot[]>();
