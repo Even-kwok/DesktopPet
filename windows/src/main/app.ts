@@ -36,6 +36,7 @@ import {
   replacementWarningDialogOptions
 } from "./sync-policy.ts";
 import { importDesktopBundle } from "./desktop-bundle-importer.ts";
+import { createSingleFlightActionGroup } from "./studio-action-guard.ts";
 import {
   refreshedAccountSessionFromSyncAccount,
   SettingsStore
@@ -87,6 +88,10 @@ async function bootstrap() {
     () => petColonyController.prepareForSystemSleep(),
     () => systemWakeActions().forEach((action) => runExistingInstanceReopenAction(action))
   );
+  const signInActions = createSingleFlightActionGroup();
+  const syncActions = createSingleFlightActionGroup();
+  const refreshFriendActions = createSingleFlightActionGroup();
+  const mutateFriendActions = createSingleFlightActionGroup();
   let refreshTray = () => {};
   runExistingInstanceReopenAction = (action) => {
     switch (action) {
@@ -118,7 +123,7 @@ async function bootstrap() {
 
   registerIpcHandlers(ipcMain, {
     getStudioState: studioState,
-    signIn: async (email, password) => {
+    signIn: (email, password) => signInActions.run(async () => {
       const trimmedEmail = email.trim();
       if (!trimmedEmail || !password) {
         throw new Error("请输入邮箱和密码。");
@@ -141,13 +146,13 @@ async function bootstrap() {
       }
 
       return studioState();
-    },
+    }),
     signOut: () => {
       settingsStore.signOut();
       settingsStore.clearFriendCards();
       return studioState();
     },
-    sync: async () => {
+    sync: () => syncActions.run(async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const bundle = await desktopSyncClient.fetchBundle(account.accessToken);
       const replacements = localMaterialReplacementDescriptions(bundle, (slot, petIndex) =>
@@ -178,7 +183,7 @@ async function bootstrap() {
       });
       refreshTray();
       return { summary, ...studioState() };
-    },
+    }),
     selectSyncedPet: (petId) => {
       if (settingsStore.syncedPetCards.some((pet) => pet.id === petId)) {
         settingsStore.selectedSyncedPetID = petId;
@@ -268,13 +273,13 @@ async function bootstrap() {
       }
       return studioState();
     },
-    refreshFriends: async () => {
+    refreshFriends: () => refreshFriendActions.run(async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const friends = await desktopSyncClient.fetchFriends(account.accessToken);
       settingsStore.saveFriendCards(friends);
       return studioState();
-    },
-    addFriend: async (email) => {
+    }),
+    addFriend: (email) => mutateFriendActions.run(async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
@@ -283,15 +288,15 @@ async function bootstrap() {
       const addedFriend = await desktopSyncClient.addFriend(trimmedEmail, account.accessToken);
       settingsStore.upsertFriendCard(addedFriend);
       return { addedFriend, ...studioState() };
-    },
-    removeFriend: async (friendId) => {
+    }),
+    removeFriend: (friendId) => mutateFriendActions.run(async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveFriendRemovalTarget(friendId, settingsStore.friendCards);
       await desktopSyncClient.removeFriend(target.friendId, account.accessToken);
       settingsStore.removeFriendCard(target.friendId);
       return studioState();
-    },
-    requestHosting: async (petId, toUserId) => {
+    }),
+    requestHosting: (petId, toUserId) => mutateFriendActions.run(async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveHostingRequestTarget(
         petId,
@@ -301,14 +306,14 @@ async function bootstrap() {
       );
       await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
       return studioState();
-    },
-    recallPet: async (petId) => {
+    }),
+    recallPet: (petId) => mutateFriendActions.run(async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveRecallPetTarget(petId, settingsStore.syncedPetCards);
       await desktopSyncClient.recallPet(target.petId, account.accessToken);
       settingsStore.markSyncedPetRecalled(target.petId);
       return studioState();
-    },
+    }),
     petDragStarted: (petIndex) => {
       petColonyController.dragPetStarted(petIndex);
     },
