@@ -47,6 +47,10 @@ export function toVideoSource(videoPath: string) {
 
   const normalizedPath = videoPath.replace(/\\/g, "/");
   const encodedPath = encodeLocalPath(normalizedPath);
+  if (normalizedPath.startsWith("//")) {
+    return `file://${encodedPath.replace(/^\/+/, "")}`;
+  }
+
   return normalizedPath.startsWith("/")
     ? `file://${encodedPath}`
     : `file:///${encodedPath}`;

@@ -23,6 +23,13 @@ test("escapes URL delimiters in local video file names", () => {
   );
 });
 
+test("normalizes Windows UNC network share paths", () => {
+  assert.equal(
+    toVideoSource("\\\\NAS\\Cats\\idle loop.mp4"),
+    "file://NAS/Cats/idle%20loop.mp4"
+  );
+});
+
 test("advances playback request revision even when source path repeats", () => {
   const first = nextPetPlaybackRequest(undefined, {
     petIndex: 0,
