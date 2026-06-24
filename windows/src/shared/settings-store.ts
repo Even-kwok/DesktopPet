@@ -256,7 +256,7 @@ export class SettingsStore {
   }
 
   saveVideoPath(videoPath: string, slot: PetActionSlot, index: number) {
-    if (!isWritablePetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount)) {
       return;
     }
 
@@ -267,7 +267,7 @@ export class SettingsStore {
   }
 
   removeVideo(slot: PetActionSlot, index: number) {
-    if (!isWritablePetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount)) {
       return;
     }
 

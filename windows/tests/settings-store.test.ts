@@ -349,6 +349,29 @@ test("reads out-of-range pet data without expanding later persisted pet data", (
   }
 });
 
+test("does not save videos for inactive future pet slots", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+    const futureVideoPath = path.join(path.dirname(store.filePath), "future-click.mp4");
+    writeFileSync(futureVideoPath, "");
+
+    store.saveVideoPath(futureVideoPath, "click_react", 1);
+    store.removeVideo("click_react", 1);
+    store.isPetVisible = true;
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: Array<{ videos?: Record<string, string> }>;
+    };
+
+    assert.equal(store.restoreVideoPath("click_react", 1), undefined);
+    assert.deepEqual(store.savedVideoSlots(1), []);
+    assert.equal(persisted.pets?.[1]?.videos, undefined);
+  } finally {
+    cleanup();
+  }
+});
+
 test("ignores unknown saved video slot keys like the Mac settings store", () => {
   const { store, cleanup } = makeStore();
   try {
