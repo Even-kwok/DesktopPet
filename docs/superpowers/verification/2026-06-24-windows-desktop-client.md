@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 140 tests.
+- `npm test`: passed, 141 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 

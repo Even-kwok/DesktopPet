@@ -21,7 +21,11 @@ export function createLatestEventBuffer<T>(
       if (pendingEvent !== undefined) {
         const event = pendingEvent;
         pendingEvent = undefined;
-        schedule(() => listener(event));
+        schedule(() => {
+          if (listeners.has(listener)) {
+            listener(event);
+          }
+        });
       }
 
       return () => {

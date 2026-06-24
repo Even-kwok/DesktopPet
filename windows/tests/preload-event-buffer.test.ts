@@ -32,3 +32,17 @@ test("delivers live commands to current subscribers without replaying stale comm
   assert.deepEqual(received, ["load-click"]);
   assert.deepEqual(scheduled, []);
 });
+
+test("does not replay a pending command after the renderer unsubscribes", () => {
+  const scheduled: Array<() => void> = [];
+  const received: string[] = [];
+  const buffer = createLatestEventBuffer<string>((callback) => scheduled.push(callback));
+
+  buffer.emit("load-idle");
+  const unsubscribe = buffer.subscribe((command) => received.push(command));
+  unsubscribe();
+
+  scheduled[0]();
+
+  assert.deepEqual(received, []);
+});
