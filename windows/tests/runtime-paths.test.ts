@@ -9,5 +9,11 @@ test("resolves built preload and renderer file paths from main output directory"
   assert.equal(paths.preloadPath, path.join("C:", "app", "out", "preload", "index.mjs"));
   assert.equal(paths.studioRendererFile, path.join("C:", "app", "out", "renderer", "index.html"));
   assert.equal(paths.petRendererFile, path.join("C:", "app", "out", "renderer", "pet.html"));
-  assert.equal(paths.rendererURL, "http://localhost:5173");
+});
+
+test("resolves Electron/Vite dev server HTML entry URLs", () => {
+  const paths = resolveRuntimePaths(path.join("C:", "app", "out", "main"), "http://localhost:5173");
+
+  assert.equal(paths.studioRendererURL, "http://localhost:5173/src/renderer/index.html");
+  assert.equal(paths.petRendererURL, "http://localhost:5173/src/renderer/pet.html");
 });

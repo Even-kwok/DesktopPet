@@ -73,14 +73,14 @@ async function bootstrap() {
     (petIndex) =>
       new PetWindowController(settingsStore, petIndex, {
         preloadPath: runtimePaths.preloadPath,
-        petRendererURL: runtimePaths.rendererURL,
+        petRendererURL: runtimePaths.petRendererURL,
         petRendererFile: runtimePaths.petRendererFile,
         getClickThrough: () => settingsStore.isClickThrough
       })
   );
   studioWindowController = new StudioWindowController({
     preloadPath: runtimePaths.preloadPath,
-    studioRendererURL: runtimePaths.rendererURL,
+    studioRendererURL: runtimePaths.studioRendererURL,
     studioRendererFile: runtimePaths.studioRendererFile
   });
   const sleepRecoveryCoordinator = new SleepRecoveryCoordinator(

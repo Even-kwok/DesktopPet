@@ -206,7 +206,7 @@ export class PetWindowController implements PetWindowControllerLike {
     }
 
     if (this.#options.petRendererURL) {
-      await window.loadURL(new URL("pet.html", withTrailingSlash(this.#options.petRendererURL)).toString());
+      await window.loadURL(this.#options.petRendererURL);
     } else {
       await window.loadFile(this.#options.petRendererFile);
     }
@@ -498,10 +498,6 @@ export class PetWindowController implements PetWindowControllerLike {
   #currentScreenSize() {
     return screen.getPrimaryDisplay().workAreaSize;
   }
-}
-
-function withTrailingSlash(value: string) {
-  return value.endsWith("/") ? value : `${value}/`;
 }
 
 function mouseoverCatchFrame(frame: Rect) {
