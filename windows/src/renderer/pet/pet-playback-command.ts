@@ -46,7 +46,21 @@ export function toVideoSource(videoPath: string) {
   }
 
   const normalizedPath = videoPath.replace(/\\/g, "/");
+  const encodedPath = encodeLocalPath(normalizedPath);
   return normalizedPath.startsWith("/")
-    ? `file://${encodeURI(normalizedPath)}`
-    : `file:///${encodeURI(normalizedPath)}`;
+    ? `file://${encodedPath}`
+    : `file:///${encodedPath}`;
+}
+
+function encodeLocalPath(filePath: string) {
+  return filePath
+    .split("/")
+    .map((segment) => {
+      if (!segment || /^[A-Za-z]:$/.test(segment)) {
+        return segment;
+      }
+
+      return encodeURIComponent(segment);
+    })
+    .join("/");
 }

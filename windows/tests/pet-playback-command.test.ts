@@ -12,6 +12,17 @@ test("normalizes Windows and URL video sources", () => {
   assert.equal(toVideoSource("https://example.com/idle.mp4"), "https://example.com/idle.mp4");
 });
 
+test("escapes URL delimiters in local video file names", () => {
+  assert.equal(
+    toVideoSource("C:\\cats\\idle #1?.mp4"),
+    "file:///C:/cats/idle%20%231%3F.mp4"
+  );
+  assert.equal(
+    toVideoSource("/Users/demo/100% ready#idle.mov"),
+    "file:///Users/demo/100%25%20ready%23idle.mov"
+  );
+});
+
 test("advances playback request revision even when source path repeats", () => {
   const first = nextPetPlaybackRequest(undefined, {
     petIndex: 0,
