@@ -177,6 +177,45 @@ test("maps malformed desktop bundle responses to invalid response", async () => 
   }
 });
 
+test("maps desktop bundles with malformed material URLs to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: {
+      version: 1,
+      generatedAt: "2026-06-24T00:00:00.000Z",
+      pets: [
+        {
+          id: "pet_local",
+          name: "栗子",
+          type: "cat",
+          materials: [
+            {
+              slot: "idle_loop",
+              name: "待机循环",
+              videoUrl: "not a remote url",
+              status: "ready"
+            }
+          ]
+        }
+      ]
+    }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.fetchBundle("desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("maps unauthorized bundle fetches to session expired", async () => {
   const server = await withServer(() => ({ status: 401, body: { error: "DESKTOP_AUTH_REQUIRED" } }));
 

@@ -391,7 +391,7 @@ function isDesktopPetBundleMaterial(value: unknown): value is DesktopPetBundleMa
   return (
     isPetActionSlot(value.slot) &&
     isString(value.name) &&
-    isString(value.videoUrl) &&
+    isRemoteUrlString(value.videoUrl) &&
     isString(value.status)
   );
 }
@@ -468,6 +468,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isString(value: unknown) {
   return typeof value === "string";
+}
+
+function isRemoteUrlString(value: unknown) {
+  if (!isString(value)) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function isOptionalString(value: unknown) {
