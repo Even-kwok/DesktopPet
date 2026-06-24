@@ -280,10 +280,10 @@ export function displayablePets(bundle: DesktopPetBundle) {
 export function syncedPetCardsFromBundle(bundle: DesktopPetBundle): DesktopSyncedPetCard[] {
   return bundle.pets.map((pet) => ({
     id: pet.id,
-    petNumber: pet.petNumber ?? pet.id,
+    petNumber: nonEmptyOrDefault(pet.petNumber, pet.id),
     name: pet.name,
-    ownership: pet.ownership ?? "owned",
-    displayState: pet.displayState ?? "active",
+    ownership: nonEmptyOrDefault(pet.ownership, "owned"),
+    displayState: nonEmptyOrDefault(pet.displayState, "active"),
     avatarUrl: pet.avatarUrl,
     materialCount: pet.materials.filter((material) => !isDeprecatedMaterialSlot(material.slot)).length
   }));
@@ -324,6 +324,10 @@ function isRemoteMaterialCachePath(filePath: string) {
 
 function isDeprecatedMaterialSlot(slot: PetActionSlot) {
   return slot === "drag_loop";
+}
+
+function nonEmptyOrDefault(value: string | null | undefined, fallback: string) {
+  return value && value.trim().length > 0 ? value : fallback;
 }
 
 function isDesktopLoginResponse(value: unknown): value is DesktopLoginResponse {

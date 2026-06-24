@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 198 tests.
+- `npm test`: passed, 199 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -42,6 +42,8 @@ Desktop sync coverage now verifies remote friend-list responses with negative ho
 Desktop sync identity coverage now verifies remote pet bundle and friend-list responses with empty pet or friend `id`/`name` fields are rejected before they can enter the Windows Studio or sync cache.
 
 Desktop sync display-field coverage now verifies remote material names/statuses and friend statuses must be non-empty before the Windows Studio uses them for replacement warnings, import decisions, or friend rows.
+
+Desktop sync card coverage now verifies empty optional pet-number, ownership, and display-state fields fall back to stable Studio defaults instead of rendering blank card metadata or disabling normal host actions.
 
 Desktop sync action-response coverage now verifies empty remove-friend, hosting-request, and recall response identifiers/status fields are rejected before the Windows Studio treats those remote actions as successful.
 
