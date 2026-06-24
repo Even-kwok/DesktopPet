@@ -429,11 +429,11 @@ function isDesktopSyncedPetCard(value: unknown): value is DesktopSyncedPetCard {
   }
 
   return (
-    isString(value.id) &&
-    isString(value.petNumber) &&
-    isString(value.name) &&
-    isString(value.ownership) &&
-    isString(value.displayState) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.petNumber) &&
+    isNonEmptyString(value.name) &&
+    isNonEmptyString(value.ownership) &&
+    isNonEmptyString(value.displayState) &&
     isOptionalString(value.avatarUrl) &&
     isNonNegativeInteger(value.materialCount)
   );
@@ -445,9 +445,9 @@ function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
   }
 
   return (
-    isString(value.id) &&
-    isString(value.name) &&
-    isString(value.status) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.name) &&
+    isNonEmptyString(value.status) &&
     isNonNegativeInteger(value.hostedPets)
   );
 }

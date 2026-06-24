@@ -206,6 +206,61 @@ test("filters malformed account and studio cache records", () => {
   }
 });
 
+test("filters cached studio cards with empty identity fields", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        syncedPetCards: [
+          {
+            id: "pet_orange",
+            petNumber: "P1",
+            name: "栗子",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: 3
+          },
+          {
+            id: "   ",
+            petNumber: "P2",
+            name: "空白 ID",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: 1
+          },
+          {
+            id: "pet_blank_name",
+            petNumber: "P3",
+            name: "",
+            ownership: "owned",
+            displayState: "active",
+            materialCount: 1
+          }
+        ],
+        friendCards: [
+          { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
+          { id: "", name: "空白好友", status: "离线", hostedPets: 0 },
+          { id: "friend_blank_name", name: " ", status: "在线", hostedPets: 0 }
+        ]
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+
+    assert.deepEqual(
+      reloaded.syncedPetCards.map((card) => card.id),
+      ["pet_orange"]
+    );
+    assert.deepEqual(
+      reloaded.friendCards.map((card) => card.id),
+      ["friend_1"]
+    );
+  } finally {
+    cleanup();
+  }
+});
+
 test("filters cached account sessions with empty access tokens", () => {
   const { store, cleanup } = makeStore();
   try {
