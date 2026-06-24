@@ -518,7 +518,8 @@ test("maps desktop bundles with empty account identity fields to invalid respons
 test("maps desktop bundles with empty pet identity fields to invalid response", async () => {
   const malformedPets = [
     { id: " ", name: "栗子" },
-    { id: "pet_local", name: " " }
+    { id: "pet_local", name: " " },
+    { id: "pet_local", name: "栗子", type: " " }
   ];
 
   for (const pet of malformedPets) {
@@ -530,7 +531,7 @@ test("maps desktop bundles with empty pet identity fields to invalid response", 
         pets: [
           {
             ...pet,
-            type: "cat",
+            type: pet.type ?? "cat",
             materials: [
               {
                 slot: "idle_loop",

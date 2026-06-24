@@ -41,7 +41,7 @@ Settings-store account-session coverage now verifies cached account sessions wit
 
 Desktop sync coverage now verifies remote friend-list responses with negative hosted-pet counts are rejected before they can enter the Windows Studio.
 
-Desktop sync identity coverage now verifies remote pet bundle and friend-list responses with empty pet or friend `id`/`name` fields are rejected before they can enter the Windows Studio or sync cache.
+Desktop sync identity coverage now verifies remote pet bundle and friend-list responses with empty pet `id`/`name`/`type` fields or friend `id`/`name` fields are rejected before they can enter the Windows Studio or sync cache.
 
 Desktop sync display-field coverage now verifies remote material names/statuses and friend statuses must be non-empty before the Windows Studio uses them for replacement warnings, import decisions, or friend rows.
 

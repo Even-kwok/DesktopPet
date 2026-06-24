@@ -383,7 +383,7 @@ function isDesktopPetBundlePet(value: unknown): value is DesktopPetBundlePet {
     isOptionalString(value.ownerUserId) &&
     isOptionalString(value.currentHostUserId) &&
     isNonEmptyString(value.name) &&
-    isString(value.type) &&
+    isNonEmptyString(value.type) &&
     isOptionalString(value.ownership) &&
     isOptionalString(value.displayState) &&
     isOptionalString(value.avatarUrl) &&
