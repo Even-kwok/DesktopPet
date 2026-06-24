@@ -84,8 +84,8 @@ final class PetStudioViewModel: ObservableObject {
     private let cacheDecoder = JSONDecoder()
 
     @Published private(set) var currentAccount: DesktopAccountSession?
-    @Published var loginEmail = "demo@desktop.pet"
-    @Published var loginPassword = "123456"
+    @Published var loginEmail = ""
+    @Published var loginPassword = ""
     @Published private(set) var selectedPetIndex = 0
     @Published private(set) var petNames: [String] = []
     @Published var petNameDraft = ""
@@ -103,6 +103,7 @@ final class PetStudioViewModel: ObservableObject {
     @Published var selectedSyncedPetID: String?
     @Published var friendEmailDraft = ""
     @Published private(set) var friendCards: [DesktopFriendCard] = []
+    @Published private(set) var hostingRequests: [DesktopHostingRequestCard] = []
     @Published private(set) var isRefreshingFriends = false
     @Published private(set) var isMutatingFriend = false
     @Published var statusMessage = ""
@@ -256,11 +257,7 @@ final class PetStudioViewModel: ObservableObject {
                 self.creditBalance = account.credits
                 self.persistCreditBalance()
 
-                do {
-                    self.friendCards = try await self.desktopSyncClient.fetchFriends(accessToken: account.accessToken)
-                } catch {
-                    self.friendCards = []
-                }
+                await self.refreshFriends(using: account.accessToken, shouldUpdateStatus: false)
 
                 self.isLoggingIn = false
                 self.statusMessage = "登录成功。点击同步获取账号下的猫咪。"
@@ -275,6 +272,7 @@ final class PetStudioViewModel: ObservableObject {
         accountSessionStore.signOut()
         currentAccount = nil
         friendCards = []
+        hostingRequests = []
         friendEmailDraft = ""
         statusMessage = "已退出账号。本地已同步的猫咪资料和视频素材已保留。"
     }
@@ -318,8 +316,60 @@ final class PetStudioViewModel: ObservableObject {
                     toUserID: friend.id,
                     accessToken: currentAccount.accessToken
                 )
+                if let requests = try? await self.desktopSyncClient.fetchHostingRequests(
+                    accessToken: currentAccount.accessToken
+                ) {
+                    self.hostingRequests = requests
+                }
                 self.isMutatingFriend = false
                 self.statusMessage = "已向 \(friend.name) 发起「\(selectedSyncedPetCard.name)」寄养请求。"
+            } catch {
+                self.isMutatingFriend = false
+                self.statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func respondToHostingRequest(_ request: DesktopHostingRequestCard, action: String) {
+        guard let currentAccount else {
+            statusMessage = "请先登录账号。"
+            return
+        }
+
+        guard request.toUserID == currentAccount.id, request.statusCode == "pending" else {
+            statusMessage = "这条寄养请求已经处理过了。"
+            return
+        }
+
+        guard !isMutatingFriend else {
+            return
+        }
+
+        isMutatingFriend = true
+        statusMessage = action == "accept"
+            ? "正在接收「\(request.petName)」..."
+            : "正在拒绝「\(request.petName)」..."
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let response = try await self.desktopSyncClient.updateHostingRequest(
+                    requestID: request.id,
+                    action: action,
+                    accessToken: currentAccount.accessToken
+                )
+                self.upsertHostingRequest(response.request)
+                self.isMutatingFriend = false
+
+                if action == "accept" {
+                    self.statusMessage = "已接收「\(request.petName)」，正在同步到桌面..."
+                    self.syncFromWebStudio()
+                } else {
+                    self.statusMessage = "已拒绝「\(request.petName)」寄养请求。"
+                }
             } catch {
                 self.isMutatingFriend = false
                 self.statusMessage = error.localizedDescription
@@ -783,8 +833,11 @@ final class PetStudioViewModel: ObservableObject {
 
         do {
             friendCards = try await desktopSyncClient.fetchFriends(accessToken: accessToken)
+            hostingRequests = try await desktopSyncClient.fetchHostingRequests(accessToken: accessToken)
             if shouldUpdateStatus {
-                statusMessage = friendCards.isEmpty ? "好友列表为空，可以用邮箱添加好友。" : "好友列表已刷新。"
+                statusMessage = friendCards.isEmpty && hostingRequests.isEmpty
+                    ? "好友列表为空，可以用邮箱添加好友。"
+                    : "好友和寄养请求已刷新。"
             }
         } catch {
             if shouldUpdateStatus {
@@ -800,6 +853,14 @@ final class PetStudioViewModel: ObservableObject {
             friendCards[index] = friend
         } else {
             friendCards.append(friend)
+        }
+    }
+
+    private func upsertHostingRequest(_ request: DesktopHostingRequestCard) {
+        if let index = hostingRequests.firstIndex(where: { $0.id == request.id }) {
+            hostingRequests[index] = request
+        } else {
+            hostingRequests.insert(request, at: 0)
         }
     }
 

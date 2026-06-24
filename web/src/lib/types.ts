@@ -128,11 +128,19 @@ export type Friend = {
   hostedPets: number;
 };
 
+export type HostingRequestStatusCode = "pending" | "accepted" | "declined" | "returned";
+
+export type HostingRequestAction = "accept" | "decline" | "return";
+
 export type HostingRequest = {
   id: string;
+  petId: string;
+  fromUserId: string;
+  toUserId: string;
   petName: string;
   from: string;
   status: string;
+  statusCode: HostingRequestStatusCode;
 };
 
 export type PetAssetStatus = "missing" | "queued" | "generating" | "ready" | "failed";

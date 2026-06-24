@@ -59,9 +59,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       request: hostingRequest,
       requestId: hostingRequest.id,
-      status: "pending",
-      petId: parsed.data.petId,
-      toUserId: parsed.data.toUserId
+      status: hostingRequest.status,
+      petId: hostingRequest.petId,
+      fromUserId: hostingRequest.fromUserId,
+      toUserId: hostingRequest.toUserId,
+      statusCode: hostingRequest.statusCode
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "HOSTING_REQUEST_FAILED";

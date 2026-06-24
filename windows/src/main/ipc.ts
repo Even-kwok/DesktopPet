@@ -20,6 +20,7 @@ export const ipcChannels = {
   addFriend: "friends:add",
   removeFriend: "friends:remove",
   requestHosting: "hosting:request",
+  updateHostingRequest: "hosting:update",
   recallPet: "hosting:recall",
   petDragStarted: "pet:drag-started",
   petDragBy: "pet:drag-by",
@@ -56,6 +57,7 @@ export type IpcDependencies = {
   addFriend: (email: string) => unknown;
   removeFriend: (friendId: string) => unknown;
   requestHosting: (petId: string, toUserId: string) => unknown;
+  updateHostingRequest: (requestId: string, action: string) => unknown;
   recallPet: (petId: string) => unknown;
   petDragStarted: (petIndex: number) => unknown;
   petDragBy: (petIndex: number, delta: { x: number; y: number }) => unknown;
@@ -98,6 +100,9 @@ export function registerIpcHandlers(ipcMain: IpcMainLike, dependencies: IpcDepen
   ipcMain.handle(ipcChannels.removeFriend, (_event, friendId) => dependencies.removeFriend(String(friendId ?? "")));
   ipcMain.handle(ipcChannels.requestHosting, (_event, petId, toUserId) =>
     dependencies.requestHosting(String(petId ?? ""), String(toUserId ?? ""))
+  );
+  ipcMain.handle(ipcChannels.updateHostingRequest, (_event, requestId, action) =>
+    dependencies.updateHostingRequest(String(requestId ?? ""), String(action ?? ""))
   );
   ipcMain.handle(ipcChannels.recallPet, (_event, petId) => dependencies.recallPet(String(petId ?? "")));
   ipcMain.on(ipcChannels.petDragStarted, (_event, petIndex) =>

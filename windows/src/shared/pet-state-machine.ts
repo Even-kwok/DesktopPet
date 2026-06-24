@@ -85,7 +85,7 @@ export class PetStateMachine {
         }
         break;
       case "reactionFinished":
-        if (["clicked", "catchingBug", "idleAction", "socialInteraction"].includes(this.#state)) {
+        if (["sleeping", "clicked", "catchingBug", "idleAction", "socialInteraction"].includes(this.#state)) {
           this.#transitionTo("idle");
         }
         break;

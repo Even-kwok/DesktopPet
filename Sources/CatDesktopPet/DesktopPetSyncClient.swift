@@ -35,11 +35,57 @@ struct DesktopFriendDeleteResponse: Decodable {
     let deletedFriendId: String
 }
 
+struct DesktopHostingRequestCard: Decodable, Identifiable, Equatable {
+    let id: String
+    let petId: String
+    let fromUserID: String
+    let toUserID: String
+    let petName: String
+    let from: String
+    let status: String
+    let statusCode: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case petId
+        case fromUserID = "fromUserId"
+        case toUserID = "toUserId"
+        case petName
+        case from
+        case status
+        case statusCode
+    }
+}
+
+struct DesktopHostingRequestsResponse: Decodable {
+    let requests: [DesktopHostingRequestCard]
+}
+
 struct DesktopHostingRequestResponse: Decodable {
     let requestId: String
     let status: String
     let petId: String
     let toUserId: String
+}
+
+struct DesktopHostingRequestUpdateResponse: Decodable {
+    let request: DesktopHostingRequestCard
+    let requestId: String
+    let status: String
+    let petId: String
+    let fromUserID: String
+    let toUserID: String
+    let statusCode: String
+
+    enum CodingKeys: String, CodingKey {
+        case request
+        case requestId
+        case status
+        case petId
+        case fromUserID = "fromUserId"
+        case toUserID = "toUserId"
+        case statusCode
+    }
 }
 
 struct DesktopRecallResponse: Decodable {
@@ -125,6 +171,7 @@ enum DesktopPetSyncError: LocalizedError, Equatable {
     case invalidResponse
     case loginFailed
     case sessionExpired
+    case requestTimedOut
     case emptyBundle
     case missingIdleLoop
 
@@ -136,6 +183,8 @@ enum DesktopPetSyncError: LocalizedError, Equatable {
             "登录失败，请检查账号和密码。"
         case .sessionExpired:
             "登录已过期，请重新登录。"
+        case .requestTimedOut:
+            "同步链接响应超时，请稍后重试或重新登录。"
         case .emptyBundle:
             "网页端还没有可同步的视频素材。"
         case .missingIdleLoop:
@@ -152,6 +201,8 @@ extension JSONDecoder {
 
 final class DesktopPetSyncClient {
     private static let fallbackWebBaseURL = URL(string: "https://web-guoyaowens-projects.vercel.app")!
+    private static let requestTimeoutInterval: TimeInterval = 20
+    private static let resourceTimeoutInterval: TimeInterval = 60
 
     private let endpointURL: URL
     private let apiBaseURL: URL
@@ -162,7 +213,7 @@ final class DesktopPetSyncClient {
     init(
         endpointURL: URL = DesktopPetSyncClient.defaultEndpointURL(),
         loginURL: URL? = nil,
-        session: URLSession = .shared,
+        session: URLSession = DesktopPetSyncClient.makeDefaultSession(),
         fileManager: FileManager = .default
     ) {
         self.endpointURL = endpointURL
@@ -186,17 +237,26 @@ final class DesktopPetSyncClient {
             .appendingPathComponent("pets")
     }
 
+    private static func makeDefaultSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = requestTimeoutInterval
+        configuration.timeoutIntervalForResource = resourceTimeoutInterval
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }
+
     func login(email: String, password: String) async throws -> DesktopLoginResponse {
         var request = URLRequest(url: loginURL)
         request.httpMethod = "POST"
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = DesktopPetSyncClient.requestTimeoutInterval
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "email": email,
             "password": password
         ])
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DesktopPetSyncError.invalidResponse
@@ -242,6 +302,15 @@ final class DesktopPetSyncClient {
         )
     }
 
+    func fetchHostingRequests(accessToken: String) async throws -> [DesktopHostingRequestCard] {
+        let response: DesktopHostingRequestsResponse = try await sendAuthorizedJSONRequest(
+            pathComponents: ["hosting", "requests"],
+            accessToken: accessToken
+        )
+
+        return response.requests
+    }
+
     func requestHosting(petID: String, toUserID: String, accessToken: String) async throws -> DesktopHostingRequestResponse {
         try await sendAuthorizedJSONRequest(
             pathComponents: ["hosting", "requests"],
@@ -251,6 +320,15 @@ final class DesktopPetSyncClient {
                 "petId": petID,
                 "toUserId": toUserID
             ]
+        )
+    }
+
+    func updateHostingRequest(requestID: String, action: String, accessToken: String) async throws -> DesktopHostingRequestUpdateResponse {
+        try await sendAuthorizedJSONRequest(
+            pathComponents: ["hosting", "requests", requestID],
+            accessToken: accessToken,
+            method: "PATCH",
+            body: ["action": action]
         )
     }
 
@@ -266,11 +344,12 @@ final class DesktopPetSyncClient {
     func fetchBundle(accessToken: String? = nil) async throws -> DesktopPetBundle {
         var request = URLRequest(url: endpointURL)
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = DesktopPetSyncClient.requestTimeoutInterval
         if let accessToken, !accessToken.isEmpty {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DesktopPetSyncError.invalidResponse
@@ -299,6 +378,7 @@ final class DesktopPetSyncClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = DesktopPetSyncClient.requestTimeoutInterval
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
 
         if let body {
@@ -306,7 +386,7 @@ final class DesktopPetSyncClient {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DesktopPetSyncError.invalidResponse
@@ -386,7 +466,10 @@ final class DesktopPetSyncClient {
     }
 
     private func downloadMaterial(_ material: DesktopPetBundleMaterial, petID: String) async throws -> URL {
-        let (temporaryURL, response) = try await session.download(from: material.videoUrl)
+        var request = URLRequest(url: material.videoUrl)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = DesktopPetSyncClient.requestTimeoutInterval
+        let (temporaryURL, response) = try await download(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode) else {
@@ -435,5 +518,29 @@ final class DesktopPetSyncClient {
             .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
 
         return pathComponent.isEmpty ? "pet" : pathComponent
+    }
+
+    private func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        do {
+            return try await session.data(for: request)
+        } catch {
+            throw mapTransportError(error)
+        }
+    }
+
+    private func download(for request: URLRequest) async throws -> (URL, URLResponse) {
+        do {
+            return try await session.download(for: request)
+        } catch {
+            throw mapTransportError(error)
+        }
+    }
+
+    private func mapTransportError(_ error: Error) -> Error {
+        guard let urlError = error as? URLError, urlError.code == .timedOut else {
+            return error
+        }
+
+        return DesktopPetSyncError.requestTimedOut
     }
 }

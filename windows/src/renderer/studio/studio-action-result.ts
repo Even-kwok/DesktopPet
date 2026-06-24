@@ -83,6 +83,18 @@ export function pendingStatusMessageForHostingRequestAction(friendName: string) 
   return `正在向 ${friendName} 发起寄养请求...`;
 }
 
+export function statusMessageForHostingResponseAction(petName: string, action: "accept" | "decline") {
+  return action === "accept"
+    ? `已接收「${petName}」，正在同步到桌面...`
+    : `已拒绝「${petName}」寄养请求。`;
+}
+
+export function pendingStatusMessageForHostingResponseAction(petName: string, action: "accept" | "decline") {
+  return action === "accept"
+    ? `正在接收「${petName}」...`
+    : `正在拒绝「${petName}」...`;
+}
+
 export function statusMessageForRecallAction(petName: string) {
   return `已召回「${petName}」。`;
 }

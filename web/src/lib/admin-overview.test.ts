@@ -49,7 +49,16 @@ test("admin overview groups account, pet, material, credit, recharge, friend, ho
     { id: "friend_1", name: "Mika", status: "在线", hostedPets: 1 }
   ];
   const hostingRequests: HostingRequest[] = [
-    { id: "request_1", petName: "奶盖", from: "Mika", status: "等待你接收" }
+    {
+      id: "request_1",
+      petId: "pet_hosted",
+      fromUserId: "friend_1",
+      toUserId: currentUser.id,
+      petName: "奶盖",
+      from: "Mika",
+      status: "等待你接收",
+      statusCode: "pending"
+    }
   ];
   const referralCodes: ReferralCode[] = [
     {

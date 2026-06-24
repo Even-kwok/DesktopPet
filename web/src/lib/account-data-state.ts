@@ -3,7 +3,9 @@ import type {
   Friend,
   GenerationJob,
   GenerationJobStatus,
+  HostingRequestAction,
   HostingRequest,
+  HostingRequestStatusCode,
   Pet,
   PetAsset,
   PetAssetStatus,
@@ -44,6 +46,17 @@ export type PetCreateInput = {
 
 export type FriendDeleteResult = {
   deletedFriendId: string;
+};
+
+export type HostingRequestInput = {
+  id?: string;
+  petId: string;
+  toUserId: string;
+};
+
+export type HostingRequestUpdateInput = {
+  requestId: string;
+  action: HostingRequestAction;
 };
 
 export type AdminCreditAdjustmentResult = {
@@ -93,7 +106,8 @@ export function loadMockAccountDataSnapshot(
   state: AccountDataState
 ): AccountDataSnapshot {
   const user = state.users.find((item) => item.id === account.id || item.email === account.email) ?? account;
-  const visiblePets = sortPetsForAccount(state.pets.filter((pet) => canAccountSeePet(account, pet)));
+  const visiblePets = sortPetsForAccount(state.pets.filter((pet) => canAccountSeePet(account, pet)))
+    .map((pet) => petForAccount(user, pet));
   const visiblePetIds = new Set(visiblePets.map((pet) => pet.id));
   const visibleAssets = state.assets.filter((asset) => visiblePetIds.has(asset.petId));
   const visibleJobs = state.generationJobs.filter(
@@ -107,7 +121,7 @@ export function loadMockAccountDataSnapshot(
     assets: visibleAssets,
     generationJobs: visibleJobs,
     friends: cloneArray(state.friends),
-    hostingRequests: cloneArray(state.hostingRequests),
+    hostingRequests: hostingRequestsForAccount(state, user),
     referralCodes: cloneArray(state.referralCodes),
     userReferrals: cloneArray(state.userReferrals),
     referralRewardLedger: cloneArray(state.referralRewardLedger),
@@ -293,6 +307,116 @@ export function removeFriendFromState(
   return {
     deletedFriendId: friendId
   };
+}
+
+export function createHostingRequestInState(
+  state: AccountDataState,
+  account: CurrentUser,
+  input: HostingRequestInput
+): HostingRequest {
+  const pet = state.pets.find(
+    (item) =>
+      item.id === input.petId &&
+      item.ownerUserId === account.id &&
+      item.currentHostUserId === account.id
+  );
+  const targetUser = state.users.find((user) => user.id === input.toUserId);
+  const friend = state.friends.find((item) => item.id === input.toUserId);
+
+  if (!pet || !targetUser || !friend) {
+    throw new Error("HOSTING_TARGET_NOT_FOUND");
+  }
+
+  const request: HostingRequest = {
+    id: input.id ?? `hosting_${globalThis.crypto.randomUUID()}`,
+    petId: pet.id,
+    fromUserId: account.id,
+    toUserId: targetUser.id,
+    petName: pet.name,
+    from: account.name,
+    status: "pending",
+    statusCode: "pending"
+  };
+
+  state.hostingRequests.unshift(request);
+  return hostingRequestForAccount(request, account, state);
+}
+
+export function hostingRequestsForAccount(
+  state: AccountDataState,
+  account: CurrentUser
+): HostingRequest[] {
+  return state.hostingRequests
+    .filter((request) => request.fromUserId === account.id || request.toUserId === account.id)
+    .map((request) => hostingRequestForAccount(request, account, state));
+}
+
+export function updateHostingRequestInState(
+  state: AccountDataState,
+  account: CurrentUser,
+  input: HostingRequestUpdateInput
+): HostingRequest {
+  const requestIndex = state.hostingRequests.findIndex(
+    (request) =>
+      request.id === input.requestId &&
+      (request.fromUserId === account.id || request.toUserId === account.id)
+  );
+
+  if (requestIndex < 0) {
+    throw new Error("HOSTING_REQUEST_NOT_FOUND");
+  }
+
+  const request = state.hostingRequests[requestIndex];
+  const petIndex = state.pets.findIndex((pet) => pet.id === request.petId);
+  const pet = petIndex >= 0 ? state.pets[petIndex] : undefined;
+
+  if (!pet) {
+    throw new Error("PET_NOT_FOUND");
+  }
+
+  if (input.action === "accept") {
+    if (request.toUserId !== account.id || hostingStatusCode(request) !== "pending") {
+      throw new Error("HOSTING_REQUEST_NOT_FOUND");
+    }
+
+    state.hostingRequests[requestIndex] = {
+      ...request,
+      status: "accepted",
+      statusCode: "accepted"
+    };
+    state.pets[petIndex] = {
+      ...pet,
+      currentHostUserId: request.toUserId,
+      locationStatus: "hosted_by_friend"
+    };
+  } else if (input.action === "decline") {
+    if (request.toUserId !== account.id || hostingStatusCode(request) !== "pending") {
+      throw new Error("HOSTING_REQUEST_NOT_FOUND");
+    }
+
+    state.hostingRequests[requestIndex] = {
+      ...request,
+      status: "declined",
+      statusCode: "declined"
+    };
+  } else {
+    if (request.toUserId !== account.id || hostingStatusCode(request) !== "accepted") {
+      throw new Error("HOSTING_REQUEST_NOT_FOUND");
+    }
+
+    state.hostingRequests[requestIndex] = {
+      ...request,
+      status: "returned",
+      statusCode: "returned"
+    };
+    state.pets[petIndex] = {
+      ...pet,
+      currentHostUserId: request.fromUserId,
+      locationStatus: "at_owner_desktop"
+    };
+  }
+
+  return hostingRequestForAccount(state.hostingRequests[requestIndex], account, state);
 }
 
 export function updateUserProfileInState(
@@ -730,6 +854,108 @@ export function withMaterialCounts(pets: Pet[], assets: PetAsset[]): Pet[] {
 
 export function canAccountSeePet(account: CurrentUser, pet: Pet) {
   return pet.ownerUserId === account.id || pet.currentHostUserId === account.id;
+}
+
+function petForAccount(account: CurrentUser, pet: Pet): Pet {
+  const ownership = ownershipForAccount(account, pet);
+  return {
+    ...pet,
+    ownership,
+    host: ownership === "away" ? "friend" : "me",
+    status: petStatusForAccount(pet, ownership)
+  };
+}
+
+function ownershipForAccount(account: CurrentUser, pet: Pet): Pet["ownership"] {
+  if (pet.ownerUserId !== account.id && pet.currentHostUserId === account.id) {
+    return "hosted";
+  }
+
+  if (pet.ownerUserId === account.id && pet.currentHostUserId !== account.id) {
+    return "away";
+  }
+
+  return "owned";
+}
+
+function petStatusForAccount(pet: Pet, ownership: Pet["ownership"]) {
+  if (ownership === "hosted") {
+    return "寄养在我的桌面";
+  }
+
+  if (ownership === "away" || pet.locationStatus === "hosted_by_friend") {
+    return "托管在朋友家";
+  }
+
+  if (pet.locationStatus === "away") {
+    return "暂未显示";
+  }
+
+  return "在我的桌面";
+}
+
+function hostingRequestForAccount(
+  request: HostingRequest,
+  account: CurrentUser,
+  state: AccountDataState
+): HostingRequest {
+  const sender = state.users.find((user) => user.id === request.fromUserId);
+  const receiver = state.users.find((user) => user.id === request.toUserId);
+  const pet = state.pets.find((item) => item.id === request.petId);
+  const statusCode = hostingStatusCode(request);
+
+  return {
+    ...request,
+    petName: pet?.name ?? request.petName,
+    from: request.fromUserId === account.id ? "你" : sender?.name ?? request.from,
+    status: hostingStatusText({
+      statusCode,
+      isReceiver: request.toUserId === account.id,
+      receiverName: receiver?.name ?? "好友"
+    }),
+    statusCode
+  };
+}
+
+function hostingStatusCode(request: HostingRequest): HostingRequestStatusCode {
+  if (isHostingRequestStatusCode(request.statusCode)) {
+    return request.statusCode;
+  }
+
+  switch (request.status) {
+    case "accepted":
+    case "已接收托管":
+      return "accepted";
+    case "declined":
+    case "已拒绝":
+      return "declined";
+    case "returned":
+    case "已送回主人":
+      return "returned";
+    default:
+      return "pending";
+  }
+}
+
+function isHostingRequestStatusCode(value: string): value is HostingRequestStatusCode {
+  return value === "pending" || value === "accepted" || value === "declined" || value === "returned";
+}
+
+function hostingStatusText(input: {
+  statusCode: HostingRequestStatusCode;
+  isReceiver: boolean;
+  receiverName: string;
+}) {
+  switch (input.statusCode) {
+    case "pending":
+      return input.isReceiver ? "等待你接收" : `等待 ${input.receiverName} 接收`;
+    case "accepted":
+      return "已接收托管";
+    case "declined":
+      return "已拒绝";
+    case "returned":
+      return "已送回主人";
+  }
 }
 
 function cloneArray<T>(items: T[]): T[] {

@@ -3,6 +3,7 @@ import {
   addFriendToState,
   adjustUserCreditsInState,
   canAccountSeePet,
+  createHostingRequestInState,
   createMockAccountDataState,
   createGenerationJobInState,
   defaultGenerationJobTimeoutMs,
@@ -11,11 +12,13 @@ import {
   deletePetFromState,
   expireStaleGenerationJobsInState,
   findActiveGenerationJobInState,
+  hostingRequestsForAccount,
   loadMockAccountDataSnapshot,
   nextPetNumber,
   normalizePetAssets,
   removeFriendFromState,
   staleGenerationJobMessage,
+  updateHostingRequestInState,
   updateGenerationJobInState,
   updatePetImagesInState,
   updatePetNameInState,
@@ -41,6 +44,7 @@ import type {
   Friend,
   GenerationJob,
   GenerationJobStatus,
+  HostingRequestAction,
   HostingRequest,
   Pet,
   PetAsset
@@ -106,6 +110,7 @@ type HostingRequestRow = {
   from_user_id: string;
   to_user_id: string;
   status: string;
+  updated_at?: string | null;
 };
 
 const mockAccountState = getMockAccountDataState();
@@ -271,27 +276,28 @@ export async function createAccountHostingRequest(input: {
   toUserId: string;
 }): Promise<HostingRequest> {
   if (getBackendStatus().mode !== "supabase") {
-    const friend = mockAccountState.friends.find((item) => item.id === input.toUserId);
-    const pet = mockAccountState.pets.find(
-      (item) => item.id === input.petId && item.ownerUserId === input.account.id
-    );
-
-    if (!friend || !pet) {
-      throw new Error("HOSTING_TARGET_NOT_FOUND");
-    }
-
-    const request: HostingRequest = {
-      id: `hosting_${globalThis.crypto.randomUUID()}`,
-      petName: pet.name,
-      from: input.account.name,
-      status: "等待对方接收"
-    };
-
-    mockAccountState.hostingRequests.push(request);
-    return request;
+    return createHostingRequestInState(mockAccountState, input.account, {
+      petId: input.petId,
+      toUserId: input.toUserId
+    });
   }
 
   return createSupabaseHostingRequest(input);
+}
+
+export async function updateAccountHostingRequest(input: {
+  account: CurrentUser;
+  requestId: string;
+  action: HostingRequestAction;
+}): Promise<HostingRequest> {
+  if (getBackendStatus().mode !== "supabase") {
+    return updateHostingRequestInState(mockAccountState, input.account, {
+      requestId: input.requestId,
+      action: input.action
+    });
+  }
+
+  return updateSupabaseHostingRequest(input);
 }
 
 export async function recallAccountPet(input: {
@@ -1261,10 +1267,15 @@ async function createSupabaseHostingRequest(input: {
   const [pet, friendship, friendProfile] = await Promise.all([
     supabase
       .from("pets")
-      .select("id, name, owner_user_id")
+      .select("id, name, owner_user_id, current_host_user_id")
       .eq("id", input.petId)
       .maybeSingle()
-      .then(unwrapSupabaseMaybeData<{ id: string; name: string; owner_user_id: string }>),
+      .then(unwrapSupabaseMaybeData<{
+        id: string;
+        name: string;
+        owner_user_id: string;
+        current_host_user_id: string | null;
+      }>),
     supabase
       .from("friendships")
       .select("user_a_id, user_b_id")
@@ -1280,7 +1291,13 @@ async function createSupabaseHostingRequest(input: {
       .then(unwrapSupabaseMaybeData<ProfileRow>)
   ]);
 
-  if (!pet || pet.owner_user_id !== input.account.id || !friendship || !friendProfile) {
+  if (
+    !pet ||
+    pet.owner_user_id !== input.account.id ||
+    pet.current_host_user_id !== input.account.id ||
+    !friendship ||
+    !friendProfile
+  ) {
     throw new Error("HOSTING_TARGET_NOT_FOUND");
   }
 
@@ -1293,16 +1310,85 @@ async function createSupabaseHostingRequest(input: {
       status: "pending",
       updated_at: new Date().toISOString()
     })
-    .select("id, pet_id, from_user_id, to_user_id, status")
+    .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
     .single()
     .then(unwrapSupabaseData<HostingRequestRow>);
 
   return {
     id: row.id,
+    petId: row.pet_id,
+    fromUserId: row.from_user_id,
+    toUserId: row.to_user_id,
     petName: pet.name,
     from: input.account.name,
-    status: `等待 ${friendProfile.display_name ?? friendProfile.email ?? "好友"} 接收`
+    status: `等待 ${friendProfile.display_name ?? friendProfile.email ?? "好友"} 接收`,
+    statusCode: "pending"
   };
+}
+
+async function updateSupabaseHostingRequest(input: {
+  account: CurrentUser;
+  requestId: string;
+  action: HostingRequestAction;
+}): Promise<HostingRequest> {
+  const supabase = getRequiredSupabaseAdminClient();
+  const row = await supabase
+    .from("pet_hosting_requests")
+    .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
+    .eq("id", input.requestId)
+    .maybeSingle()
+    .then(unwrapSupabaseMaybeData<HostingRequestRow>);
+
+  if (!row || (row.from_user_id !== input.account.id && row.to_user_id !== input.account.id)) {
+    throw new Error("HOSTING_REQUEST_NOT_FOUND");
+  }
+
+  const nextStatus = hostingRequestStatusForAction(input.action);
+
+  if (input.action === "accept" || input.action === "decline") {
+    if (row.to_user_id !== input.account.id || row.status !== "pending") {
+      throw new Error("HOSTING_REQUEST_NOT_FOUND");
+    }
+  } else if (row.to_user_id !== input.account.id || row.status !== "accepted") {
+    throw new Error("HOSTING_REQUEST_NOT_FOUND");
+  }
+
+  if (input.action === "accept") {
+    await supabase
+      .from("pets")
+      .update({
+        current_host_user_id: row.to_user_id,
+        location_status: "hosted_by_friend",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", row.pet_id)
+      .eq("owner_user_id", row.from_user_id)
+      .then(unwrapSupabaseMutation);
+  } else if (input.action === "return") {
+    await supabase
+      .from("pets")
+      .update({
+        current_host_user_id: row.from_user_id,
+        location_status: "at_owner_desktop",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", row.pet_id)
+      .eq("current_host_user_id", row.to_user_id)
+      .then(unwrapSupabaseMutation);
+  }
+
+  const updatedRow = await supabase
+    .from("pet_hosting_requests")
+    .update({
+      status: nextStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", row.id)
+    .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
+    .single()
+    .then(unwrapSupabaseData<HostingRequestRow>);
+
+  return mapHostingRequestRowForViewer(updatedRow, input.account.id, await fetchHostingRequestDisplayData([updatedRow]));
 }
 
 async function recallSupabasePet(input: {
@@ -1718,8 +1804,124 @@ async function fetchFriends(userId: string): Promise<Friend[]> {
   return profiles.map((profile) => mapFriendProfile(profile, hostedCounts.get(profile.id) ?? 0));
 }
 
-async function fetchHostingRequests(_userId: string): Promise<HostingRequest[]> {
-  return [];
+async function fetchHostingRequests(userId: string): Promise<HostingRequest[]> {
+  const rows = await getRequiredSupabaseAdminClient()
+    .from("pet_hosting_requests")
+    .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
+    .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+    .order("updated_at", { ascending: false })
+    .then(unwrapSupabaseData<HostingRequestRow[]>);
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const displayData = await fetchHostingRequestDisplayData(rows);
+  return rows.map((row) => mapHostingRequestRowForViewer(row, userId, displayData));
+}
+
+type HostingRequestDisplayData = {
+  petNames: Map<string, string>;
+  userNames: Map<string, string>;
+};
+
+async function fetchHostingRequestDisplayData(
+  rows: HostingRequestRow[]
+): Promise<HostingRequestDisplayData> {
+  const supabase = getRequiredSupabaseAdminClient();
+  const petIds = [...new Set(rows.map((row) => row.pet_id))];
+  const userIds = [
+    ...new Set(rows.flatMap((row) => [row.from_user_id, row.to_user_id]))
+  ];
+
+  const [pets, profiles] = await Promise.all([
+    petIds.length === 0
+      ? Promise.resolve([])
+      : supabase
+          .from("pets")
+          .select("id, name")
+          .in("id", petIds)
+          .then(unwrapSupabaseData<Array<{ id: string; name: string }>>),
+    userIds.length === 0
+      ? Promise.resolve([])
+      : supabase
+          .from("profiles")
+          .select("id, email, display_name, account_status")
+          .in("id", userIds)
+          .then(unwrapSupabaseData<ProfileRow[]>)
+  ]);
+
+  return {
+    petNames: new Map(pets.map((pet) => [pet.id, pet.name])),
+    userNames: new Map(profiles.map((profile) => [profile.id, profile.display_name ?? profile.email ?? profile.id]))
+  };
+}
+
+function mapHostingRequestRowForViewer(
+  row: HostingRequestRow,
+  viewerUserId: string,
+  displayData: HostingRequestDisplayData
+): HostingRequest {
+  const statusCode = normalizeHostingRequestStatus(row.status);
+  const receiverName = displayData.userNames.get(row.to_user_id) ?? "好友";
+
+  return {
+    id: row.id,
+    petId: row.pet_id,
+    fromUserId: row.from_user_id,
+    toUserId: row.to_user_id,
+    petName: displayData.petNames.get(row.pet_id) ?? "猫咪",
+    from: row.from_user_id === viewerUserId
+      ? "你"
+      : displayData.userNames.get(row.from_user_id) ?? "好友",
+    status: hostingRequestStatusText({
+      statusCode,
+      isReceiver: row.to_user_id === viewerUserId,
+      receiverName
+    }),
+    statusCode
+  };
+}
+
+function hostingRequestStatusForAction(action: HostingRequestAction) {
+  switch (action) {
+    case "accept":
+      return "accepted";
+    case "decline":
+      return "declined";
+    case "return":
+      return "returned";
+  }
+}
+
+function normalizeHostingRequestStatus(status: string): HostingRequest["statusCode"] {
+  switch (status) {
+    case "accepted":
+      return "accepted";
+    case "declined":
+      return "declined";
+    case "returned":
+      return "returned";
+    default:
+      return "pending";
+  }
+}
+
+function hostingRequestStatusText(input: {
+  statusCode: HostingRequest["statusCode"];
+  isReceiver: boolean;
+  receiverName: string;
+}) {
+  switch (input.statusCode) {
+    case "pending":
+      return input.isReceiver ? "等待你接收" : `等待 ${input.receiverName} 接收`;
+    case "accepted":
+      return "已接收托管";
+    case "declined":
+      return "已拒绝";
+    case "returned":
+      return "已送回主人";
+  }
 }
 
 function mapUser(
@@ -1889,6 +2091,12 @@ function unwrapSupabaseMaybeData<T>(result: { data: unknown; error: unknown }): 
   }
 
   return (result.data as T | null) ?? null;
+}
+
+function unwrapSupabaseMutation(result: { error: unknown }) {
+  if (result.error) {
+    throw result.error;
+  }
 }
 
 function cleanSupabasePetName(value: string | undefined) {

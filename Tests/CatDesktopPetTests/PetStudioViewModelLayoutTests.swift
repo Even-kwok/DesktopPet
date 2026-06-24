@@ -55,6 +55,13 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
         XCTAssertTrue(viewModel.statusMessage.isEmpty)
     }
 
+    func testLoginFieldsStartBlank() {
+        let viewModel = makeViewModel()
+
+        XCTAssertEqual(viewModel.loginEmail, "")
+        XCTAssertEqual(viewModel.loginPassword, "")
+    }
+
     func testSyncedPetCardsRemainVisibleAfterSignOut() async throws {
         let accountStore = signedInAccountStore()
         let viewModel = makeViewModel(
@@ -220,6 +227,16 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
                         headerFields: ["Content-Type": "application/json"]
                     )!,
                     Data(#"{"friends":[]}"#.utf8)
+                )
+            case "https://example.com/api/hosting/requests":
+                return (
+                    HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 200,
+                        httpVersion: nil,
+                        headerFields: ["Content-Type": "application/json"]
+                    )!,
+                    Data(#"{"requests":[]}"#.utf8)
                 )
             default:
                 throw URLError(.badURL)

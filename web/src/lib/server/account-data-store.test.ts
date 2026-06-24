@@ -4,15 +4,18 @@ import * as accountDataState from "../account-data-state.ts";
 import {
   addFriendToState,
   adjustUserCreditsInState,
+  createHostingRequestInState,
   createGenerationJobInState,
   createMockAccountDataState,
   createPetInState,
   deleteUserFromState,
   deletePetFromState,
   findActiveGenerationJobInState,
+  hostingRequestsForAccount,
   loadMockAccountDataSnapshot,
   normalizePetAssets,
   removeFriendFromState,
+  updateHostingRequestInState,
   updateGenerationJobInState,
   updatePetImagesInState,
   updatePetNameInState,
@@ -527,6 +530,103 @@ test("removeFriendFromState deletes the friend relation", () => {
   });
   assert.deepEqual(state.friends, []);
   assert.throws(() => removeFriendFromState(state, friendAccount.id), /FRIEND_NOT_FOUND/);
+});
+
+test("hosting requests are visible to the sender and receiver with viewer-specific copy", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [ownPet],
+    assets: [],
+    friends: [{ id: friendAccount.id, name: friendAccount.name, status: "离线", hostedPets: 0 }]
+  });
+
+  const request = createHostingRequestInState(state, account, {
+    id: "hosting_1",
+    petId: ownPet.id,
+    toUserId: friendAccount.id
+  });
+
+  assert.equal(request.id, "hosting_1");
+  assert.equal(request.statusCode, "pending");
+  assert.deepEqual(
+    hostingRequestsForAccount(state, account).map((item) => [
+      item.id,
+      item.petName,
+      item.from,
+      item.status,
+      item.petId,
+      item.fromUserId,
+      item.toUserId,
+      item.statusCode
+    ]),
+    [["hosting_1", "栗子", "你", "等待 Mika 接收", ownPet.id, account.id, friendAccount.id, "pending"]]
+  );
+  assert.deepEqual(
+    loadMockAccountDataSnapshot(friendAccount, state).hostingRequests.map((item) => [
+      item.id,
+      item.petName,
+      item.from,
+      item.status,
+      item.petId,
+      item.fromUserId,
+      item.toUserId,
+      item.statusCode
+    ]),
+    [["hosting_1", "栗子", "栗子主人", "等待你接收", ownPet.id, account.id, friendAccount.id, "pending"]]
+  );
+});
+
+test("accepting a hosting request moves the pet to the receiver desktop", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [ownPet],
+    assets: [],
+    friends: [{ id: friendAccount.id, name: friendAccount.name, status: "离线", hostedPets: 0 }]
+  });
+  createHostingRequestInState(state, account, {
+    id: "hosting_1",
+    petId: ownPet.id,
+    toUserId: friendAccount.id
+  });
+
+  const updatedRequest = updateHostingRequestInState(state, friendAccount, {
+    requestId: "hosting_1",
+    action: "accept"
+  });
+
+  assert.equal(updatedRequest.statusCode, "accepted");
+  assert.equal(updatedRequest.status, "已接收托管");
+  assert.equal(state.pets[0]?.currentHostUserId, friendAccount.id);
+  assert.equal(state.pets[0]?.locationStatus, "hosted_by_friend");
+  assert.equal(loadMockAccountDataSnapshot(friendAccount, state).pets[0]?.ownership, "hosted");
+  assert.equal(loadMockAccountDataSnapshot(friendAccount, state).pets[0]?.status, "寄养在我的桌面");
+  assert.equal(loadMockAccountDataSnapshot(account, state).pets[0]?.ownership, "away");
+  assert.equal(loadMockAccountDataSnapshot(account, state).pets[0]?.status, "托管在朋友家");
+});
+
+test("declining a hosting request reports rejection without moving the pet", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [ownPet],
+    assets: [],
+    friends: [{ id: friendAccount.id, name: friendAccount.name, status: "离线", hostedPets: 0 }]
+  });
+  createHostingRequestInState(state, account, {
+    id: "hosting_1",
+    petId: ownPet.id,
+    toUserId: friendAccount.id
+  });
+
+  const updatedRequest = updateHostingRequestInState(state, friendAccount, {
+    requestId: "hosting_1",
+    action: "decline"
+  });
+
+  assert.equal(updatedRequest.statusCode, "declined");
+  assert.equal(updatedRequest.status, "已拒绝");
+  assert.equal(state.pets[0]?.currentHostUserId, account.id);
+  assert.deepEqual(loadMockAccountDataSnapshot(friendAccount, state).pets, []);
+  assert.equal(hostingRequestsForAccount(state, account)[0]?.status, "已拒绝");
 });
 
 test("normalizePetAssets only marks ready assets that have a real video URL", () => {

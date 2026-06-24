@@ -5,6 +5,7 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   pendingStatusMessageForAddFriendAction,
   pendingStatusMessageForHostingRequestAction,
+  pendingStatusMessageForHostingResponseAction,
   pendingStatusMessageForImportVideoAction,
   pendingStatusMessageForRecallAction,
   pendingStatusMessageForRemoveFriendAction,
@@ -15,6 +16,7 @@ import {
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
+  statusMessageForHostingResponseAction,
   statusMessageForImportVideoAction,
   statusMessageForRecallAction,
   statusMessageForRemoveVideoAction,
@@ -147,6 +149,19 @@ test("uses Mac-parity copy for hosting request success", () => {
   assert.equal(
     statusMessageForHostingRequestAction("阿雯", "栗子"),
     "已向 阿雯 发起「栗子」寄养请求。"
+  );
+});
+
+test("uses Mac-parity copy for hosting request responses", () => {
+  assert.equal(pendingStatusMessageForHostingResponseAction("栗子", "accept"), "正在接收「栗子」...");
+  assert.equal(pendingStatusMessageForHostingResponseAction("栗子", "decline"), "正在拒绝「栗子」...");
+  assert.equal(
+    statusMessageForHostingResponseAction("栗子", "accept"),
+    "已接收「栗子」，正在同步到桌面..."
+  );
+  assert.equal(
+    statusMessageForHostingResponseAction("栗子", "decline"),
+    "已拒绝「栗子」寄养请求。"
   );
 });
 

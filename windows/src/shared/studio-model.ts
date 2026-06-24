@@ -14,10 +14,12 @@ type SyncedPetCardAction =
   | { type: "recall"; label: "召回" };
 
 type HostingRequestState = {
-  requestId?: string;
+  id: string;
   status: string;
+  statusCode: string;
   petId?: string;
-  toUserId?: string;
+  fromUserId?: string;
+  toUserId: string;
 };
 
 type FriendActionState = {
@@ -259,6 +261,23 @@ export function syncedPetCardsAfterHostingRequest<T extends SyncedPetActionState
   _response: HostingRequestState
 ) {
   return syncedPetCards;
+}
+
+export function canRespondToHostingRequest(
+  account: DesktopAccountSession | undefined,
+  request: HostingRequestState,
+  isMutatingFriend = false
+) {
+  return Boolean(
+    account &&
+      !isMutatingFriend &&
+      request.toUserId === account.id &&
+      request.statusCode === "pending"
+  );
+}
+
+export function hostingRequestActionLabel(action: "accept" | "decline") {
+  return action === "accept" ? "接收" : "拒绝";
 }
 
 export function resolveRecallPetTarget(

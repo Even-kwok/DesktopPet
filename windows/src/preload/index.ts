@@ -35,6 +35,8 @@ const desktopPet = {
   removeFriend: (friendId: string) => ipcRenderer.invoke(ipcChannels.removeFriend, friendId),
   requestHosting: (petId: string, toUserId: string) =>
     ipcRenderer.invoke(ipcChannels.requestHosting, petId, toUserId),
+  updateHostingRequest: (requestId: string, action: "accept" | "decline" | "return") =>
+    ipcRenderer.invoke(ipcChannels.updateHostingRequest, requestId, action),
   recallPet: (petId: string) => ipcRenderer.invoke(ipcChannels.recallPet, petId),
   petDragStarted: (petIndex: number) => ipcRenderer.send(ipcChannels.petDragStarted, petIndex),
   petDragBy: (petIndex: number, delta: { x: number; y: number }) =>

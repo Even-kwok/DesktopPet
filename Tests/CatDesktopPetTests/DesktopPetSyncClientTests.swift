@@ -295,6 +295,93 @@ final class DesktopPetSyncClientTests: XCTestCase {
         }
     }
 
+    func testFetchBundleReportsReadableTimeout() async throws {
+        URLProtocolStub.requestHandler = { _ in
+            throw URLError(.timedOut)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let session = URLSession(configuration: configuration)
+        let client = DesktopPetSyncClient(
+            endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
+            session: session
+        )
+
+        do {
+            _ = try await client.fetchBundle(accessToken: "desktop-token")
+            XCTFail("Expected requestTimedOut error")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "同步链接响应超时，请稍后重试或重新登录。")
+        }
+    }
+
+    @MainActor
+    func testImportBundleReportsReadableTimeoutForMaterialDownload() async throws {
+        URLProtocolStub.requestHandler = { request in
+            XCTAssertEqual(request.url?.absoluteString, "https://example.com/idle.mp4")
+            throw URLError(.timedOut)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let session = URLSession(configuration: configuration)
+        let client = DesktopPetSyncClient(
+            endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
+            session: session
+        )
+        let bundle = try JSONDecoder.desktopPetSync.decode(
+            DesktopPetBundle.self,
+            from: Data(
+                """
+                {
+                  "version": 1,
+                  "generatedAt": "2026-06-24T08:00:00.000Z",
+                  "pets": [
+                    {
+                      "id": "pet_orange",
+                      "petNumber": "CAT-20260624-0001",
+                      "ownerUserId": "user_demo",
+                      "currentHostUserId": "user_demo",
+                      "name": "栗子",
+                      "type": "cat",
+                      "ownership": "owned",
+                      "displayState": "active",
+                      "avatarUrl": null,
+                      "materials": [
+                        {
+                          "slot": "idle_loop",
+                          "name": "待机循环",
+                          "videoUrl": "https://example.com/idle.mp4",
+                          "status": "ready"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """.utf8
+            )
+        )
+        let suiteName = "DesktopPetSyncClientTests.timeout.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let settingsStore = SettingsStore(defaults: defaults)
+        let petColonyController = PetColonyController(settingsStore: settingsStore)
+
+        do {
+            _ = try await client.importBundle(
+                bundle,
+                settingsStore: settingsStore,
+                petColonyController: petColonyController
+            )
+            XCTFail("Expected requestTimedOut error")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "同步链接响应超时，请稍后重试或重新登录。")
+        }
+    }
+
     func testFetchFriendsUsesApiBaseAndBearerToken() async throws {
         URLProtocolStub.requestHandler = { request in
             XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/friends")
@@ -426,6 +513,114 @@ final class DesktopPetSyncClientTests: XCTestCase {
         )
 
         XCTAssertEqual(result.deletedFriendId, "friend_1")
+    }
+
+    func testFetchHostingRequestsUsesApiBaseAndBearerToken() async throws {
+        URLProtocolStub.requestHandler = { request in
+            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/hosting/requests")
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
+
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            let data = Data(
+                """
+                {
+                  "requests": [
+                    {
+                      "id": "hosting_1",
+                      "petId": "pet_orange",
+                      "fromUserId": "user_demo",
+                      "toUserId": "friend_1",
+                      "petName": "栗子",
+                      "from": "栗子主人",
+                      "status": "等待你接收",
+                      "statusCode": "pending"
+                    }
+                  ]
+                }
+                """.utf8
+            )
+
+            return (response, data)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let session = URLSession(configuration: configuration)
+        let client = DesktopPetSyncClient(
+            endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
+            session: session
+        )
+        let requests = try await client.fetchHostingRequests(accessToken: "desktop-token")
+
+        XCTAssertEqual(requests.first?.id, "hosting_1")
+        XCTAssertEqual(requests.first?.statusCode, "pending")
+        XCTAssertEqual(requests.first?.toUserID, "friend_1")
+    }
+
+    func testUpdateHostingRequestSendsActionBody() async throws {
+        URLProtocolStub.requestHandler = { request in
+            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/hosting/requests/hosting_1")
+            XCTAssertEqual(request.httpMethod, "PATCH")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
+
+            let body = try XCTUnwrap(bodyData(for: request))
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+            XCTAssertEqual(payload["action"], "accept")
+
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            let data = Data(
+                """
+                {
+                  "request": {
+                    "id": "hosting_1",
+                    "petId": "pet_orange",
+                    "fromUserId": "user_demo",
+                    "toUserId": "friend_1",
+                    "petName": "栗子",
+                    "from": "栗子主人",
+                    "status": "已接收托管",
+                    "statusCode": "accepted"
+                  },
+                  "requestId": "hosting_1",
+                  "status": "已接收托管",
+                  "petId": "pet_orange",
+                  "fromUserId": "user_demo",
+                  "toUserId": "friend_1",
+                  "statusCode": "accepted"
+                }
+                """.utf8
+            )
+
+            return (response, data)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let session = URLSession(configuration: configuration)
+        let client = DesktopPetSyncClient(
+            endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
+            session: session
+        )
+        let result = try await client.updateHostingRequest(
+            requestID: "hosting_1",
+            action: "accept",
+            accessToken: "desktop-token"
+        )
+
+        XCTAssertEqual(result.requestId, "hosting_1")
+        XCTAssertEqual(result.statusCode, "accepted")
+        XCTAssertEqual(result.request.status, "已接收托管")
     }
 
     func testDefaultLoginURLUsesProductionAlias() async throws {

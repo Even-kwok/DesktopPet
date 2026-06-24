@@ -73,8 +73,26 @@ export const friends: Friend[] = [
 ];
 
 export const hostingRequests: HostingRequest[] = [
-  { id: "request_1", petName: "奶盖", from: "Mika", status: "等待你接收" },
-  { id: "request_2", petName: "栗子", from: "你", status: "托管给小北中" }
+  {
+    id: "request_1",
+    petId: "pet_hosted",
+    fromUserId: "00000000-0000-4000-8000-000000000101",
+    toUserId: currentUser.id,
+    petName: "奶盖",
+    from: "Mika",
+    status: "等待你接收",
+    statusCode: "pending"
+  },
+  {
+    id: "request_2",
+    petId: "pet_orange",
+    fromUserId: currentUser.id,
+    toUserId: "00000000-0000-4000-8000-000000000102",
+    petName: "栗子",
+    from: "你",
+    status: "已接收托管",
+    statusCode: "accepted"
+  }
 ];
 
 export const readyMaterialIds = new Set([

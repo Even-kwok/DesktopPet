@@ -671,12 +671,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
         toUserId: friendId
       });
       setHostingRequests((currentRequests) => [
-        {
-          id: response.requestId,
-          petName: selectedPet.name,
-          from: "你",
-          status: "等待好友接收"
-        },
+        response.request,
         ...currentRequests
       ]);
       setMessage({ tone: "success", text: "托管请求已送出，好友同步后就能看到。" });
@@ -696,7 +691,7 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       });
       setHostingRequests((currentRequests) =>
         currentRequests.map((item) =>
-          item.id === request.id ? { ...item, status: response.status } : item
+          item.id === request.id ? response.request : item
         )
       );
       setMessage({ tone: "success", text: "托管状态已更新。" });

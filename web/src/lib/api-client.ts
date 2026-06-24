@@ -4,6 +4,8 @@ import type {
   DesktopPetBundle,
   DesktopPetBundlePublishResponse,
   GenerationJob,
+  HostingRequest,
+  HostingRequestAction,
   Pet,
   PetCreateResponse,
   PetDeleteResponse,
@@ -204,7 +206,15 @@ export function sendHostingRequest(input: {
   petId: string;
   toUserId: string;
 }) {
-  return requestJSON<{ requestId: string; status: string }>("/api/hosting/requests", {
+  return requestJSON<{
+    request: HostingRequest;
+    requestId: string;
+    status: string;
+    petId: string;
+    fromUserId: string;
+    toUserId: string;
+    statusCode: HostingRequest["statusCode"];
+  }>("/api/hosting/requests", {
     method: "POST",
     body: input
   });
@@ -212,9 +222,17 @@ export function sendHostingRequest(input: {
 
 export function updateHostingRequest(input: {
   requestId: string;
-  action: "accept" | "decline" | "return";
+  action: HostingRequestAction;
 }) {
-  return requestJSON<{ requestId: string; status: string }>(
+  return requestJSON<{
+    request: HostingRequest;
+    requestId: string;
+    status: string;
+    petId: string;
+    fromUserId: string;
+    toUserId: string;
+    statusCode: HostingRequest["statusCode"];
+  }>(
     `/api/hosting/requests/${encodeURIComponent(input.requestId)}`,
     {
       method: "PATCH",

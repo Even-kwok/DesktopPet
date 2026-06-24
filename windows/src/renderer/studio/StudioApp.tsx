@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import type { PetActionSlot } from "../../shared/pet-action-slots.ts";
-import type { DesktopFriendCard } from "../../shared/desktop-sync-client.ts";
+import type {
+  DesktopFriendCard,
+  DesktopHostingRequestCard
+} from "../../shared/desktop-sync-client.ts";
 import type { DesktopAccountSession, DesktopSyncedPetCard } from "../../shared/settings-store.ts";
 import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
@@ -10,6 +13,7 @@ import {
   canSyncDesktopBundle,
   canRefreshFriends,
   canRequestFriendHosting,
+  canRespondToHostingRequest,
   canRunFriendMutation,
   canSubmitFriendEmail,
   friendEmailInputPlaceholder,
@@ -19,6 +23,7 @@ import {
   friendPanelEmptyDetail,
   friendPanelEmptyTitle,
   friendPanelTitle,
+  hostingRequestActionLabel,
   loginPanelDetail,
   loginPanelTitle,
   shouldSubmitFriendEmailKey,
@@ -35,6 +40,7 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   pendingStatusMessageForAddFriendAction,
   pendingStatusMessageForHostingRequestAction,
+  pendingStatusMessageForHostingResponseAction,
   pendingStatusMessageForRecallAction,
   pendingStatusMessageForRemoveFriendAction,
   pendingStatusMessageForSignInAction,
@@ -44,23 +50,16 @@ import {
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
+  statusMessageForHostingResponseAction,
   statusMessageForRecallAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
   statusMessageForSyncAction
 } from "./studio-action-result.ts";
 import {
-  nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
-  petNameDraftForIndex,
-  studioPetCountForDisplay,
-  studioPetIndexesForDisplay
 } from "./studio-selection.ts";
 import { runStudioAction } from "./studio-action-runner.ts";
-import {
-  isSelectedStudioPetSize,
-  studioPetSizeOptions
-} from "./studio-size.ts";
 
 declare global {
   interface Window {
@@ -75,6 +74,7 @@ type StudioState = {
   selectedSyncedPetID?: string;
   syncedPetCards: DesktopSyncedPetCard[];
   friendCards: DesktopFriendCard[];
+  hostingRequests: DesktopHostingRequestCard[];
   localVideoSlots: PetActionSlot[][];
   localVideoPaths: Partial<Record<PetActionSlot, string>>[];
   petSizeScales: number[];
@@ -90,6 +90,7 @@ const defaultStudioState: StudioState = {
   selectedSyncedPetID: undefined,
   syncedPetCards: [],
   friendCards: [],
+  hostingRequests: [],
   localVideoSlots: [[]],
   localVideoPaths: [{}],
   petSizeScales: [1],
@@ -103,8 +104,6 @@ export function StudioApp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [selectedPetIndex, setSelectedPetIndex] = useState(0);
-  const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
   const [isSyncingDesktopBundle, setIsSyncingDesktopBundle] = useState(false);
   const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
@@ -114,21 +113,11 @@ export function StudioApp() {
 
   const bridge = window.desktopPet;
 
-  const refreshState = async (actionResult?: unknown, studioCommand?: unknown) => {
+  const refreshState = async () => {
     const nextState = (await bridge?.getStudioState?.()) as StudioState | undefined;
     if (nextState) {
       const mergedState = { ...defaultStudioState, ...nextState };
       setState(mergedState);
-      setSelectedPetIndex((current) => {
-        const nextPetIndex = nextSelectedPetIndexAfterStudioRefresh(
-          current,
-          mergedState,
-          actionResult,
-          studioCommand
-        );
-        setPetNameDraft(petNameDraftForIndex(mergedState, nextPetIndex));
-        return nextPetIndex;
-      });
       setSelectedSyncedPetID((current) =>
         nextSelectedSyncedPetID(current, mergedState.selectedSyncedPetID, mergedState.syncedPetCards)
       );
@@ -141,7 +130,7 @@ export function StudioApp() {
 
   useEffect(() => {
     return bridge?.onStudioCommand?.((command) => {
-      void refreshState(undefined, command);
+      void refreshState();
     });
   }, [bridge]);
 
@@ -164,8 +153,6 @@ export function StudioApp() {
   const account = state.account;
   const selectedSyncedPet =
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
-  const displayedPetCount = studioPetCountForDisplay(state.petCount);
-  const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
 
   const signIn = async () => {
     if (!canSubmitLogin(email, password, isLoggingIn)) {
@@ -301,6 +288,21 @@ export function StudioApp() {
     );
   };
 
+  const respondToHostingRequest = async (
+    request: DesktopHostingRequestCard,
+    action: "accept" | "decline"
+  ) => {
+    if (!canRespondToHostingRequest(account, request, isMutatingFriend)) {
+      return;
+    }
+
+    setStatusMessage(pendingStatusMessageForHostingResponseAction(request.petName, action));
+    await runFriendMutation(
+      () => bridge?.updateHostingRequest?.(request.id, action),
+      statusMessageForHostingResponseAction(request.petName, action)
+    );
+  };
+
   const removeFriend = async (friend: DesktopFriendCard) => {
     if (!canRunFriendMutation(account, isMutatingFriend)) {
       return;
@@ -389,147 +391,6 @@ export function StudioApp() {
       <section className="studio-grid">
         <div className="studio-panel">
           <div className="panel-heading">
-            <h2>桌面宠物</h2>
-            <span>{displayedPetCount} 只</span>
-          </div>
-          <div className="segmented-row">
-            {displayedPetIndexes.map((index) => (
-              <button
-                key={index}
-                className={index === selectedPetIndex ? "selected" : ""}
-                onClick={() => {
-                  setSelectedPetIndex(index);
-                  setPetNameDraft(petNameDraftForIndex(state, index));
-                }}
-              >
-                {state.petNames[index] ?? `Pet ${index + 1}`}
-              </button>
-            ))}
-          </div>
-          <label>
-            宠物名称
-            <input value={petNameDraft} onChange={(event) => setPetNameDraft(event.target.value)} />
-          </label>
-          <div className="field-group">
-            <span>宠物大小</span>
-            <div className="segmented-row">
-              {studioPetSizeOptions().map((option) => {
-                const currentScale = state.petSizeScales[selectedPetIndex] ?? 1;
-                return (
-                  <button
-                    key={option.scale}
-                    className={isSelectedStudioPetSize(option.scale, currentScale) ? "selected" : ""}
-                    onClick={() =>
-                      void runAction(
-                        () => bridge?.setPetSize?.(selectedPetIndex, option.scale),
-                        "已调整宠物大小。"
-                      )
-                    }
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="button-grid">
-            <button onClick={() => void runAction(() => bridge?.addPet?.(), "已添加宠物。")}>添加宠物</button>
-            <button
-              disabled={displayedPetCount <= 0}
-              onClick={() =>
-                void runAction(() => bridge?.removePet?.(selectedPetIndex), "已删除宠物。")
-              }
-            >
-              删除宠物
-            </button>
-            <button
-              onClick={() =>
-                void runAction(
-                  () => bridge?.renamePet?.(selectedPetIndex, petNameDraft),
-                  "已更新宠物名称。"
-                )
-              }
-            >
-              保存名称
-            </button>
-            <button onClick={() => void runAction(() => bridge?.showPets?.(), "已显示宠物。")}>
-              显示
-            </button>
-            <button onClick={() => void runAction(() => bridge?.hidePets?.(), "已隐藏宠物。")}>
-              隐藏
-            </button>
-            <button
-              onClick={() =>
-                void runAction(() => bridge?.toggleClickThrough?.(), "已切换点击穿透。")
-              }
-            >
-              {state.isClickThrough ? "关闭穿透" : "开启穿透"}
-            </button>
-            <button
-              onClick={() =>
-                void runAction(() => bridge?.toggleMouseoverCatch?.(), "已切换鼠标抓虫。")
-              }
-            >
-              {state.isMouseoverCatchEnabled ? "关闭抓虫" : "开启抓虫"}
-            </button>
-            <button onClick={() => void runAction(() => bridge?.resetPositions?.(), "已重置位置。")}>
-              重置位置
-            </button>
-          </div>
-        </div>
-
-        <div className="studio-panel">
-          <div className="panel-heading">
-            <h2>{syncedPetPanelTitle()}</h2>
-            <span>{syncedPetPanelDetail(state.syncedPetCards.length)}</span>
-          </div>
-          <div className="synced-list">
-            {state.syncedPetCards.length === 0 ? (
-              <div className="empty-copy">
-                <strong>{syncedPetPanelEmptyTitle()}</strong>
-                <span>{syncedPetPanelEmptyDetail()}</span>
-              </div>
-            ) : (
-              state.syncedPetCards.map((pet) => {
-                const isSelected = pet.id === selectedSyncedPet?.id;
-                const cardAction = syncedPetCardAction(pet, isSelected);
-
-                return (
-                  <div className={`synced-card ${isSelected ? "selected" : ""}`} key={pet.id}>
-                    <div>
-                      <span>{pet.name}</span>
-                      <small>
-                        {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
-                      </small>
-                    </div>
-                    {cardAction ? (
-                      <button
-                        disabled={
-                          cardAction.type === "recall" &&
-                          !canRunFriendMutation(account, isMutatingFriend)
-                        }
-                        onClick={() => {
-                          if (cardAction.type === "select") {
-                            setSelectedSyncedPetID(pet.id);
-                            void bridge?.selectSyncedPet?.(pet.id);
-                            return;
-                          }
-
-                          void recallSyncedPet(pet);
-                        }}
-                      >
-                        {cardAction.label}
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div className="studio-panel">
-          <div className="panel-heading">
             <h2>{friendPanelTitle()}</h2>
             <span>{friendPanelDetail(state.friendCards.length)}</span>
           </div>
@@ -592,6 +453,88 @@ export function StudioApp() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+          {state.hostingRequests.length > 0 ? (
+            <div className="friend-list">
+              <div className="panel-heading compact-heading">
+                <h2>寄养请求</h2>
+                <span>{state.hostingRequests.length} 条</span>
+              </div>
+              {state.hostingRequests.map((request) => {
+                const canRespond = canRespondToHostingRequest(account, request, isMutatingFriend);
+
+                return (
+                  <div className="friend-row" key={request.id}>
+                    <div>
+                      <span>{request.petName}</span>
+                      <small>
+                        {request.from} · {request.status}
+                      </small>
+                    </div>
+                    {canRespond ? (
+                      <div>
+                        <button onClick={() => void respondToHostingRequest(request, "accept")}>
+                          {hostingRequestActionLabel("accept")}
+                        </button>
+                        <button onClick={() => void respondToHostingRequest(request, "decline")}>
+                          {hostingRequestActionLabel("decline")}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="studio-panel">
+          <div className="panel-heading">
+            <h2>{syncedPetPanelTitle()}</h2>
+            <span>{syncedPetPanelDetail(state.syncedPetCards.length)}</span>
+          </div>
+          <div className="synced-list">
+            {state.syncedPetCards.length === 0 ? (
+              <div className="empty-copy">
+                <strong>{syncedPetPanelEmptyTitle()}</strong>
+                <span>{syncedPetPanelEmptyDetail()}</span>
+              </div>
+            ) : (
+              state.syncedPetCards.map((pet) => {
+                const isSelected = pet.id === selectedSyncedPet?.id;
+                const cardAction = syncedPetCardAction(pet, isSelected);
+
+                return (
+                  <div className={`synced-card ${isSelected ? "selected" : ""}`} key={pet.id}>
+                    <div>
+                      <span>{pet.name}</span>
+                      <small>
+                        {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
+                      </small>
+                    </div>
+                    {cardAction ? (
+                      <button
+                        disabled={
+                          cardAction.type === "recall" &&
+                          !canRunFriendMutation(account, isMutatingFriend)
+                        }
+                        onClick={() => {
+                          if (cardAction.type === "select") {
+                            setSelectedSyncedPetID(pet.id);
+                            void bridge?.selectSyncedPet?.(pet.id);
+                            return;
+                          }
+
+                          void recallSyncedPet(pet);
+                        }}
+                      >
+                        {cardAction.label}
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

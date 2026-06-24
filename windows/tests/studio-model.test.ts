@@ -10,11 +10,13 @@ import {
   canRefreshFriends,
   canRunFriendMutation,
   canRequestFriendHosting,
+  canRespondToHostingRequest,
   canRequestHosting,
   friendPanelDetail,
   friendPanelEmptyDetail,
   friendPanelEmptyTitle,
   friendPanelTitle,
+  hostingRequestActionLabel,
   friendEmailInputPlaceholder,
   friendEmailValidationMessage,
   friendHostingDetail,
@@ -260,13 +262,40 @@ test("keeps synced pet cards unchanged after a pending hosting request", () => {
 
   assert.deepEqual(
     syncedPetCardsAfterHostingRequest(cards, {
-      requestId: "request_1",
+      id: "request_1",
       status: "pending",
+      statusCode: "pending",
       petId: "pet_owned",
+      fromUserId: "user_demo",
       toUserId: "friend_1"
     }),
     cards
   );
+});
+
+test("allows only the receiving account to answer pending hosting requests", () => {
+  const account = {
+    id: "friend_1",
+    name: "阿雯",
+    email: "friend@example.com",
+    credits: 0,
+    accessToken: "token",
+    signedInAt: "now"
+  };
+  const request = {
+    id: "request_1",
+    status: "等待你接收",
+    statusCode: "pending",
+    toUserId: "friend_1"
+  };
+
+  assert.equal(canRespondToHostingRequest(account, request), true);
+  assert.equal(canRespondToHostingRequest(undefined, request), false);
+  assert.equal(canRespondToHostingRequest(account, request, true), false);
+  assert.equal(canRespondToHostingRequest(account, { ...request, toUserId: "other" }), false);
+  assert.equal(canRespondToHostingRequest(account, { ...request, statusCode: "accepted" }), false);
+  assert.equal(hostingRequestActionLabel("accept"), "接收");
+  assert.equal(hostingRequestActionLabel("decline"), "拒绝");
 });
 
 test("validates recall requests against synced pet cards", () => {

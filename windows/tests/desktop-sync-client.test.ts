@@ -827,6 +827,83 @@ test("maps remove-friend responses with empty deleted friend IDs to invalid resp
   }
 });
 
+test("fetches hosting requests with bearer auth", async () => {
+  const server = await withServer((request) => {
+    assert.equal(request.url, "/api/hosting/requests");
+    assert.equal(request.method, "GET");
+    assert.equal(request.headers.authorization, "Bearer desktop-token");
+    return {
+      status: 200,
+      body: {
+        requests: [
+          {
+            id: "hosting_1",
+            petId: "pet_orange",
+            fromUserId: "user_demo",
+            toUserId: "friend_1",
+            petName: "栗子",
+            from: "栗子主人",
+            status: "等待你接收",
+            statusCode: "pending"
+          }
+        ]
+      }
+    };
+  });
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+    const requests = await client.fetchHostingRequests("desktop-token");
+
+    assert.equal(requests[0]?.id, "hosting_1");
+    assert.equal(requests[0]?.statusCode, "pending");
+    assert.equal(requests[0]?.toUserId, "friend_1");
+  } finally {
+    await server.close();
+  }
+});
+
+test("updates hosting requests with an action body", async () => {
+  const server = await withServer((request, body) => {
+    assert.equal(request.url, "/api/hosting/requests/hosting_1");
+    assert.equal(request.method, "PATCH");
+    assert.equal(request.headers.authorization, "Bearer desktop-token");
+    assert.deepEqual(JSON.parse(body), { action: "accept" });
+    return {
+      status: 200,
+      body: {
+        request: {
+          id: "hosting_1",
+          petId: "pet_orange",
+          fromUserId: "user_demo",
+          toUserId: "friend_1",
+          petName: "栗子",
+          from: "栗子主人",
+          status: "已接收托管",
+          statusCode: "accepted"
+        },
+        requestId: "hosting_1",
+        status: "已接收托管",
+        petId: "pet_orange",
+        fromUserId: "user_demo",
+        toUserId: "friend_1",
+        statusCode: "accepted"
+      }
+    };
+  });
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+    const response = await client.updateHostingRequest("hosting_1", "accept", "desktop-token");
+
+    assert.equal(response.requestId, "hosting_1");
+    assert.equal(response.statusCode, "accepted");
+    assert.equal(response.request.status, "已接收托管");
+  } finally {
+    await server.close();
+  }
+});
+
 test("maps malformed hosting request responses to invalid response", async () => {
   const server = await withServer(() => ({
     status: 200,

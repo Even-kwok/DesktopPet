@@ -293,6 +293,20 @@ struct PetStudioView: View {
                     friendRow(friend)
                 }
             }
+
+            if !viewModel.hostingRequests.isEmpty {
+                Divider()
+                    .background(StudioPalette.line)
+
+                Text("寄养请求")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(StudioPalette.muted)
+
+                ForEach(viewModel.hostingRequests) { request in
+                    hostingRequestRow(request)
+                }
+            }
         }
         .padding(12)
         .background(StudioPalette.panel)
@@ -396,6 +410,50 @@ struct PetStudioView: View {
                 viewModel.removeFriend(friend)
             }
             .disabled(viewModel.isMutatingFriend)
+        }
+        .padding(10)
+        .background(StudioPalette.field.opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func hostingRequestRow(_ request: DesktopHostingRequestCard) -> some View {
+        let canRespond = request.statusCode == "pending"
+            && request.toUserID == viewModel.currentAccount?.id
+
+        return HStack(spacing: 10) {
+            Image(systemName: canRespond ? "tray.and.arrow.down.fill" : "tray.full.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(canRespond ? StudioPalette.mint : StudioPalette.muted)
+                .frame(width: 32, height: 32)
+                .background(StudioPalette.field)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.petName)
+                    .font(.callout)
+                    .fontWeight(.heavy)
+                    .lineLimit(1)
+                Text("\(request.from) · \(request.status)")
+                    .font(.caption)
+                    .foregroundStyle(StudioPalette.muted)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if canRespond {
+                Button("接收") {
+                    viewModel.respondToHostingRequest(request, action: "accept")
+                }
+                .buttonStyle(StudioButtonStyle(kind: .success, compact: true))
+                .disabled(viewModel.isMutatingFriend)
+
+                Button("拒绝") {
+                    viewModel.respondToHostingRequest(request, action: "decline")
+                }
+                .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
+                .disabled(viewModel.isMutatingFriend)
+            }
         }
         .padding(10)
         .background(StudioPalette.field.opacity(0.42))

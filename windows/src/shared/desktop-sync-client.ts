@@ -60,11 +60,32 @@ export type DesktopFriendDeleteResponse = {
   deletedFriendId: string;
 };
 
+export type DesktopHostingRequestCard = {
+  id: string;
+  petId: string;
+  fromUserId: string;
+  toUserId: string;
+  petName: string;
+  from: string;
+  status: string;
+  statusCode: string;
+};
+
 export type DesktopHostingRequestResponse = {
   requestId: string;
   status: string;
   petId: string;
   toUserId: string;
+};
+
+export type DesktopHostingRequestUpdateResponse = {
+  request: DesktopHostingRequestCard;
+  requestId: string;
+  status: string;
+  petId: string;
+  fromUserId: string;
+  toUserId: string;
+  statusCode: string;
 };
 
 export type DesktopRecallResponse = {
@@ -194,6 +215,20 @@ export class DesktopPetSyncClient {
     return response;
   }
 
+  async fetchHostingRequests(accessToken: string) {
+    const response = await this.#sendJSON<unknown>({
+      path: "/api/hosting/requests",
+      accessToken,
+      unauthorizedError: DesktopPetSyncError.sessionExpired()
+    });
+
+    if (!isDesktopHostingRequestsResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response.requests;
+  }
+
   async requestHosting(petId: string, toUserId: string, accessToken: string) {
     const response = await this.#sendJSON<unknown>({
       path: "/api/hosting/requests",
@@ -204,6 +239,22 @@ export class DesktopPetSyncClient {
     });
 
     if (!isDesktopHostingRequestResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response;
+  }
+
+  async updateHostingRequest(requestId: string, action: "accept" | "decline" | "return", accessToken: string) {
+    const response = await this.#sendJSON<unknown>({
+      path: `/api/hosting/requests/${encodeURIComponent(requestId)}`,
+      method: "PATCH",
+      body: { action },
+      accessToken,
+      unauthorizedError: DesktopPetSyncError.sessionExpired()
+    });
+
+    if (!isDesktopHostingRequestUpdateResponse(response)) {
       throw DesktopPetSyncError.invalidResponse();
     }
 
@@ -417,6 +468,10 @@ function isDesktopFriendDeleteResponse(value: unknown): value is DesktopFriendDe
   return isRecord(value) && isNonEmptyString(value.deletedFriendId);
 }
 
+function isDesktopHostingRequestsResponse(value: unknown): value is { requests: DesktopHostingRequestCard[] } {
+  return isRecord(value) && Array.isArray(value.requests) && value.requests.every(isDesktopHostingRequestCard);
+}
+
 function isDesktopHostingRequestResponse(value: unknown): value is DesktopHostingRequestResponse {
   if (!isRecord(value)) {
     return false;
@@ -430,8 +485,41 @@ function isDesktopHostingRequestResponse(value: unknown): value is DesktopHostin
   );
 }
 
+function isDesktopHostingRequestUpdateResponse(value: unknown): value is DesktopHostingRequestUpdateResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isDesktopHostingRequestCard(value.request) &&
+    isNonEmptyString(value.requestId) &&
+    isNonEmptyString(value.status) &&
+    isNonEmptyString(value.petId) &&
+    isNonEmptyString(value.fromUserId) &&
+    isNonEmptyString(value.toUserId) &&
+    isNonEmptyString(value.statusCode)
+  );
+}
+
 function isDesktopRecallResponse(value: unknown): value is DesktopRecallResponse {
   return isRecord(value) && isNonEmptyString(value.petId) && isNonEmptyString(value.status);
+}
+
+function isDesktopHostingRequestCard(value: unknown): value is DesktopHostingRequestCard {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.petId) &&
+    isNonEmptyString(value.fromUserId) &&
+    isNonEmptyString(value.toUserId) &&
+    isNonEmptyString(value.petName) &&
+    isNonEmptyString(value.from) &&
+    isNonEmptyString(value.status) &&
+    isNonEmptyString(value.statusCode)
+  );
 }
 
 function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
