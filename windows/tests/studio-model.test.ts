@@ -8,6 +8,8 @@ import {
   friendPanelEmptyTitle,
   friendPanelTitle,
   friendHostingDetail,
+  loginPanelDetail,
+  loginPanelTitle,
   localMaterialStatusText,
   localMaterialBoardDetail,
   localMaterialBoardTitle,
@@ -36,6 +38,14 @@ test("builds account display copy", () => {
       signedInAt: "now"
     }),
     "demo@desktop.pet · 120 积分"
+  );
+});
+
+test("builds Mac-parity login panel copy for Windows", () => {
+  assert.equal(loginPanelTitle(), "登录后同步你的猫咪");
+  assert.equal(
+    loginPanelDetail(),
+    "Windows 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。"
   );
 });
 

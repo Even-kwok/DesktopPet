@@ -18,6 +18,8 @@ import {
   friendPanelEmptyDetail,
   friendPanelEmptyTitle,
   friendPanelTitle,
+  loginPanelDetail,
+  loginPanelTitle,
   localMaterialBoardDetail,
   localMaterialBoardTitle,
   localMaterialStatusText,
@@ -210,8 +212,8 @@ export function StudioApp() {
 
       {!account ? (
         <section className="studio-panel login-panel">
-          <h2>登录账号</h2>
-          <p>Windows 端负责显示、同步、好友寄养和召回；素材生成继续在网页端完成。</p>
+          <h2>{loginPanelTitle()}</h2>
+          <p>{loginPanelDetail()}</p>
           <label>
             邮箱
             <input value={email} onChange={(event) => setEmail(event.target.value)} />
