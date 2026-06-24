@@ -20,6 +20,14 @@ export function studioStatusMessageClassName(tone: StudioStatusTone) {
   return `studio-status-message ${tone}`;
 }
 
+export function desktopPublishSuccessMessage(mode: string) {
+  return mode === "supabase" ? "桌面端的小窝已备好。" : "预览小窝已更新。";
+}
+
+export function desktopPublishFailureMessage(error: unknown) {
+  return error instanceof Error ? `同步到桌面端失败：${error.message}` : "同步到桌面端失败。";
+}
+
 export type ClientPlatformId = "mac" | "windows" | "ios" | "android";
 
 export type ClientPlatformCard = {

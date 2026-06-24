@@ -32,6 +32,8 @@ import {
   buildClientPlatformCards,
   buildMaterialWorkflowSteps,
   type ClientPlatformCard,
+  desktopPublishFailureMessage,
+  desktopPublishSuccessMessage,
   jobDisplayName,
   jobGeneratedAtLabel,
   jobGeneratedVideoApplyAction,
@@ -441,11 +443,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
 
       try {
         const publishResult = await publishDesktopSyncBundleForBootstrap(refreshedData);
-        desktopPublishMessage =
-          publishResult.mode === "supabase" ? "Mac 端的小窝已备好。" : "预览小窝已更新。";
+        desktopPublishMessage = desktopPublishSuccessMessage(publishResult.mode);
       } catch (error) {
-        desktopPublishMessage =
-          error instanceof Error ? `同步到 Mac 端失败：${error.message}` : "同步到 Mac 端失败。";
+        desktopPublishMessage = desktopPublishFailureMessage(error);
       }
 
       setMessage({
@@ -637,11 +637,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
       let desktopPublishMessage = "";
       try {
         const publishResult = await publishDesktopSyncBundle(nextPets, nextAssets);
-        desktopPublishMessage =
-          publishResult.mode === "supabase" ? "Mac 端的小窝已备好。" : "预览小窝已更新。";
+        desktopPublishMessage = desktopPublishSuccessMessage(publishResult.mode);
       } catch (error) {
-        desktopPublishMessage =
-          error instanceof Error ? `同步到 Mac 端失败：${error.message}` : "同步到 Mac 端失败。";
+        desktopPublishMessage = desktopPublishFailureMessage(error);
       }
 
       setMessage({

@@ -5,6 +5,8 @@ import {
   accountNameEditControlCopy,
   buildClientPlatformCards,
   buildMaterialWorkflowSteps,
+  desktopPublishFailureMessage,
+  desktopPublishSuccessMessage,
   jobGeneratedVideoApplyAction,
   materialCardPreviewState,
   petNameEditControlCopy,
@@ -164,6 +166,16 @@ test("material workflow steps describe the current generation path", () => {
       { title: "同步到桌面", state: "可同步" }
     ]
   );
+});
+
+test("desktop publish status copy covers Mac and Windows clients", () => {
+  assert.equal(desktopPublishSuccessMessage("supabase"), "桌面端的小窝已备好。");
+  assert.equal(desktopPublishSuccessMessage("mock"), "预览小窝已更新。");
+  assert.equal(
+    desktopPublishFailureMessage(new Error("storage unavailable")),
+    "同步到桌面端失败：storage unavailable"
+  );
+  assert.equal(desktopPublishFailureMessage("failed"), "同步到桌面端失败。");
 });
 
 test("job display name uses the material name instead of slot code or provider id", async () => {

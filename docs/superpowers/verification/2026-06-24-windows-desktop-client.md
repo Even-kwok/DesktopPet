@@ -9,6 +9,12 @@ Run from `windows/` on the current branch:
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
+Run from `web/` on the current branch:
+
+- `npm run lint`: passed.
+- `npm run test:unit`: passed, 102 tests.
+- `npm run build`: passed.
+
 Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
 
 The Windows tray menu now also has automated coverage for Mac-parity pet submenu thumbnails. A cached thumbnail provider requests 28x28 native thumbnails from each pet's `idle_loop` video, refreshes the tray when an icon becomes available, and falls back to a paw-style placeholder icon when no video is available or thumbnail generation fails.
@@ -108,6 +114,8 @@ Studio refresh coverage now verifies tray-side and other main-process state chan
 Renderer command coverage now verifies Windows only sends Studio and pet playback commands to live Electron web contents, avoiding stale sends after windows are closed or destroyed.
 
 Studio show-command coverage now verifies async Studio show completions skip refresh/select commands when the renderer command target has already gone away.
+
+Web studio publish-status coverage now verifies desktop sync success and failure copy refers to the shared desktop clients instead of only the Mac client, so generated materials point users toward both Mac and Windows desktop sync.
 
 ## Electron Smoke Evidence
 
