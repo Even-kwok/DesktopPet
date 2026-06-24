@@ -14,7 +14,11 @@ import {
   mouseoverCatchSlots,
   nearbyPetInteractionSlots
 } from "../shared/pet-action-slots.ts";
-import { hasLoadedRendererURL } from "./renderer-load-policy.ts";
+import {
+  hasLoadedRendererURL,
+  nextRendererShowRevision,
+  shouldFinishRendererShow
+} from "./renderer-load-policy.ts";
 import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
 export type PetWindowControllerOptions = {
@@ -37,6 +41,7 @@ export class PetWindowController implements PetWindowControllerLike {
   #idleActionTimer?: NodeJS.Timeout;
   #pendingSocialInteractionSlots?: PetActionSlot[];
   #wasMouseInsideCatchFrame = false;
+  #showRevision = 0;
   isVisible = false;
   frame?: Rect;
 
@@ -57,12 +62,14 @@ export class PetWindowController implements PetWindowControllerLike {
     this.frame = this.#petFrameForCurrentScreen();
     this.#currentVideoPath = idleVideoPath;
     this.#currentMode = "loop";
-    void this.#showWindow();
+    const showRevision = this.#nextShowRevision();
+    void this.#showWindow(showRevision);
     this.#stateMachine.send("show");
     return true;
   }
 
   hide() {
+    this.#nextShowRevision();
     this.isVisible = false;
     this.#window?.hide();
     this.#stateMachine.send("hide");
@@ -160,9 +167,19 @@ export class PetWindowController implements PetWindowControllerLike {
     return true;
   }
 
-  async #showWindow() {
+  async #showWindow(showRevision: number) {
     const window = this.#window ?? this.#createWindow();
     await this.#loadRenderer(window);
+    if (
+      !shouldFinishRendererShow({
+        requestRevision: showRevision,
+        currentRevision: this.#showRevision,
+        isVisible: this.isVisible
+      })
+    ) {
+      return;
+    }
+
     window.setBounds(this.#rectToBounds(this.#petFrameForCurrentScreen()));
     window.setIgnoreMouseEvents(this.#options.getClickThrough(), { forward: true });
     window.showInactive();
@@ -210,6 +227,11 @@ export class PetWindowController implements PetWindowControllerLike {
     } else {
       await window.loadFile(this.#options.petRendererFile);
     }
+  }
+
+  #nextShowRevision() {
+    this.#showRevision = nextRendererShowRevision(this.#showRevision);
+    return this.#showRevision;
   }
 
   #applyState(state: string) {
