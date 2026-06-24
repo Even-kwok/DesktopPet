@@ -10,7 +10,7 @@ test("builds Windows pet BrowserWindow options for transparent always-on-top des
     petWindowBrowserOptions({
       bounds: { x: 12, y: 34, width: 150, height: 150 },
       title: "CatDesktopPet - 栗子",
-      preloadPath: "C:/app/out/preload/index.mjs"
+      preloadPath: "C:/app/out/preload/index.cjs"
     }),
     {
       x: 12,
@@ -28,7 +28,7 @@ test("builds Windows pet BrowserWindow options for transparent always-on-top des
       hasShadow: false,
       show: false,
       webPreferences: {
-        preload: "C:/app/out/preload/index.mjs",
+        preload: "C:/app/out/preload/index.cjs",
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true
@@ -38,7 +38,7 @@ test("builds Windows pet BrowserWindow options for transparent always-on-top des
 });
 
 test("builds Windows Studio BrowserWindow options with a sandboxed preload bridge", () => {
-  assert.deepEqual(studioWindowBrowserOptions("C:/app/out/preload/index.mjs"), {
+  assert.deepEqual(studioWindowBrowserOptions("C:/app/out/preload/index.cjs"), {
     width: 560,
     height: 560,
     minWidth: 520,
@@ -46,7 +46,7 @@ test("builds Windows Studio BrowserWindow options with a sandboxed preload bridg
     title: "CatDesktopPet",
     show: false,
     webPreferences: {
-      preload: "C:/app/out/preload/index.mjs",
+      preload: "C:/app/out/preload/index.cjs",
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true
