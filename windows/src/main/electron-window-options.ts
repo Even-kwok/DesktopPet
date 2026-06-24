@@ -1,0 +1,54 @@
+type WindowBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type WindowWebPreferences = {
+  preload: string;
+  contextIsolation: true;
+  nodeIntegration: false;
+  sandbox: true;
+};
+
+function preloadBridgePreferences(preloadPath: string): WindowWebPreferences {
+  return {
+    preload: preloadPath,
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: true
+  };
+}
+
+export function petWindowBrowserOptions(input: {
+  bounds: WindowBounds;
+  title: string;
+  preloadPath: string;
+}) {
+  return {
+    ...input.bounds,
+    title: input.title,
+    transparent: true,
+    backgroundColor: "#00000000",
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: preloadBridgePreferences(input.preloadPath)
+  };
+}
+
+export function studioWindowBrowserOptions(preloadPath: string) {
+  return {
+    width: 560,
+    height: 560,
+    minWidth: 520,
+    minHeight: 460,
+    title: "CatDesktopPet",
+    show: false,
+    webPreferences: preloadBridgePreferences(preloadPath)
+  };
+}

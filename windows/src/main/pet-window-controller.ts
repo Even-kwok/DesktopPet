@@ -19,6 +19,7 @@ import {
   nextRendererShowRevision,
   shouldFinishRendererShow
 } from "./renderer-load-policy.ts";
+import { petWindowBrowserOptions } from "./electron-window-options.ts";
 import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
 export type PetWindowControllerOptions = {
@@ -189,22 +190,13 @@ export class PetWindowController implements PetWindowControllerLike {
 
   #createWindow() {
     const frame = this.#petFrameForCurrentScreen();
-    const window = new BrowserWindow({
-      ...this.#rectToBounds(frame),
-      title: this.#windowTitle(),
-      transparent: true,
-      frame: false,
-      resizable: false,
-      alwaysOnTop: true,
-      skipTaskbar: true,
-      hasShadow: false,
-      show: false,
-      webPreferences: {
-        preload: this.#options.preloadPath,
-        contextIsolation: true,
-        nodeIntegration: false
-      }
-    });
+    const window = new BrowserWindow(
+      petWindowBrowserOptions({
+        bounds: this.#rectToBounds(frame),
+        title: this.#windowTitle(),
+        preloadPath: this.#options.preloadPath
+      })
+    );
 
     window.on("moved", () => this.#saveBounds(window.getBounds()));
     window.on("resized", () => this.#saveBounds(window.getBounds()));

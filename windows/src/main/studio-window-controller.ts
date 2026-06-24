@@ -1,4 +1,5 @@
 import { BrowserWindow } from "electron";
+import { studioWindowBrowserOptions } from "./electron-window-options.js";
 import {
   studioCommandDispatchPlan,
   studioRendererLoadTarget
@@ -69,19 +70,7 @@ export class StudioWindowController {
   }
 
   #createWindow() {
-    const window = new BrowserWindow({
-      width: 560,
-      height: 560,
-      minWidth: 520,
-      minHeight: 460,
-      title: "CatDesktopPet",
-      show: false,
-      webPreferences: {
-        preload: this.#options.preloadPath,
-        contextIsolation: true,
-        nodeIntegration: false
-      }
-    });
+    const window = new BrowserWindow(studioWindowBrowserOptions(this.#options.preloadPath));
 
     window.on("closed", () => {
       this.#window = undefined;

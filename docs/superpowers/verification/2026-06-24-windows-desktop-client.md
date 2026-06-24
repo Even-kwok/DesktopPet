@@ -5,9 +5,11 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 156 tests.
+- `npm test`: passed, 158 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
+
+Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
 
 ## Electron Smoke Evidence
 
