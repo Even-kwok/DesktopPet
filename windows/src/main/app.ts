@@ -15,7 +15,8 @@ import {
 } from "./app-lifecycle-policy.ts";
 import {
   bindMenuActions,
-  buildTrayMenuTemplate
+  buildTrayMenuTemplate,
+  resetPositionsActionPlan
 } from "./tray-controller.ts";
 import { studioCommandFromPetPayload } from "./studio-window-policy.ts";
 import {
@@ -267,6 +268,9 @@ async function bootstrap() {
     },
     resetPositions: () => {
       petColonyController.resetPositions();
+      if (resetPositionsActionPlan().refreshTray) {
+        refreshTray();
+      }
       return studioState();
     },
     refreshFriends: async () => {
@@ -388,7 +392,12 @@ async function bootstrap() {
             petColonyController.refreshPlayback();
             refreshTray();
           },
-          resetPositions: () => petColonyController.resetPositions(),
+          resetPositions: () => {
+            petColonyController.resetPositions();
+            if (resetPositionsActionPlan().refreshTray) {
+              refreshTray();
+            }
+          },
           addPet: () => {
             const petIndex = petColonyController.addPet();
             refreshTray();

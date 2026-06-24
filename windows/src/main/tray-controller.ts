@@ -100,6 +100,12 @@ export function bindMenuActions(
   });
 }
 
+export function resetPositionsActionPlan() {
+  return {
+    refreshTray: true
+  };
+}
+
 function petSubmenus(
   state: TrayMenuState,
   buildSubmenu: (petIndex: number) => MenuTemplateItem[]

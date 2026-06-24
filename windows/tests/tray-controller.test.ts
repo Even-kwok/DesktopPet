@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildTrayMenuTemplate,
+  resetPositionsActionPlan,
   visibilityResultAfterShowingPets
 } from "../src/main/tray-controller.ts";
 
@@ -63,5 +64,11 @@ test("requests an idle-loop import when tray show cannot display a pet", () => {
   assert.deepEqual(visibilityResultAfterShowingPets(true), {
     isPetVisible: true,
     importIdleLoop: false
+  });
+});
+
+test("refreshes tray state after resetting pet positions like the Mac status menu", () => {
+  assert.deepEqual(resetPositionsActionPlan(), {
+    refreshTray: true
   });
 });
