@@ -364,7 +364,7 @@ function isDesktopPetBundle(value: unknown): value is DesktopPetBundle {
 
   return (
     isNonNegativeInteger(value.version) &&
-    isString(value.generatedAt) &&
+    isNonEmptyString(value.generatedAt) &&
     isOptionalDesktopSyncAccount(value.account) &&
     isOptionalDesktopSyncMetadata(value.sync) &&
     Array.isArray(value.pets) &&
@@ -461,8 +461,8 @@ function isOptionalDesktopSyncMetadata(value: unknown) {
   }
 
   return (
-    isString(value.mode) &&
-    isString(value.source) &&
+    isNonEmptyString(value.mode) &&
+    isNonEmptyString(value.source) &&
     isNonNegativeInteger(value.recommendedPollSeconds)
   );
 }

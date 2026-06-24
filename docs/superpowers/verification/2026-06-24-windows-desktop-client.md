@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 199 tests.
+- `npm test`: passed, 201 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -55,7 +55,7 @@ Desktop sync session coverage now verifies login responses with negative token e
 
 Desktop sync bearer-session coverage now verifies login responses with empty access tokens or unsupported token types are rejected before the Windows client stores an unusable session.
 
-Desktop sync bundle metadata coverage now verifies negative bundle versions and negative recommended polling intervals are rejected before they can influence Windows sync behavior.
+Desktop sync bundle metadata coverage now verifies negative bundle versions, negative recommended polling intervals, empty bundle timestamps, and empty sync mode/source values are rejected before they can influence Windows sync behavior.
 
 Colony-controller coverage now verifies invalid JavaScript pet-count values are ignored instead of collapsing active Windows pets or entering unsafe controller creation paths.
 

@@ -396,6 +396,64 @@ test("maps desktop bundles with negative recommended polling intervals to invali
   }
 });
 
+test("maps desktop bundles with empty generated timestamps to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: {
+      version: 1,
+      generatedAt: " ",
+      pets: []
+    }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.fetchBundle("desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
+test("maps desktop bundles with empty sync metadata fields to invalid response", async () => {
+  const malformedSyncRecords = [
+    { mode: " ", source: "web", recommendedPollSeconds: 60 },
+    { mode: "desktop", source: " ", recommendedPollSeconds: 60 }
+  ];
+
+  for (const sync of malformedSyncRecords) {
+    const server = await withServer(() => ({
+      status: 200,
+      body: {
+        version: 1,
+        generatedAt: "2026-06-24T00:00:00.000Z",
+        sync,
+        pets: []
+      }
+    }));
+
+    try {
+      const client = new DesktopPetSyncClient(server.baseURL);
+
+      await assert.rejects(
+        client.fetchBundle("desktop-token"),
+        (error) =>
+          error instanceof DesktopPetSyncError &&
+          error.code === "invalidResponse" &&
+          error.message === "桌面同步返回异常。"
+      );
+    } finally {
+      await server.close();
+    }
+  }
+});
+
 test("maps desktop bundles with empty account identity fields to invalid response", async () => {
   const malformedAccounts = [
     { id: " ", name: "栗子主人", email: "demo@desktop.pet" },
