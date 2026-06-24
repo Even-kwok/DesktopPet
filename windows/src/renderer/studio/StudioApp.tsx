@@ -15,6 +15,8 @@ import {
   accountDetail,
   accountDisplayName,
   canRequestHosting,
+  canSubmitFriendEmail,
+  friendEmailInputPlaceholder,
   friendHostingDetail,
   friendPanelDetail,
   friendPanelEmptyDetail,
@@ -26,6 +28,7 @@ import {
   localMaterialBoardTitle,
   localMaterialPreviewAction,
   localMaterialStatusText,
+  shouldSubmitFriendEmailKey,
   syncedPetCardAction,
   syncedPetPanelDetail,
   syncedPetPanelEmptyDetail,
@@ -179,6 +182,22 @@ export function StudioApp() {
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
   const displayedPetCount = studioPetCountForDisplay(state.petCount);
   const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
+  const submitFriendEmail = () => {
+    if (!canSubmitFriendEmail(account, friendEmail)) {
+      return;
+    }
+
+    setStatusMessage(pendingStatusMessageForAddFriendAction());
+    void runAction(
+      () => bridge?.addFriend?.(friendEmail),
+      "已添加好友。",
+      (result) => {
+        setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
+        return statusMessageForAddFriendAction(result);
+      },
+      () => statusMessageForAddFriendError()
+    );
+  };
 
   return (
     <main className="studio-app">
@@ -396,7 +415,17 @@ export function StudioApp() {
           </div>
           <label>
             好友邮箱
-            <input value={friendEmail} onChange={(event) => setFriendEmail(event.target.value)} />
+            <input
+              value={friendEmail}
+              onChange={(event) => setFriendEmail(event.target.value)}
+              onKeyDown={(event) => {
+                if (shouldSubmitFriendEmailKey(event.key)) {
+                  event.preventDefault();
+                  submitFriendEmail();
+                }
+              }}
+              placeholder={friendEmailInputPlaceholder()}
+            />
           </label>
           <div className="button-grid">
             <button
@@ -412,19 +441,8 @@ export function StudioApp() {
               刷新好友
             </button>
             <button
-              disabled={!account || !friendEmail.trim()}
-              onClick={() => {
-                setStatusMessage(pendingStatusMessageForAddFriendAction());
-                void runAction(
-                  () => bridge?.addFriend?.(friendEmail),
-                  "已添加好友。",
-                  (result) => {
-                    setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
-                    return statusMessageForAddFriendAction(result);
-                  },
-                  () => statusMessageForAddFriendError()
-                );
-              }}
+              disabled={!canSubmitFriendEmail(account, friendEmail)}
+              onClick={submitFriendEmail}
             >
               添加好友
             </button>

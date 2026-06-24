@@ -3,11 +3,13 @@ import test from "node:test";
 import {
   accountDetail,
   accountDisplayName,
+  canSubmitFriendEmail,
   canRequestHosting,
   friendPanelDetail,
   friendPanelEmptyDetail,
   friendPanelEmptyTitle,
   friendPanelTitle,
+  friendEmailInputPlaceholder,
   friendHostingDetail,
   loginPanelDetail,
   loginPanelTitle,
@@ -19,6 +21,7 @@ import {
   resolveHostingRequestTarget,
   resolveRecallPetTarget,
   shouldShowRecallAction,
+  shouldSubmitFriendEmailKey,
   syncedPetCardAction,
   syncedPetPanelDetail,
   syncedPetPanelEmptyDetail,
@@ -72,6 +75,24 @@ test("builds Mac-parity friend panel copy", () => {
   assert.equal(friendPanelDetail(3), "3 位 · 可寄养和删除");
   assert.equal(friendPanelEmptyTitle(), "还没有好友");
   assert.equal(friendPanelEmptyDetail(), "用账号邮箱精确添加。在线状态先按服务器记录显示。");
+});
+
+test("builds Mac-parity friend email submit behavior", () => {
+  const account = {
+    id: "u1",
+    name: "栗子主人",
+    email: "demo@desktop.pet",
+    credits: 120,
+    accessToken: "token",
+    signedInAt: "now"
+  };
+
+  assert.equal(friendEmailInputPlaceholder(), "输入好友邮箱");
+  assert.equal(canSubmitFriendEmail(undefined, "friend@desktop.pet"), false);
+  assert.equal(canSubmitFriendEmail(account, "   "), false);
+  assert.equal(canSubmitFriendEmail(account, " friend@desktop.pet "), true);
+  assert.equal(shouldSubmitFriendEmailKey("Enter"), true);
+  assert.equal(shouldSubmitFriendEmailKey("Escape"), false);
 });
 
 test("builds Mac-parity local material status copy", () => {

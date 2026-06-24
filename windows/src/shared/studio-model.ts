@@ -77,6 +77,21 @@ export function friendPanelEmptyDetail() {
   return "用账号邮箱精确添加。在线状态先按服务器记录显示。";
 }
 
+export function friendEmailInputPlaceholder() {
+  return "输入好友邮箱";
+}
+
+export function canSubmitFriendEmail(
+  account: DesktopAccountSession | undefined,
+  friendEmail: string
+) {
+  return Boolean(account && friendEmail.trim());
+}
+
+export function shouldSubmitFriendEmailKey(key: string) {
+  return key === "Enter";
+}
+
 export function localMaterialStatusText(material: LocalMaterialStatusState) {
   return material.hasVideo ? "已有视频" : "未生成";
 }
