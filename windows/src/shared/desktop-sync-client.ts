@@ -346,9 +346,9 @@ function isDesktopSyncAccount(value: unknown): value is DesktopSyncAccount {
   }
 
   return (
-    isString(value.id) &&
-    isString(value.name) &&
-    isString(value.email) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.name) &&
+    isNonEmptyString(value.email) &&
     isNonNegativeInteger(value.credits)
   );
 }
