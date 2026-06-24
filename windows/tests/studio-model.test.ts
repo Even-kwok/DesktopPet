@@ -4,6 +4,7 @@ import {
   accountDetail,
   canRequestHosting,
   friendHostingDetail,
+  localMaterialStatusText,
   resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
   resolveRecallPetTarget,
@@ -30,6 +31,11 @@ test("builds account display copy", () => {
 
 test("builds Mac-parity friend hosting detail copy", () => {
   assert.equal(friendHostingDetail({ status: "在线", hostedPets: 2 }), "在线 · 托管 2 只");
+});
+
+test("builds Mac-parity local material status copy", () => {
+  assert.equal(localMaterialStatusText({ hasVideo: true }), "已有视频");
+  assert.equal(localMaterialStatusText({ hasVideo: false }), "未生成");
 });
 
 test("computes pet status and available actions", () => {

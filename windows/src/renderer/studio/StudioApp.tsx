@@ -11,6 +11,7 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   canRequestHosting,
   friendHostingDetail,
+  localMaterialStatusText,
   syncedPetCardAction,
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
@@ -475,7 +476,7 @@ export function StudioApp() {
                     <div className="material-row" key={slot}>
                       <span>
                         {slotName}
-                        <small>{hasVideo ? "已导入" : "未设置"}</small>
+                        <small>{localMaterialStatusText({ hasVideo })}</small>
                       </span>
                       <div>
                         <button
