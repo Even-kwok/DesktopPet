@@ -150,6 +150,51 @@ GET  /api/jobs/:jobId
 
 These routes are mock-first. The next step is replacing the mock bodies with Supabase writes and provider calls.
 
+## Windows Client Test Download
+
+The web client center already reads `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL`. When this env var is a public ZIP URL, the signed-out home and signed-in Studio show `下载 Windows 版`.
+
+First Windows testing flow:
+
+1. Build the package locally if possible:
+
+```bash
+cd windows
+npm ci
+npm run dist:win
+```
+
+The expected output is:
+
+```text
+windows/release/CatDesktopPet-win-x64.zip
+```
+
+2. If local cross-packaging is not convenient, run GitHub Actions → **Windows Desktop Artifact**. It uses `windows-latest`, runs typecheck/tests, packages the client, uploads the `cat-desktop-pet-windows-x64` artifact, and on a manual run updates this prerelease asset:
+
+```text
+https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
+```
+
+3. Upload the ZIP to a public download URL. For the first test this can be a GitHub Release asset, Supabase Storage public object, Vercel Blob object, or another temporary public file host.
+4. Add the URL in Vercel production:
+
+```text
+NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL=https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
+```
+
+5. Redeploy the `web` project. The current linked project is:
+
+```text
+Team: guoyaowens-projects
+Project: web
+Project ID: prj_eK7l5ukD6Yc5WuSog21Mzedr2uWA
+```
+
+6. Open the production site from Windows, download the ZIP, extract it, and run `CatDesktopPet.exe`.
+
+This test ZIP is intentionally unsigned. Windows may show SmartScreen or an unknown-publisher warning. After the manual Windows smoke test passes, prepare a signed installer/update path instead of treating the unsigned ZIP as a public production release.
+
 Recommended replacement order:
 
 1. Configure Supabase env vars and verify `/api/backend/status` switches from `mock` to `supabase`.

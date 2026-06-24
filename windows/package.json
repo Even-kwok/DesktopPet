@@ -7,9 +7,32 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "dist:win": "npm run build && electron-builder --win zip --x64 --publish never",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "build": {
+    "productName": "CatDesktopPet",
+    "appId": "com.catdesktoppet.windows",
+    "artifactName": "CatDesktopPet-win-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.2",
@@ -22,6 +45,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "electron": "^39.2.7",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.9.3",
     "vite": "^7.3.0"
   }

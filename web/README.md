@@ -15,6 +15,30 @@ Open `http://localhost:3000`.
 
 Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` and `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` in `.env.local` to enable the corresponding desktop download buttons in the client center.
 
+## Windows Test Download
+
+The Windows card becomes downloadable when `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` points at a public ZIP URL.
+
+Recommended first-test flow:
+
+1. Build the package from the repository root:
+
+   ```bash
+   cd windows
+   npm ci
+   npm run dist:win
+   ```
+
+2. Upload `windows/release/CatDesktopPet-win-x64.zip` to a public file URL, or manually run the **Windows Desktop Artifact** GitHub Actions workflow to update this prerelease asset:
+
+   ```text
+   https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
+   ```
+
+3. Add the public ZIP URL to Vercel production as `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL`.
+4. Redeploy the `web` Vercel project.
+5. Open the production site on Windows and use the `下载 Windows 版` button from the client center.
+
 ## First MVP
 
 - User login at `/login`, admin login at `/admin/login`, shared logout route, and server-side cookie/session checks

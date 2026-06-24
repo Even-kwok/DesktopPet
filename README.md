@@ -68,6 +68,18 @@ npm run typecheck
 npm run build
 ```
 
+To create the Windows x64 ZIP used for download testing:
+
+```bash
+npm run dist:win
+```
+
+The package is written to `windows/release/CatDesktopPet-win-x64.zip`. If local cross-packaging is inconvenient, run the **Windows Desktop Artifact** GitHub Actions workflow. A manual workflow run also publishes the unsigned test ZIP to:
+
+```text
+https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
+```
+
 Current Windows MVP includes:
 
 - Tray menu labels, pet material slots, and per-pet submenu thumbnails aligned with the Mac app.

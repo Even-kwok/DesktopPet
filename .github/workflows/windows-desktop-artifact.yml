@@ -1,0 +1,62 @@
+name: Windows Desktop Artifact
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows-desktop-artifact.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows-desktop-artifact.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  package-windows:
+    name: Package Windows x64 ZIP
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Package Windows ZIP
+        run: npm run dist:win
+
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: cat-desktop-pet-windows-x64
+          path: windows/release/CatDesktopPet-win-x64.zip
+          if-no-files-found: error
+
+      - name: Publish manual test release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view windows-test || gh release create windows-test --title "Windows Test Build" --notes "Unsigned Windows test ZIP for desktop smoke testing." --prerelease
+          gh release upload windows-test release/CatDesktopPet-win-x64.zip --clobber

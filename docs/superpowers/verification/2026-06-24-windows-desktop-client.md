@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 238 tests.
+- `npm test`: passed, 240 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -125,6 +125,10 @@ Renderer command coverage now verifies Windows only sends Studio and pet playbac
 
 Pet renderer command coverage now verifies blank video paths are rejected before Windows normalizes local video URLs.
 
+Windows packaging coverage now verifies `npm run dist:win` is configured to build a reproducible x64 ZIP named `CatDesktopPet-win-x64.zip` through `electron-builder`.
+
+Windows release workflow coverage now verifies GitHub Actions uses `windows-latest`, runs typecheck/tests/package steps, uploads the ZIP artifact, and publishes the manual `windows-test` prerelease asset for Vercel download testing.
+
 Studio show-command coverage now verifies async Studio show completions skip refresh/select commands when the renderer command target has already gone away.
 
 Pet show-command coverage now verifies async pet renderer load completions stop before touching a destroyed BrowserWindow/webContents target, matching the stale-renderer guard used by Studio commands.
@@ -142,6 +146,12 @@ Run from `windows/`:
 - `npm run dev`: main process and preload builds passed, renderer dev server started at `http://localhost:5173/`, and Electron app startup was reached after the preload runtime path was corrected to `out/preload/index.mjs`.
 
 The smoke run was stopped after startup to avoid leaving a desktop process running.
+
+## Packaging Evidence
+
+Run from `windows/` on macOS:
+
+- `npm run dist:win`: `electron-vite build` passed and Electron Windows runtime downloaded, but local cross-platform packaging did not finish after the `platform=win32 arch=x64` packaging step and was interrupted. The repository now relies on the `Windows Desktop Artifact` GitHub Actions workflow's real `windows-latest` runner for the Windows ZIP artifact.
 
 ## Remaining Manual Windows Verification
 

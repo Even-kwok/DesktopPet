@@ -13,5 +13,6 @@ web/*.tsbuildinfo
 windows/node_modules/
 windows/out/
 windows/dist/
+windows/release/
 .vercel
 .superpowers/
