@@ -1,19 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createSingleFlightActionGroup } from "../src/main/studio-action-guard.ts";
+import {
+  StudioActionBusyError,
+  createSingleFlightActionGroup
+} from "../src/main/studio-action-guard.ts";
 
 test("coalesces duplicate studio actions while one action is still running", async () => {
   const group = createSingleFlightActionGroup();
   let runCount = 0;
   let resolveAction: (value: string) => void = () => undefined;
 
-  const first = group.run(async () => {
+  const first = group.run("sync", async () => {
     runCount += 1;
     return await new Promise<string>((resolve) => {
       resolveAction = resolve;
     });
   });
-  const second = group.run(async () => {
+  const second = group.run("sync", async () => {
     runCount += 1;
     return "duplicate";
   });
@@ -27,19 +30,42 @@ test("coalesces duplicate studio actions while one action is still running", asy
   assert.equal(await second, "finished");
 });
 
+test("rejects a different studio action instead of reusing the in-flight result", async () => {
+  const group = createSingleFlightActionGroup();
+  let runCount = 0;
+
+  const first = group.run("addFriend", async () => {
+    runCount += 1;
+    return await new Promise<string>(() => undefined);
+  });
+
+  await assert.rejects(
+    group.run("removeFriend", async () => {
+      runCount += 1;
+      return "removed";
+    }),
+    (error) =>
+      error instanceof StudioActionBusyError &&
+      error.message === "操作正在进行中，请稍候。"
+  );
+
+  assert.equal(runCount, 1);
+  first.catch(() => undefined);
+});
+
 test("allows a later studio action after the current one settles", async () => {
   const group = createSingleFlightActionGroup();
   let runCount = 0;
 
   assert.equal(
-    await group.run(async () => {
+    await group.run("sync", async () => {
       runCount += 1;
       return "first";
     }),
     "first"
   );
   assert.equal(
-    await group.run(async () => {
+    await group.run("sync", async () => {
       runCount += 1;
       return "second";
     }),
@@ -54,7 +80,7 @@ test("allows retrying a studio action after a failed run", async () => {
   let runCount = 0;
 
   await assert.rejects(
-    group.run(async () => {
+    group.run("sync", async () => {
       runCount += 1;
       throw new Error("network down");
     }),
@@ -62,7 +88,7 @@ test("allows retrying a studio action after a failed run", async () => {
   );
 
   assert.equal(
-    await group.run(async () => {
+    await group.run("sync", async () => {
       runCount += 1;
       return "recovered";
     }),

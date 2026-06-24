@@ -123,7 +123,7 @@ async function bootstrap() {
 
   registerIpcHandlers(ipcMain, {
     getStudioState: studioState,
-    signIn: (email, password) => signInActions.run(async () => {
+    signIn: (email, password) => signInActions.run("signIn", async () => {
       const trimmedEmail = email.trim();
       if (!trimmedEmail || !password) {
         throw new Error("请输入邮箱和密码。");
@@ -152,7 +152,7 @@ async function bootstrap() {
       settingsStore.clearFriendCards();
       return studioState();
     },
-    sync: () => syncActions.run(async () => {
+    sync: () => syncActions.run("sync", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const bundle = await desktopSyncClient.fetchBundle(account.accessToken);
       const replacements = localMaterialReplacementDescriptions(bundle, (slot, petIndex) =>
@@ -273,13 +273,13 @@ async function bootstrap() {
       }
       return studioState();
     },
-    refreshFriends: () => refreshFriendActions.run(async () => {
+    refreshFriends: () => refreshFriendActions.run("refreshFriends", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const friends = await desktopSyncClient.fetchFriends(account.accessToken);
       settingsStore.saveFriendCards(friends);
       return studioState();
     }),
-    addFriend: (email) => mutateFriendActions.run(async () => {
+    addFriend: (email) => mutateFriendActions.run("addFriend", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
@@ -289,14 +289,14 @@ async function bootstrap() {
       settingsStore.upsertFriendCard(addedFriend);
       return { addedFriend, ...studioState() };
     }),
-    removeFriend: (friendId) => mutateFriendActions.run(async () => {
+    removeFriend: (friendId) => mutateFriendActions.run("removeFriend", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveFriendRemovalTarget(friendId, settingsStore.friendCards);
       await desktopSyncClient.removeFriend(target.friendId, account.accessToken);
       settingsStore.removeFriendCard(target.friendId);
       return studioState();
     }),
-    requestHosting: (petId, toUserId) => mutateFriendActions.run(async () => {
+    requestHosting: (petId, toUserId) => mutateFriendActions.run("requestHosting", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveHostingRequestTarget(
         petId,
@@ -307,7 +307,7 @@ async function bootstrap() {
       await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
       return studioState();
     }),
-    recallPet: (petId) => mutateFriendActions.run(async () => {
+    recallPet: (petId) => mutateFriendActions.run("recallPet", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveRecallPetTarget(petId, settingsStore.syncedPetCards);
       await desktopSyncClient.recallPet(target.petId, account.accessToken);
