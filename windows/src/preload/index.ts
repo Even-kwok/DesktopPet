@@ -1,15 +1,16 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { ipcChannels } from "../main/ipc.ts";
+import { createLatestEventBuffer } from "./event-buffer.ts";
 
-const studioCommandListeners = new Set<(command: unknown) => void>();
-let pendingStudioCommand: unknown;
+const petCommandBuffer = createLatestEventBuffer<unknown>();
+const studioCommandBuffer = createLatestEventBuffer<unknown>();
 
 ipcRenderer.on(ipcChannels.studioCommand, (_event, command: unknown) => {
-  pendingStudioCommand = command;
-  for (const listener of studioCommandListeners) {
-    listener(command);
-    pendingStudioCommand = undefined;
-  }
+  studioCommandBuffer.emit(command);
+});
+
+ipcRenderer.on("pet:command", (_event, command: unknown) => {
+  petCommandBuffer.emit(command);
 });
 
 const desktopPet = {
@@ -42,22 +43,10 @@ const desktopPet = {
   petClick: (petIndex: number) => ipcRenderer.send(ipcChannels.petClick, petIndex),
   petPlaybackEnded: (petIndex: number) => ipcRenderer.send(ipcChannels.petPlaybackEnded, petIndex),
   onPetCommand: (callback: (command: unknown) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, command: unknown) => callback(command);
-    ipcRenderer.on("pet:command", listener);
-    return () => {
-      ipcRenderer.removeListener("pet:command", listener);
-    };
+    return petCommandBuffer.subscribe(callback);
   },
   onStudioCommand: (callback: (command: unknown) => void) => {
-    studioCommandListeners.add(callback);
-    if (pendingStudioCommand !== undefined) {
-      const command = pendingStudioCommand;
-      pendingStudioCommand = undefined;
-      queueMicrotask(() => callback(command));
-    }
-    return () => {
-      studioCommandListeners.delete(callback);
-    };
+    return studioCommandBuffer.subscribe(callback);
   }
 };
 
