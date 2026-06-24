@@ -14,7 +14,9 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   accountDetail,
   accountDisplayName,
-  canRequestHosting,
+  canRefreshFriends,
+  canRequestFriendHosting,
+  canRunFriendMutation,
   canSubmitFriendEmail,
   friendEmailInputPlaceholder,
   friendHostingDetail,
@@ -115,7 +117,8 @@ export function StudioApp() {
   const [selectedPetIndex, setSelectedPetIndex] = useState(0);
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
-  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
+  const [isMutatingFriend, setIsMutatingFriend] = useState(false);
   const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
   const [previewingMaterialSlot, setPreviewingMaterialSlot] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState("");
@@ -183,26 +186,96 @@ export function StudioApp() {
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
   const displayedPetCount = studioPetCountForDisplay(state.petCount);
   const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
+
+  const refreshFriends = async () => {
+    if (!canRefreshFriends(account, isRefreshingFriends)) {
+      return;
+    }
+
+    setIsRefreshingFriends(true);
+    try {
+      await runAction(
+        () => bridge?.refreshFriends?.(),
+        "好友列表已刷新。",
+        (result) => statusMessageForRefreshFriendsAction(result)
+      );
+    } finally {
+      setIsRefreshingFriends(false);
+    }
+  };
+
+  const runFriendMutation = async (
+    action: () => Promise<unknown> | unknown,
+    successMessage: string,
+    afterSuccess?: (result: unknown) => string | void,
+    afterError?: (error: unknown) => string | void
+  ) => {
+    if (!canRunFriendMutation(account, isMutatingFriend)) {
+      return;
+    }
+
+    setIsMutatingFriend(true);
+    try {
+      await runAction(action, successMessage, afterSuccess, afterError);
+    } finally {
+      setIsMutatingFriend(false);
+    }
+  };
+
   const submitFriendEmail = async () => {
-    if (!canSubmitFriendEmail(account, friendEmail, isAddingFriend)) {
+    if (!canSubmitFriendEmail(account, friendEmail, isMutatingFriend)) {
       return;
     }
 
     setStatusMessage(pendingStatusMessageForAddFriendAction());
-    setIsAddingFriend(true);
-    try {
-      await runAction(
-        () => bridge?.addFriend?.(friendEmail),
-        "已添加好友。",
-        (result) => {
-          setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
-          return statusMessageForAddFriendAction(result);
-        },
-        () => statusMessageForAddFriendError()
-      );
-    } finally {
-      setIsAddingFriend(false);
+    await runFriendMutation(
+      () => bridge?.addFriend?.(friendEmail),
+      "已添加好友。",
+      (result) => {
+        setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
+        return statusMessageForAddFriendAction(result);
+      },
+      () => statusMessageForAddFriendError()
+    );
+  };
+
+  const recallSyncedPet = async (pet: DesktopSyncedPetCard) => {
+    if (!canRunFriendMutation(account, isMutatingFriend)) {
+      return;
     }
+
+    setStatusMessage(pendingStatusMessageForRecallAction(pet.name));
+    await runFriendMutation(
+      () => bridge?.recallPet?.(pet.id),
+      statusMessageForRecallAction(pet.name)
+    );
+  };
+
+  const requestFriendHosting = async (friend: DesktopFriendCard) => {
+    if (
+      !selectedSyncedPet ||
+      !canRequestFriendHosting(account, selectedSyncedPet, isMutatingFriend)
+    ) {
+      return;
+    }
+
+    setStatusMessage(pendingStatusMessageForHostingRequestAction(friend.name));
+    await runFriendMutation(
+      () => bridge?.requestHosting?.(selectedSyncedPet.id, friend.id),
+      statusMessageForHostingRequestAction(friend.name, selectedSyncedPet.name)
+    );
+  };
+
+  const removeFriend = async (friend: DesktopFriendCard) => {
+    if (!canRunFriendMutation(account, isMutatingFriend)) {
+      return;
+    }
+
+    setStatusMessage(pendingStatusMessageForRemoveFriendAction(friend.name));
+    await runFriendMutation(
+      () => bridge?.removeFriend?.(friend.id),
+      statusMessageForRemoveFriendAction(friend.name)
+    );
   };
 
   return (
@@ -389,7 +462,10 @@ export function StudioApp() {
                     </div>
                     {cardAction ? (
                       <button
-                        disabled={cardAction.type === "recall" && !account}
+                        disabled={
+                          cardAction.type === "recall" &&
+                          !canRunFriendMutation(account, isMutatingFriend)
+                        }
                         onClick={() => {
                           if (cardAction.type === "select") {
                             setSelectedSyncedPetID(pet.id);
@@ -397,11 +473,7 @@ export function StudioApp() {
                             return;
                           }
 
-                          setStatusMessage(pendingStatusMessageForRecallAction(pet.name));
-                          void runAction(
-                            () => bridge?.recallPet?.(pet.id),
-                            statusMessageForRecallAction(pet.name)
-                          );
+                          void recallSyncedPet(pet);
                         }}
                       >
                         {cardAction.label}
@@ -435,19 +507,13 @@ export function StudioApp() {
           </label>
           <div className="button-grid">
             <button
-              disabled={!account}
-              onClick={() =>
-                void runAction(
-                  () => bridge?.refreshFriends?.(),
-                  "好友列表已刷新。",
-                  (result) => statusMessageForRefreshFriendsAction(result)
-                )
-              }
+              disabled={!canRefreshFriends(account, isRefreshingFriends)}
+              onClick={() => void refreshFriends()}
             >
               刷新好友
             </button>
             <button
-              disabled={!canSubmitFriendEmail(account, friendEmail, isAddingFriend)}
+              disabled={!canSubmitFriendEmail(account, friendEmail, isMutatingFriend)}
               onClick={() => void submitFriendEmail()}
             >
               添加好友
@@ -470,28 +536,14 @@ export function StudioApp() {
                   </div>
                   <div>
                     <button
-                      disabled={!account || !selectedSyncedPet || !canRequestHosting(selectedSyncedPet)}
-                      onClick={() => {
-                        setStatusMessage(pendingStatusMessageForHostingRequestAction(friend.name));
-                        void runAction(
-                          () => bridge?.requestHosting?.(selectedSyncedPet?.id ?? "", friend.id),
-                          selectedSyncedPet
-                            ? statusMessageForHostingRequestAction(friend.name, selectedSyncedPet.name)
-                            : `已向 ${friend.name} 发起寄养。`
-                        );
-                      }}
+                      disabled={!canRequestFriendHosting(account, selectedSyncedPet, isMutatingFriend)}
+                      onClick={() => void requestFriendHosting(friend)}
                     >
                       寄养
                     </button>
                     <button
-                      disabled={!account}
-                      onClick={() => {
-                        setStatusMessage(pendingStatusMessageForRemoveFriendAction(friend.name));
-                        void runAction(
-                          () => bridge?.removeFriend?.(friend.id),
-                          statusMessageForRemoveFriendAction(friend.name)
-                        );
-                      }}
+                      disabled={!canRunFriendMutation(account, isMutatingFriend)}
+                      onClick={() => void removeFriend(friend)}
                     >
                       删除
                     </button>

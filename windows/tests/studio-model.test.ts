@@ -4,6 +4,9 @@ import {
   accountDetail,
   accountDisplayName,
   canSubmitFriendEmail,
+  canRefreshFriends,
+  canRunFriendMutation,
+  canRequestFriendHosting,
   canRequestHosting,
   friendPanelDetail,
   friendPanelEmptyDetail,
@@ -94,6 +97,34 @@ test("builds Mac-parity friend email submit behavior", () => {
   assert.equal(canSubmitFriendEmail(account, "friend@desktop.pet", true), false);
   assert.equal(shouldSubmitFriendEmailKey("Enter"), true);
   assert.equal(shouldSubmitFriendEmailKey("Escape"), false);
+});
+
+test("gates Mac-parity friend refresh and mutation actions while pending", () => {
+  const account = {
+    id: "u1",
+    name: "栗子主人",
+    email: "demo@desktop.pet",
+    credits: 120,
+    accessToken: "token",
+    signedInAt: "now"
+  };
+  const activeOwnedPet = { ownership: "owned", displayState: "active" };
+
+  assert.equal(canRefreshFriends(undefined), false);
+  assert.equal(canRefreshFriends(account), true);
+  assert.equal(canRefreshFriends(account, true), false);
+
+  assert.equal(canRunFriendMutation(undefined), false);
+  assert.equal(canRunFriendMutation(account), true);
+  assert.equal(canRunFriendMutation(account, true), false);
+
+  assert.equal(canRequestFriendHosting(account, activeOwnedPet), true);
+  assert.equal(canRequestFriendHosting(account, activeOwnedPet, true), false);
+  assert.equal(canRequestFriendHosting(account, undefined), false);
+  assert.equal(
+    canRequestFriendHosting(account, { ownership: "hosted", displayState: "active" }),
+    false
+  );
 });
 
 test("builds Mac-parity local material status copy", () => {

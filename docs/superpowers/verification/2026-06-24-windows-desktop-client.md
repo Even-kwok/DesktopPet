@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 216 tests.
+- `npm test`: passed, 217 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -78,6 +78,8 @@ Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 
 Studio friend-panel coverage now verifies Windows uses the Mac `好友` title, `N 位 · 可寄养和删除` summary, and the same empty-state guidance copy.
 
 Studio friend-add coverage now verifies Windows uses the Mac friend-email placeholder, supports Enter-to-add with the same signed-in/non-empty gating as the add button, and disables add submissions while a friend mutation is already in progress.
+
+Studio friend-action coverage now verifies Windows follows the Mac pending-state gates for friend refreshes and friend mutations, so refresh, delete, hosting request, and recall controls are disabled while their corresponding account action is already in progress.
 
 Studio synced-pet-panel coverage now verifies Windows uses the Mac `我的猫咪` title, `N 只` summary, and the same empty sync-state guidance copy.
 

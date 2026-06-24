@@ -89,6 +89,32 @@ export function canSubmitFriendEmail(
   return Boolean(account && !isSubmittingFriend && friendEmail.trim());
 }
 
+export function canRefreshFriends(
+  account: DesktopAccountSession | undefined,
+  isRefreshingFriends = false
+) {
+  return Boolean(account && !isRefreshingFriends);
+}
+
+export function canRunFriendMutation(
+  account: DesktopAccountSession | undefined,
+  isMutatingFriend = false
+) {
+  return Boolean(account && !isMutatingFriend);
+}
+
+export function canRequestFriendHosting(
+  account: DesktopAccountSession | undefined,
+  selectedPet: SyncedPetState | undefined,
+  isMutatingFriend = false
+) {
+  return Boolean(
+    canRunFriendMutation(account, isMutatingFriend) &&
+      selectedPet &&
+      canRequestHosting(selectedPet)
+  );
+}
+
 export function shouldSubmitFriendEmailKey(key: string) {
   return key === "Enter";
 }
