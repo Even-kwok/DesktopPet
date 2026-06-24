@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 220 tests.
+- `npm test`: passed, 221 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -30,6 +30,8 @@ Local import planning coverage now verifies that invalid Windows IPC pet indexes
 Local import visibility coverage now verifies that an `idle_loop` import only saves the Windows pets as visible when the import actually results in at least one displayable pet window.
 
 Tray add-pet import coverage now verifies that the follow-up `idle_loop` import target falls back to the first pet when an invalid add result is encountered.
+
+Local import target coverage now verifies renderer-supplied pet indexes are normalized before the Windows app builds picker copy, grows pet count, saves the selected video, and refreshes playback.
 
 Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
 

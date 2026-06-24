@@ -27,6 +27,7 @@ import {
   idleLoopImportTargetAfterAddingPet,
   isSupportedLocalVideoPath,
   localVideoImportVisibility,
+  localVideoImportTarget,
   localVideoPickerOptions,
   localVideoRemovalAction,
   petCountAfterLocalVideoImport
@@ -556,10 +557,11 @@ async function importLocalVideo(input: {
   settingsStore: SettingsStore;
   petColonyController: PetColonyController;
 }) {
+  const target = localVideoImportTarget(input.petIndex, input.slot);
   const result = await dialog.showOpenDialog(
     localVideoPickerOptions(
-      input.settingsStore.petName(input.petIndex),
-      petActionSlotDisplayName(input.slot)
+      input.settingsStore.petName(target.petIndex),
+      petActionSlotDisplayName(target.slot)
     )
   );
 
@@ -609,18 +611,18 @@ async function importLocalVideo(input: {
 
   const nextPetCount = petCountAfterLocalVideoImport(
     input.settingsStore.petCount,
-    input.petIndex,
-    input.slot
+    target.petIndex,
+    target.slot
   );
   if (nextPetCount !== input.settingsStore.petCount) {
     input.petColonyController.setPetCount(nextPetCount);
   }
 
-  input.settingsStore.saveVideoPath(videoPath, input.slot, input.petIndex);
-  if (input.slot === "idle_loop") {
+  input.settingsStore.saveVideoPath(videoPath, target.slot, target.petIndex);
+  if (target.slot === "idle_loop") {
     const didShowAnyPet = input.petColonyController.showAll();
     input.settingsStore.isPetVisible = localVideoImportVisibility(
-      input.slot,
+      target.slot,
       input.settingsStore.isPetVisible,
       didShowAnyPet
     );

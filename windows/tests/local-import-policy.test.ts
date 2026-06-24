@@ -5,6 +5,7 @@ import {
   firstRunIdleLoopPromptPlan,
   idleLoopImportTargetAfterAddingPet,
   isSupportedLocalVideoPath,
+  localVideoImportTarget,
   localVideoImportVisibility,
   localVideoPickerOptions,
   localVideoRemovalAction,
@@ -60,6 +61,21 @@ test("normalizes invalid added-pet import targets to the first pet", () => {
   assert.deepEqual(idleLoopImportTargetAfterAddingPet(Number.POSITIVE_INFINITY), {
     petIndex: 0,
     slot: "idle_loop"
+  });
+});
+
+test("normalizes renderer local import targets before saving videos", () => {
+  assert.deepEqual(localVideoImportTarget(1.8, "idle_loop"), {
+    petIndex: 1,
+    slot: "idle_loop"
+  });
+  assert.deepEqual(localVideoImportTarget(-1, "click_react"), {
+    petIndex: 0,
+    slot: "click_react"
+  });
+  assert.deepEqual(localVideoImportTarget(Number.NaN, "sleep_loop"), {
+    petIndex: 0,
+    slot: "sleep_loop"
   });
 });
 

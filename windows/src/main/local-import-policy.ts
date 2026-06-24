@@ -12,9 +12,13 @@ export type FirstRunIdleLoopPromptInput = {
 };
 
 export function idleLoopImportTargetAfterAddingPet(petIndex: number) {
+  return localVideoImportTarget(petIndex, "idle_loop");
+}
+
+export function localVideoImportTarget(petIndex: number, slot: PetActionSlot) {
   return {
     petIndex: normalizedPetIndex(petIndex),
-    slot: "idle_loop" as const
+    slot
   };
 }
 
