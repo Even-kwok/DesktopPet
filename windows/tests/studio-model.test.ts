@@ -5,6 +5,7 @@ import {
   accountDisplayName,
   canSubmitLogin,
   canSyncDesktopBundle,
+  loginValidationMessage,
   canSubmitFriendEmail,
   canRefreshFriends,
   canRunFriendMutation,
@@ -73,9 +74,12 @@ test("builds Mac-parity login panel copy for Windows", () => {
 
 test("gates Mac-parity login submits while pending", () => {
   assert.equal(canSubmitLogin("demo@desktop.pet", "123456"), true);
-  assert.equal(canSubmitLogin("   ", "123456"), false);
-  assert.equal(canSubmitLogin("demo@desktop.pet", ""), false);
+  assert.equal(canSubmitLogin("   ", "123456"), true);
+  assert.equal(canSubmitLogin("demo@desktop.pet", ""), true);
   assert.equal(canSubmitLogin("demo@desktop.pet", "123456", true), false);
+  assert.equal(loginValidationMessage("   ", "123456"), "请输入邮箱和密码。");
+  assert.equal(loginValidationMessage("demo@desktop.pet", ""), "请输入邮箱和密码。");
+  assert.equal(loginValidationMessage("demo@desktop.pet", "123456"), undefined);
 });
 
 test("gates Mac-parity desktop sync while pending", () => {

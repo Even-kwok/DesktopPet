@@ -73,7 +73,7 @@ Studio status coverage now verifies pets marked as `away` show the same friend-h
 
 Studio login-panel coverage now verifies Windows uses the Mac `登录后同步你的猫咪` title and the same feature-boundary helper copy with the Windows platform name.
 
-Studio login-action coverage now verifies Windows follows the Mac login gate: empty credentials and in-flight login submissions cannot trigger another account login request.
+Studio login-action coverage now verifies Windows follows the Mac login gate: empty credentials show the same validation copy, while only in-flight login submissions disable the login button.
 
 Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 N 只` detail copy as the Mac Studio for hosted-pet counts.
 

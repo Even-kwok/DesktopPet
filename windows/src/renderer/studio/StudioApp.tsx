@@ -33,6 +33,7 @@ import {
   localMaterialPreviewAction,
   localMaterialStatusText,
   shouldSubmitFriendEmailKey,
+  loginValidationMessage,
   syncedPetCardAction,
   syncedPetPanelDetail,
   syncedPetPanelEmptyDetail,
@@ -193,6 +194,12 @@ export function StudioApp() {
 
   const signIn = async () => {
     if (!canSubmitLogin(email, password, isLoggingIn)) {
+      return;
+    }
+
+    const validationMessage = loginValidationMessage(email, password);
+    if (validationMessage) {
+      setStatusMessage(validationMessage);
       return;
     }
 
