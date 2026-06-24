@@ -15,6 +15,7 @@ export type {
 export type MenuTemplateItem = {
   label?: string;
   type?: "separator" | "normal" | "checkbox";
+  icon?: unknown;
   checked?: boolean;
   enabled?: boolean;
   accelerator?: string;
@@ -36,6 +37,7 @@ export type TrayMenuState = {
   isClickThrough: boolean;
   isMouseoverCatchEnabled: boolean;
   petName: (petIndex: number) => string;
+  petIcon?: (petIndex: number) => unknown;
   hasVideo: (slot: PetActionSlot, petIndex: number) => boolean;
   petSizeScale: (petIndex: number) => number;
 };
@@ -110,10 +112,9 @@ function petSubmenus(
   state: TrayMenuState,
   buildSubmenu: (petIndex: number) => MenuTemplateItem[]
 ): MenuTemplateItem[] {
-  return Array.from({ length: state.petCount }, (_, petIndex) => ({
-    label: state.petName(petIndex),
-    submenu: buildSubmenu(petIndex)
-  }));
+  return Array.from({ length: state.petCount }, (_, petIndex) =>
+    petMenuItem(state, petIndex, { submenu: buildSubmenu(petIndex) })
+  );
 }
 
 function chooseStateVideoSubmenu(state: TrayMenuState, petIndex: number): MenuTemplateItem[] {
@@ -158,7 +159,7 @@ function petsSubmenu(state: TrayMenuState): MenuTemplateItem[] {
       label: "调整大小",
       enabled: state.petCount > 0,
       submenu: Array.from({ length: state.petCount }, (_, petIndex) => ({
-        label: state.petName(petIndex),
+        ...petMenuItem(state, petIndex),
         submenu: petSizeSubmenu(state, petIndex)
       }))
     },
@@ -171,11 +172,22 @@ function petsSubmenu(state: TrayMenuState): MenuTemplateItem[] {
 }
 
 function petActionSubmenu(state: TrayMenuState, action: string): MenuTemplateItem[] {
-  return Array.from({ length: state.petCount }, (_, petIndex) => ({
+  return Array.from({ length: state.petCount }, (_, petIndex) =>
+    petMenuItem(state, petIndex, { action, payload: { petIndex } })
+  );
+}
+
+function petMenuItem(
+  state: TrayMenuState,
+  petIndex: number,
+  item: MenuTemplateItem = {}
+): MenuTemplateItem {
+  const icon = state.petIcon?.(petIndex);
+  return {
     label: state.petName(petIndex),
-    action,
-    payload: { petIndex }
-  }));
+    ...(icon === undefined ? {} : { icon }),
+    ...item
+  };
 }
 
 function petSizeSubmenu(state: TrayMenuState, petIndex: number): MenuTemplateItem[] {

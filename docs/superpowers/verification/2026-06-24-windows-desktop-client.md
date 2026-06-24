@@ -5,11 +5,13 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 158 tests.
+- `npm test`: passed, 162 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
 Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
+
+The Windows tray menu now also has automated coverage for Mac-parity pet submenu thumbnails. A cached thumbnail provider requests 28x28 native thumbnails from each pet's `idle_loop` video, refreshes the tray when an icon becomes available, and falls back to text-only menus if thumbnail generation fails.
 
 ## Electron Smoke Evidence
 

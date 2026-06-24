@@ -18,6 +18,7 @@ import {
   buildTrayMenuTemplate,
   resetPositionsActionPlan
 } from "./tray-controller.ts";
+import { PetTrayIconProvider } from "./pet-tray-icon-provider.ts";
 import { studioCommandFromPetPayload } from "./studio-window-policy.ts";
 import {
   firstRunIdleLoopPromptOptions,
@@ -72,6 +73,9 @@ async function bootstrap() {
   const settingsStore = new SettingsStore(path.join(app.getPath("userData"), "settings.json"));
   const desktopSyncClient = new DesktopPetSyncClient(process.env.CAT_DESKTOP_PET_WEB_BASE_URL);
   const remoteMaterialRoot = path.join(app.getPath("appData"), "CatDesktopPet", "RemoteMaterials");
+  const petTrayIconProvider = new PetTrayIconProvider({
+    createThumbnailFromPath: (videoPath, size) => nativeImage.createThumbnailFromPath(videoPath, size)
+  });
   const petColonyController = new PetColonyController(
     settingsStore,
     (petIndex) =>
@@ -184,6 +188,7 @@ async function bootstrap() {
         petColonyController,
         remoteMaterialRoot
       });
+      petTrayIconProvider.invalidate();
       refreshTray();
       return { summary, ...studioState() };
     }),
@@ -216,6 +221,7 @@ async function bootstrap() {
         settingsStore,
         petColonyController
       });
+      petTrayIconProvider.invalidate();
       refreshTray();
       return { result, ...studioState() };
     },
@@ -228,6 +234,7 @@ async function bootstrap() {
       } else {
         petColonyController.refreshPlayback();
       }
+      petTrayIconProvider.invalidate();
       refreshTray();
       return studioState();
     },
@@ -247,6 +254,7 @@ async function bootstrap() {
           settingsStore,
           petColonyController
         });
+        petTrayIconProvider.invalidate();
       }
       refreshTray();
       return { result, didShow: settingsStore.isPetVisible, ...studioState() };
@@ -346,6 +354,8 @@ async function bootstrap() {
       isClickThrough: settingsStore.isClickThrough,
       isMouseoverCatchEnabled: settingsStore.isMouseoverCatchEnabled,
       petName: (petIndex) => settingsStore.petName(petIndex),
+      petIcon: (petIndex) =>
+        petTrayIconProvider.iconForVideo(settingsStore.restoreVideoPath("idle_loop", petIndex), refreshTray),
       hasVideo: (slot, petIndex) => settingsStore.restoreVideoPath(slot, petIndex) !== undefined,
       petSizeScale: (petIndex) => settingsStore.petSizeScale(petIndex)
     });
@@ -362,7 +372,10 @@ async function bootstrap() {
               settingsStore,
               petColonyController
             })
-              .then(refreshTray)
+              .then(() => {
+                petTrayIconProvider.invalidate();
+                refreshTray();
+              })
               .catch(showActionError);
           },
           toggleVisibility: () => {
@@ -379,7 +392,10 @@ async function bootstrap() {
                   settingsStore,
                   petColonyController
                 })
-                  .then(refreshTray)
+                  .then(() => {
+                    petTrayIconProvider.invalidate();
+                    refreshTray();
+                  })
                   .catch(showActionError);
               }
             }
@@ -409,13 +425,17 @@ async function bootstrap() {
               settingsStore,
               petColonyController
             })
-              .then(refreshTray)
+              .then(() => {
+                petTrayIconProvider.invalidate();
+                refreshTray();
+              })
               .catch(showActionError);
           },
           renamePet: (payload) => studioWindowController?.show(studioCommandFromPetPayload(payload)),
           removePet: (payload) => {
             const petIndex = payloadPetIndex(payload);
             settingsStore.isPetVisible = settingsStore.isPetVisible && petColonyController.removePet(petIndex);
+            petTrayIconProvider.invalidate();
             refreshTray();
           },
           setPetSize: (payload) => {
@@ -433,6 +453,7 @@ async function bootstrap() {
             } else {
               petColonyController.refreshPlayback();
             }
+            petTrayIconProvider.invalidate();
             refreshTray();
           },
           quit: () => app.quit()
@@ -473,7 +494,10 @@ async function bootstrap() {
             slot: firstRunPrompt.slot,
             settingsStore,
             petColonyController
-          }).then(refreshTray);
+          }).then(() => {
+            petTrayIconProvider.invalidate();
+            refreshTray();
+          });
         })
         .catch(showActionError);
     }, 400);

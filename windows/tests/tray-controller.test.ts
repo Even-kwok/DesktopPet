@@ -53,6 +53,26 @@ test("builds Mac-parity tray menu accelerators", () => {
   assert.equal(template[4].submenu?.[2].accelerator, "CommandOrControl+N");
 });
 
+test("adds pet thumbnails to pet submenus like the Mac status menu", () => {
+  const template = buildTrayMenuTemplate({
+    petCount: 2,
+    isVisible: false,
+    isClickThrough: false,
+    isMouseoverCatchEnabled: true,
+    petName: (petIndex) => (petIndex === 0 ? "栗子" : "团子"),
+    petIcon: (petIndex) => `icon-${petIndex}`,
+    hasVideo: (slot) => slot === "idle_loop",
+    petSizeScale: () => 1
+  });
+
+  assert.equal(template[2].submenu?.[0].icon, "icon-0");
+  assert.equal(template[2].submenu?.[1].icon, "icon-1");
+  assert.equal(template[3].submenu?.[0].icon, "icon-0");
+  assert.equal(template[4].submenu?.[3].submenu?.[1].icon, "icon-1");
+  assert.equal(template[4].submenu?.[4].submenu?.[0].icon, "icon-0");
+  assert.equal(template[4].submenu?.[5].submenu?.[1].icon, "icon-1");
+});
+
 test("requests an idle-loop import when tray show cannot display a pet", () => {
   assert.deepEqual(visibilityResultAfterShowingPets(false), {
     isPetVisible: false,
