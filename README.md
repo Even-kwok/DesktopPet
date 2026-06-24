@@ -88,7 +88,7 @@ Current Windows MVP includes:
 - Transparent always-on-top Electron pet windows with click, drag, click-through, saved position, size controls, sleep/wake recovery, mouseover catch, idle random actions, and nearby-pet paired interactions.
 - Local MP4/MOV state-video import and per-pet video persistence.
 - Canvas chroma-key rendering for green-screen pet videos.
-- Compact account/studio UI for login, sync, synced pet cards, local materials, friends, hosting, recall, and sign-out.
+- Compact account/studio UI for real account login, sync, synced pet cards, friends, hosting, recall, and sign-out.
 - Desktop sync through `/api/desktop/auth/login`, `/api/desktop/pets`, `/api/friends`, and `/api/hosting/*`, including remote material download into a local `RemoteMaterials` cache.
 
 Deployment notes live in `docs/deployment.md`, and the first Supabase schema draft lives in `docs/schema.sql`.
@@ -106,7 +106,7 @@ Deployment notes live in `docs/deployment.md`, and the first Supabase schema dra
   - 重置位置
   - 退出
 - Transparent borderless floating cat panel.
-- Compact native account window for placeholder login, web sync, pet switching, friend hosting, and recall.
+- Compact native account window for real account login, web sync, pet switching, friend hosting, and recall.
 - Local state-video selection stays in the status bar menu for desktop playback testing.
 - Fixed initial panel size: `150x150`.
 - Looping video playback.

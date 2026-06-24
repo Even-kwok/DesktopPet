@@ -1,13 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  allPetActionSlots,
-  materialGroupForSlot,
-  materialGroupDescription,
-  materialGroupTitle,
-  petActionSlotDisplayName,
-  petActionSlotTriggerDescription
-} from "../../shared/pet-action-slots.ts";
-import type { PetActionSlot, PetMaterialGroup } from "../../shared/pet-action-slots.ts";
+import { useEffect, useState } from "react";
+import type { PetActionSlot } from "../../shared/pet-action-slots.ts";
 import type { DesktopFriendCard } from "../../shared/desktop-sync-client.ts";
 import type { DesktopAccountSession, DesktopSyncedPetCard } from "../../shared/settings-store.ts";
 import type { DesktopPetBridge } from "../../preload/index.ts";
@@ -29,13 +21,8 @@ import {
   friendPanelTitle,
   loginPanelDetail,
   loginPanelTitle,
-  localMaterialBoardDetail,
-  localMaterialBoardTitle,
-  localMaterialPreviewAction,
-  localMaterialStatusText,
   shouldSubmitFriendEmailKey,
   loginValidationMessage,
-  localMaterialPreviewHint,
   syncedPetCardAction,
   syncedPetPanelDetail,
   syncedPetPanelEmptyDetail,
@@ -48,7 +35,6 @@ import {
   nextFriendEmailDraftAfterSignOutAction,
   pendingStatusMessageForAddFriendAction,
   pendingStatusMessageForHostingRequestAction,
-  pendingStatusMessageForImportVideoAction,
   pendingStatusMessageForRecallAction,
   pendingStatusMessageForRemoveFriendAction,
   pendingStatusMessageForSignInAction,
@@ -58,14 +44,11 @@ import {
   statusMessageForRemoveFriendAction,
   statusMessageForRefreshFriendsAction,
   statusMessageForHostingRequestAction,
-  statusMessageForImportVideoAction,
   statusMessageForRecallAction,
-  statusMessageForRemoveVideoAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
   statusMessageForSyncAction
 } from "./studio-action-result.ts";
-import { toVideoSource } from "../pet/pet-playback-command.ts";
 import {
   nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
@@ -117,8 +100,8 @@ const defaultStudioState: StudioState = {
 
 export function StudioApp() {
   const [state, setState] = useState<StudioState>(defaultStudioState);
-  const [email, setEmail] = useState("demo@desktop.pet");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedPetIndex, setSelectedPetIndex] = useState(0);
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
@@ -127,7 +110,6 @@ export function StudioApp() {
   const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
   const [isMutatingFriend, setIsMutatingFriend] = useState(false);
   const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
-  const [previewingMaterialSlot, setPreviewingMaterialSlot] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState("");
 
   const bridge = window.desktopPet;
@@ -163,15 +145,6 @@ export function StudioApp() {
     });
   }, [bridge]);
 
-  const groupedSlots = useMemo(() => {
-    const groups = new Map<PetMaterialGroup, PetActionSlot[]>();
-    allPetActionSlots.forEach((slot) => {
-      const group = materialGroupForSlot(slot);
-      groups.set(group, [...(groups.get(group) ?? []), slot]);
-    });
-    return Array.from(groups.entries());
-  }, []);
-
   const runAction = async (
     action: () => Promise<unknown> | unknown,
     successMessage: string,
@@ -205,10 +178,17 @@ export function StudioApp() {
       return;
     }
 
+    const trimmedEmail = email.trim();
     setStatusMessage(pendingStatusMessageForSignInAction());
     setIsLoggingIn(true);
     try {
-      await runAction(() => bridge?.signIn?.(email, password), statusMessageForSignInAction());
+      await runAction(() => {
+        if (!bridge?.signIn) {
+          throw new Error("桌面登录服务未就绪，请重新打开素材工作台。");
+        }
+
+        return bridge.signIn(trimmedEmail, password);
+      }, statusMessageForSignInAction());
     } finally {
       setIsLoggingIn(false);
     }
@@ -364,16 +344,27 @@ export function StudioApp() {
       </section>
 
       {!account ? (
-        <section className="studio-panel login-panel">
+        <form
+          className="studio-panel login-panel"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void signIn();
+          }}
+        >
           <h2>{loginPanelTitle()}</h2>
           <p>{loginPanelDetail()}</p>
           <label>
             邮箱
-            <input value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label>
             密码
             <input
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type="password"
@@ -382,11 +373,17 @@ export function StudioApp() {
           <button
             className="primary-action"
             disabled={!canSubmitLogin(email, password, isLoggingIn)}
-            onClick={() => void signIn()}
+            type="submit"
           >
-            登录
+            {isLoggingIn ? "登录中..." : "登录"}
           </button>
-        </section>
+        </form>
+      ) : null}
+
+      {statusMessage ? (
+        <p className="status-line" role="status" aria-live="polite">
+          {statusMessage}
+        </p>
       ) : null}
 
       <section className="studio-grid">
@@ -402,7 +399,6 @@ export function StudioApp() {
                 className={index === selectedPetIndex ? "selected" : ""}
                 onClick={() => {
                   setSelectedPetIndex(index);
-                  setPreviewingMaterialSlot(undefined);
                   setPetNameDraft(petNameDraftForIndex(state, index));
                 }}
               >
@@ -601,98 +597,6 @@ export function StudioApp() {
         </div>
       </section>
 
-      <section className="studio-panel material-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>{localMaterialBoardTitle()}</h2>
-            <p>{localMaterialBoardDetail()}</p>
-          </div>
-          <span>Pet {selectedPetIndex + 1}</span>
-        </div>
-        <div className="material-groups">
-          {groupedSlots.map(([group, slots]) => {
-            const selectedLocalVideoSlots = state.localVideoSlots[selectedPetIndex] ?? [];
-            const selectedLocalVideoPaths = state.localVideoPaths[selectedPetIndex] ?? {};
-            const completedSlots = slots.filter((slot) => selectedLocalVideoSlots.includes(slot)).length;
-
-            return (
-              <section className="material-group" key={group}>
-                <div className="material-group-heading">
-                  <div>
-                    <h3>{materialGroupTitle(group)}</h3>
-                    <p>{materialGroupDescription(group)}</p>
-                  </div>
-                  <span>
-                    {completedSlots}/{slots.length}
-                  </span>
-                </div>
-                <div className="material-list">
-                  {slots.map((slot) => {
-                    const hasVideo = selectedLocalVideoSlots.includes(slot);
-                    const previewPath = selectedLocalVideoPaths[slot];
-                    const previewKey = `${selectedPetIndex}:${slot}`;
-                    const isPreviewing = previewingMaterialSlot === previewKey && Boolean(previewPath);
-                    const previewAction = localMaterialPreviewAction({ hasVideo, isPreviewing });
-                    const slotName = petActionSlotDisplayName(slot);
-                    return (
-                      <div className={`material-row ${isPreviewing ? "previewing" : ""}`} key={slot}>
-                        <span className="material-summary">
-                          {slotName}
-                          <small>{petActionSlotTriggerDescription(slot)}</small>
-                          <small>{localMaterialStatusText({ hasVideo })}</small>
-                          <small>{localMaterialPreviewHint({ hasVideo })}</small>
-                        </span>
-                        <div className="material-actions">
-                          <button
-                            disabled={previewAction.disabled}
-                            onClick={() =>
-                              setPreviewingMaterialSlot(isPreviewing ? undefined : previewKey)
-                            }
-                          >
-                            {previewAction.label}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPreviewingMaterialSlot(undefined);
-                              setStatusMessage(pendingStatusMessageForImportVideoAction(slotName));
-                              void runAction(
-                                () => bridge?.importVideo?.(selectedPetIndex, slot),
-                                `已导入「${slotName}」。`,
-                                (result) => statusMessageForImportVideoAction(slotName, result)
-                              );
-                            }}
-                          >
-                            导入
-                          </button>
-                          <button
-                            disabled={!hasVideo}
-                            onClick={() => {
-                              setPreviewingMaterialSlot(undefined);
-                              void runAction(
-                                () => bridge?.removeVideo?.(selectedPetIndex, slot),
-                                statusMessageForRemoveVideoAction(slotName)
-                              );
-                            }}
-                          >
-                            删除
-                          </button>
-                        </div>
-                        {isPreviewing && previewPath ? (
-                          <div className="material-preview">
-                            <video autoPlay loop muted playsInline src={toVideoSource(previewPath)} />
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      </section>
-
-      {statusMessage ? <p className="status-line">{statusMessage}</p> : null}
     </main>
   );
 }

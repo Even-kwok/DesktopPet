@@ -318,7 +318,12 @@ button:disabled {
 }
 
 .status-line {
-  padding: 0 4px 4px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid #bfd8d1;
+  border-radius: 8px;
+  background: #eef8f5;
+  color: #286954;
   font-size: 12px;
   font-weight: 700;
 }

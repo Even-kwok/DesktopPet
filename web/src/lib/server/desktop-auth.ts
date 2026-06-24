@@ -1,6 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient, type User } from "@supabase/supabase-js";
-import { currentUser } from "../mock-data.ts";
 import { toCurrentUser } from "../auth-policy.ts";
 import { getBackendStatus } from "../supabase/server.ts";
 import type { CurrentUser, DesktopLoginResponse } from "../types.ts";
@@ -23,10 +22,6 @@ export async function createDesktopLoginSession(input: {
   password: string;
 }): Promise<DesktopLoginResponse | null> {
   const backend = getBackendStatus();
-
-  if (isDemoDesktopLogin(input)) {
-    return demoDesktopLoginSession();
-  }
 
   if (!backend.authConfigured) {
     return null;
@@ -55,20 +50,6 @@ export async function createDesktopLoginSession(input: {
     accessToken: signDesktopToken(account),
     expiresIn: desktopTokenMaxAgeSeconds,
     account
-  };
-}
-
-function isDemoDesktopLogin(input: { email: string; password: string }) {
-  return input.email === "demo@desktop.pet" && input.password === "123456";
-}
-
-function demoDesktopLoginSession(): DesktopLoginResponse {
-  return {
-    mode: "mock",
-    tokenType: "bearer",
-    accessToken: signDesktopToken(currentUser),
-    expiresIn: desktopTokenMaxAgeSeconds,
-    account: currentUser
   };
 }
 

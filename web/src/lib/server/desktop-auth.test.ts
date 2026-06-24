@@ -93,7 +93,7 @@ test("desktop login returns a long-lived desktop token instead of the Supabase a
   }
 });
 
-test("desktop login keeps the Mac demo account usable when Supabase auth is configured", async () => {
+test("desktop login does not bypass Supabase for the demo account when auth is configured", async () => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
   process.env.AUTH_MOCK_COOKIE_SECRET = "desktop-test-secret";
@@ -110,21 +110,8 @@ test("desktop login keeps the Mac demo account usable when Supabase auth is conf
       password: "123456"
     });
 
-    assert.ok(session);
-    assert.equal(didCallSupabase, false);
-    assert.equal(session.mode, "mock");
-    assert.equal(session.account.email, "demo@desktop.pet");
-
-    const auth = await getDesktopAuthContext(
-      new Request("https://example.com/api/desktop/pets", {
-        headers: {
-          authorization: `Bearer ${session.accessToken}`
-        }
-      })
-    );
-
-    assert.equal(auth.mode, "supabase");
-    assert.equal(auth.user?.email, "demo@desktop.pet");
+    assert.equal(session, null);
+    assert.equal(didCallSupabase, true);
   } finally {
     globalThis.fetch = originalFetch;
   }
