@@ -28,6 +28,16 @@ test("only allows sleep from idle and wake from sleeping", () => {
   assert.equal(machine.state, "idle");
 });
 
+test("wakes back to idle when a sleep video finishes", () => {
+  const machine = new PetStateMachine();
+
+  machine.send("show");
+  machine.send("sleep");
+  machine.send("reactionFinished");
+
+  assert.equal(machine.state, "idle");
+});
+
 test("reactions return to idle after reactionFinished", () => {
   const machine = new PetStateMachine();
   machine.send("show");

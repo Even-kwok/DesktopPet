@@ -64,6 +64,12 @@ body {
   margin-bottom: 12px;
 }
 
+.studio-stack {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .studio-panel {
   padding: 12px;
 }
