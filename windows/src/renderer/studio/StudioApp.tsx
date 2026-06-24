@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   allPetActionSlots,
   materialGroupForSlot,
+  materialGroupDescription,
+  materialGroupTitle,
   petActionSlotDisplayName,
   petActionSlotTriggerDescription
 } from "../../shared/pet-action-slots.ts";
@@ -83,15 +85,6 @@ const defaultStudioState: StudioState = {
   isPetVisible: false,
   isClickThrough: false,
   isMouseoverCatchEnabled: true
-};
-
-const materialGroupTitles: Record<PetMaterialGroup, string> = {
-  core: "基础状态",
-  pointer: "鼠标触发",
-  nearbyPet: "宠物靠近互动",
-  idleLife: "待机生活动作",
-  feeding: "喂食 / 条件动作",
-  reserved: "备用动作"
 };
 
 export function StudioApp() {
@@ -466,51 +459,64 @@ export function StudioApp() {
           <span>Pet {selectedPetIndex + 1}</span>
         </div>
         <div className="material-groups">
-          {groupedSlots.map(([group, slots]) => (
-            <section className="material-group" key={group}>
-              <h3>{materialGroupTitles[group]}</h3>
-              <div className="material-list">
-                {slots.map((slot) => {
-                  const hasVideo = state.localVideoSlots[selectedPetIndex]?.includes(slot) ?? false;
-                  const slotName = petActionSlotDisplayName(slot);
-                  return (
-                    <div className="material-row" key={slot}>
-                      <span>
-                        {slotName}
-                        <small>{petActionSlotTriggerDescription(slot)}</small>
-                        <small>{localMaterialStatusText({ hasVideo })}</small>
-                      </span>
-                      <div>
-                        <button
-                          onClick={() => {
-                            setStatusMessage(pendingStatusMessageForImportVideoAction(slotName));
-                            void runAction(
-                              () => bridge?.importVideo?.(selectedPetIndex, slot),
-                              `已导入「${slotName}」。`,
-                              (result) => statusMessageForImportVideoAction(slotName, result)
-                            );
-                          }}
-                        >
-                          导入
-                        </button>
-                        <button
-                          disabled={!hasVideo}
-                          onClick={() =>
-                            void runAction(
-                              () => bridge?.removeVideo?.(selectedPetIndex, slot),
-                              statusMessageForRemoveVideoAction(slotName)
-                            )
-                          }
-                        >
-                          删除
-                        </button>
+          {groupedSlots.map(([group, slots]) => {
+            const selectedLocalVideoSlots = state.localVideoSlots[selectedPetIndex] ?? [];
+            const completedSlots = slots.filter((slot) => selectedLocalVideoSlots.includes(slot)).length;
+
+            return (
+              <section className="material-group" key={group}>
+                <div className="material-group-heading">
+                  <div>
+                    <h3>{materialGroupTitle(group)}</h3>
+                    <p>{materialGroupDescription(group)}</p>
+                  </div>
+                  <span>
+                    {completedSlots}/{slots.length}
+                  </span>
+                </div>
+                <div className="material-list">
+                  {slots.map((slot) => {
+                    const hasVideo = selectedLocalVideoSlots.includes(slot);
+                    const slotName = petActionSlotDisplayName(slot);
+                    return (
+                      <div className="material-row" key={slot}>
+                        <span>
+                          {slotName}
+                          <small>{petActionSlotTriggerDescription(slot)}</small>
+                          <small>{localMaterialStatusText({ hasVideo })}</small>
+                        </span>
+                        <div>
+                          <button
+                            onClick={() => {
+                              setStatusMessage(pendingStatusMessageForImportVideoAction(slotName));
+                              void runAction(
+                                () => bridge?.importVideo?.(selectedPetIndex, slot),
+                                `已导入「${slotName}」。`,
+                                (result) => statusMessageForImportVideoAction(slotName, result)
+                              );
+                            }}
+                          >
+                            导入
+                          </button>
+                          <button
+                            disabled={!hasVideo}
+                            onClick={() =>
+                              void runAction(
+                                () => bridge?.removeVideo?.(selectedPetIndex, slot),
+                                statusMessageForRemoveVideoAction(slotName)
+                              )
+                            }
+                          >
+                            删除
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
       </section>
 

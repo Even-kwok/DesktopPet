@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 208 tests.
+- `npm test`: passed, 209 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -14,6 +14,8 @@ Additional automated coverage now includes the shared Electron `BrowserWindow` o
 The Windows tray menu now also has automated coverage for Mac-parity pet submenu thumbnails. A cached thumbnail provider requests 28x28 native thumbnails from each pet's `idle_loop` video, refreshes the tray when an icon becomes available, and falls back to a paw-style placeholder icon when no video is available or thumbnail generation fails.
 
 Material-slot coverage now verifies Windows exposes the same trigger descriptions as the Mac Studio cards, including `默认循环`, `点击宠物`, `鼠标经过宠物`, `另一只宠物靠近`, and `待机随机`.
+
+Material-group coverage now verifies Windows exposes the same Mac Studio group titles and helper descriptions, such as `基础状态` with `宠物显示、睡觉等基础素材。`, and shows group-level completion counts in the Studio.
 
 System wake coverage now includes the pet-window resume policy: hidden pet windows stay hidden, while visible pet windows are restored and replay the current state without issuing a second state-machine `show` event.
 

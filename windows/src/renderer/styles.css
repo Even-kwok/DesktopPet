@@ -160,6 +160,30 @@ button:disabled {
   gap: 6px;
 }
 
+.material-group-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.material-group-heading h3 {
+  margin-bottom: 2px;
+}
+
+.material-group-heading p {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.material-group-heading > span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .synced-list,
 .friend-list {
   display: grid;
@@ -261,6 +285,11 @@ button:disabled {
 
   .material-row {
     grid-template-columns: 1fr;
+  }
+
+  .material-group-heading {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .friend-row {

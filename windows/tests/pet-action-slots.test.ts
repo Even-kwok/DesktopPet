@@ -5,6 +5,8 @@ import {
   clickReactionSlots,
   idleRandomActionSlots,
   materialGroupForSlot,
+  materialGroupDescription,
+  materialGroupTitle,
   matchingNearbyResponseSlot,
   mouseoverCatchSlots,
   nearbyPetInteractionSlots,
@@ -99,4 +101,17 @@ test("classifies material groups and size choices", () => {
   assert.equal(materialGroupForSlot("look_at_camera"), "idleLife");
   assert.equal(materialGroupForSlot("hungry_meow"), "feeding");
   assert.deepEqual(petSizeScaleOptions, [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]);
+});
+
+test("builds Mac-parity material group titles and descriptions", () => {
+  assert.equal(materialGroupTitle("core"), "基础状态");
+  assert.equal(materialGroupDescription("core"), "宠物显示、睡觉等基础素材。");
+  assert.equal(materialGroupTitle("pointer"), "鼠标触发");
+  assert.equal(materialGroupDescription("pointer"), "由用户点击或鼠标经过触发。");
+  assert.equal(materialGroupTitle("nearbyPet"), "宠物靠近互动");
+  assert.equal(materialGroupDescription("nearbyPet"), "多只宠物靠近时成对触发。");
+  assert.equal(materialGroupTitle("idleLife"), "待机生活动作");
+  assert.equal(materialGroupDescription("idleLife"), "宠物待机时自己随机播放。");
+  assert.equal(materialGroupTitle("feeding"), "喂食 / 条件动作");
+  assert.equal(materialGroupDescription("feeding"), "后续接入饥饿值、喂食系统后触发。");
 });

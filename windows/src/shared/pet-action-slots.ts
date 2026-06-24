@@ -81,6 +81,24 @@ const displayNames: Record<PetActionSlot, string> = {
   sleep_loop: "睡觉"
 };
 
+const materialGroupTitles: Record<PetMaterialGroup, string> = {
+  core: "基础状态",
+  pointer: "鼠标触发",
+  nearbyPet: "宠物靠近互动",
+  idleLife: "待机生活动作",
+  feeding: "喂食 / 条件动作",
+  reserved: "备用动作"
+};
+
+const materialGroupDescriptions: Record<PetMaterialGroup, string> = {
+  core: "宠物显示、睡觉等基础素材。",
+  pointer: "由用户点击或鼠标经过触发。",
+  nearbyPet: "多只宠物靠近时成对触发。",
+  idleLife: "宠物待机时自己随机播放。",
+  feeding: "后续接入饥饿值、喂食系统后触发。",
+  reserved: "先保留素材位，当前不主动触发。"
+};
+
 const triggerDescriptions: Record<PetActionSlot, string> = {
   idle_loop: "默认循环",
   sleep_loop: "长时间无操作",
@@ -142,6 +160,14 @@ export function petActionSlotDisplayName(slot: PetActionSlot) {
 
 export function petActionSlotTriggerDescription(slot: PetActionSlot) {
   return triggerDescriptions[slot];
+}
+
+export function materialGroupTitle(group: PetMaterialGroup) {
+  return materialGroupTitles[group];
+}
+
+export function materialGroupDescription(group: PetMaterialGroup) {
+  return materialGroupDescriptions[group];
 }
 
 export function nearbyPetInteractionSlots(side: PetInteractionSide): VisiblePetActionSlot[] {
