@@ -20,6 +20,7 @@ import {
   shouldFinishRendererShow
 } from "./renderer-load-policy.ts";
 import { petWindowBrowserOptions } from "./electron-window-options.ts";
+import { planPetWindowWakeResume } from "./pet-window-wake-policy.ts";
 import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
 export type PetWindowControllerOptions = {
@@ -99,8 +100,17 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   resumeAfterSystemWake() {
-    if (this.isVisible) {
-      this.show();
+    const plan = planPetWindowWakeResume({
+      isVisible: this.isVisible
+    });
+    if (!plan.shouldShowWindow) {
+      return;
+    }
+
+    const showRevision = this.#nextShowRevision();
+    void this.#showWindow(showRevision);
+    if (plan.shouldReplayCurrentState) {
+      this.#applyState(this.#stateMachine.state);
     }
   }
 
