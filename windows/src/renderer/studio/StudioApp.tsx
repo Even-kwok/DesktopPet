@@ -14,6 +14,10 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   canRequestHosting,
   friendHostingDetail,
+  friendPanelDetail,
+  friendPanelEmptyDetail,
+  friendPanelEmptyTitle,
+  friendPanelTitle,
   localMaterialBoardDetail,
   localMaterialBoardTitle,
   localMaterialStatusText,
@@ -370,8 +374,8 @@ export function StudioApp() {
 
         <div className="studio-panel">
           <div className="panel-heading">
-            <h2>好友寄养</h2>
-            <span>{state.friendCards.length} 位</span>
+            <h2>{friendPanelTitle()}</h2>
+            <span>{friendPanelDetail(state.friendCards.length)}</span>
           </div>
           <label>
             好友邮箱
@@ -410,7 +414,10 @@ export function StudioApp() {
           </div>
           <div className="friend-list">
             {state.friendCards.length === 0 ? (
-              <p className="empty-copy">暂无好友。添加好友后可以把选中的猫咪寄养过去。</p>
+              <div className="empty-copy">
+                <strong>{friendPanelEmptyTitle()}</strong>
+                <span>{friendPanelEmptyDetail()}</span>
+              </div>
             ) : (
               state.friendCards.map((friend) => (
                 <div className="friend-row" key={friend.id}>

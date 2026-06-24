@@ -3,6 +3,10 @@ import test from "node:test";
 import {
   accountDetail,
   canRequestHosting,
+  friendPanelDetail,
+  friendPanelEmptyDetail,
+  friendPanelEmptyTitle,
+  friendPanelTitle,
   friendHostingDetail,
   localMaterialStatusText,
   localMaterialBoardDetail,
@@ -33,6 +37,13 @@ test("builds account display copy", () => {
 
 test("builds Mac-parity friend hosting detail copy", () => {
   assert.equal(friendHostingDetail({ status: "在线", hostedPets: 2 }), "在线 · 托管 2 只");
+});
+
+test("builds Mac-parity friend panel copy", () => {
+  assert.equal(friendPanelTitle(), "好友");
+  assert.equal(friendPanelDetail(3), "3 位 · 可寄养和删除");
+  assert.equal(friendPanelEmptyTitle(), "还没有好友");
+  assert.equal(friendPanelEmptyDetail(), "用账号邮箱精确添加。在线状态先按服务器记录显示。");
 });
 
 test("builds Mac-parity local material status copy", () => {

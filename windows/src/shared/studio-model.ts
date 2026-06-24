@@ -45,6 +45,22 @@ export function friendHostingDetail(friend: FriendHostingDetailState) {
   return `${friend.status} · 托管 ${friend.hostedPets} 只`;
 }
 
+export function friendPanelTitle() {
+  return "好友";
+}
+
+export function friendPanelDetail(friendCount: number) {
+  return `${friendCount} 位 · 可寄养和删除`;
+}
+
+export function friendPanelEmptyTitle() {
+  return "还没有好友";
+}
+
+export function friendPanelEmptyDetail() {
+  return "用账号邮箱精确添加。在线状态先按服务器记录显示。";
+}
+
 export function localMaterialStatusText(material: LocalMaterialStatusState) {
   return material.hasVideo ? "已有视频" : "未生成";
 }
