@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 213 tests.
+- `npm test`: passed, 215 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -82,6 +82,8 @@ Studio synced-pet-panel coverage now verifies Windows uses the Mac `我的猫咪
 Studio synced-pet-card coverage now verifies Windows uses the Mac per-card action rules: unselected cards show `选择`, selected recallable cards show `召回`, and selected active cards show no action.
 
 Studio local-material coverage now verifies Windows uses the Mac material status copy for local videos: `已有视频` when a slot has a video and `未生成` when it does not.
+
+Studio local-material preview coverage now verifies Windows exposes restorable local video paths for Studio previews and uses the same enabled/disabled preview action states as the Mac material cards.
 
 Studio renderer-list coverage now verifies malformed pet counts display as safe non-negative counts and keep a bounded placeholder pet selector instead of rendering invalid list lengths.
 

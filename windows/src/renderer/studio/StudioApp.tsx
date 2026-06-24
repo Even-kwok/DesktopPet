@@ -24,6 +24,7 @@ import {
   loginPanelTitle,
   localMaterialBoardDetail,
   localMaterialBoardTitle,
+  localMaterialPreviewAction,
   localMaterialStatusText,
   syncedPetCardAction,
   syncedPetPanelDetail,
@@ -54,6 +55,7 @@ import {
   statusMessageForSignOutAction,
   statusMessageForSyncAction
 } from "./studio-action-result.ts";
+import { toVideoSource } from "../pet/pet-playback-command.ts";
 import {
   nextSelectedPetIndexAfterStudioRefresh,
   nextSelectedSyncedPetID,
@@ -81,6 +83,7 @@ type StudioState = {
   syncedPetCards: DesktopSyncedPetCard[];
   friendCards: DesktopFriendCard[];
   localVideoSlots: PetActionSlot[][];
+  localVideoPaths: Partial<Record<PetActionSlot, string>>[];
   petSizeScales: number[];
   isPetVisible: boolean;
   isClickThrough: boolean;
@@ -95,6 +98,7 @@ const defaultStudioState: StudioState = {
   syncedPetCards: [],
   friendCards: [],
   localVideoSlots: [[]],
+  localVideoPaths: [{}],
   petSizeScales: [1],
   isPetVisible: false,
   isClickThrough: false,
@@ -109,6 +113,7 @@ export function StudioApp() {
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
   const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
+  const [previewingMaterialSlot, setPreviewingMaterialSlot] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState("");
 
   const bridge = window.desktopPet;
@@ -253,6 +258,7 @@ export function StudioApp() {
                 className={index === selectedPetIndex ? "selected" : ""}
                 onClick={() => {
                   setSelectedPetIndex(index);
+                  setPreviewingMaterialSlot(undefined);
                   setPetNameDraft(petNameDraftForIndex(state, index));
                 }}
               >
@@ -484,6 +490,7 @@ export function StudioApp() {
         <div className="material-groups">
           {groupedSlots.map(([group, slots]) => {
             const selectedLocalVideoSlots = state.localVideoSlots[selectedPetIndex] ?? [];
+            const selectedLocalVideoPaths = state.localVideoPaths[selectedPetIndex] ?? {};
             const completedSlots = slots.filter((slot) => selectedLocalVideoSlots.includes(slot)).length;
 
             return (
@@ -500,17 +507,30 @@ export function StudioApp() {
                 <div className="material-list">
                   {slots.map((slot) => {
                     const hasVideo = selectedLocalVideoSlots.includes(slot);
+                    const previewPath = selectedLocalVideoPaths[slot];
+                    const previewKey = `${selectedPetIndex}:${slot}`;
+                    const isPreviewing = previewingMaterialSlot === previewKey && Boolean(previewPath);
+                    const previewAction = localMaterialPreviewAction({ hasVideo, isPreviewing });
                     const slotName = petActionSlotDisplayName(slot);
                     return (
-                      <div className="material-row" key={slot}>
-                        <span>
+                      <div className={`material-row ${isPreviewing ? "previewing" : ""}`} key={slot}>
+                        <span className="material-summary">
                           {slotName}
                           <small>{petActionSlotTriggerDescription(slot)}</small>
                           <small>{localMaterialStatusText({ hasVideo })}</small>
                         </span>
-                        <div>
+                        <div className="material-actions">
+                          <button
+                            disabled={previewAction.disabled}
+                            onClick={() =>
+                              setPreviewingMaterialSlot(isPreviewing ? undefined : previewKey)
+                            }
+                          >
+                            {previewAction.label}
+                          </button>
                           <button
                             onClick={() => {
+                              setPreviewingMaterialSlot(undefined);
                               setStatusMessage(pendingStatusMessageForImportVideoAction(slotName));
                               void runAction(
                                 () => bridge?.importVideo?.(selectedPetIndex, slot),
@@ -523,16 +543,22 @@ export function StudioApp() {
                           </button>
                           <button
                             disabled={!hasVideo}
-                            onClick={() =>
+                            onClick={() => {
+                              setPreviewingMaterialSlot(undefined);
                               void runAction(
                                 () => bridge?.removeVideo?.(selectedPetIndex, slot),
                                 statusMessageForRemoveVideoAction(slotName)
-                              )
-                            }
+                              );
+                            }}
                           >
                             删除
                           </button>
                         </div>
+                        {isPreviewing && previewPath ? (
+                          <div className="material-preview">
+                            <video autoPlay loop muted playsInline src={toVideoSource(previewPath)} />
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

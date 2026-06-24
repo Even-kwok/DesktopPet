@@ -296,6 +296,17 @@ export class SettingsStore {
     return allPetActionSlots.filter((slot) => this.restoreVideoPath(slot, index) !== undefined);
   }
 
+  availableVideoPaths(index: number) {
+    const paths: Partial<Record<PetActionSlot, string>> = {};
+    for (const slot of allPetActionSlots) {
+      const videoPath = this.restoreVideoPath(slot, index);
+      if (videoPath) {
+        paths[slot] = videoPath;
+      }
+    }
+    return paths;
+  }
+
   removePet(index: number) {
     if (!isExistingPetIndex(index, this.petCount)) {
       return;

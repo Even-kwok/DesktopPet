@@ -11,6 +11,7 @@ import {
   friendHostingDetail,
   loginPanelDetail,
   loginPanelTitle,
+  localMaterialPreviewAction,
   localMaterialStatusText,
   localMaterialBoardDetail,
   localMaterialBoardTitle,
@@ -76,6 +77,21 @@ test("builds Mac-parity friend panel copy", () => {
 test("builds Mac-parity local material status copy", () => {
   assert.equal(localMaterialStatusText({ hasVideo: true }), "已有视频");
   assert.equal(localMaterialStatusText({ hasVideo: false }), "未生成");
+});
+
+test("builds Mac-parity local material preview action state", () => {
+  assert.deepEqual(localMaterialPreviewAction({ hasVideo: false, isPreviewing: false }), {
+    label: "预览",
+    disabled: true
+  });
+  assert.deepEqual(localMaterialPreviewAction({ hasVideo: true, isPreviewing: false }), {
+    label: "预览",
+    disabled: false
+  });
+  assert.deepEqual(localMaterialPreviewAction({ hasVideo: true, isPreviewing: true }), {
+    label: "停止",
+    disabled: false
+  });
 });
 
 test("builds Mac-parity local material board copy", () => {

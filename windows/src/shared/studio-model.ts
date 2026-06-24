@@ -33,6 +33,10 @@ type LocalMaterialStatusState = {
   hasVideo: boolean;
 };
 
+type LocalMaterialPreviewState = LocalMaterialStatusState & {
+  isPreviewing: boolean;
+};
+
 export function accountDisplayName(account: DesktopAccountSession | undefined) {
   return account?.name ?? "未登录";
 }
@@ -75,6 +79,13 @@ export function friendPanelEmptyDetail() {
 
 export function localMaterialStatusText(material: LocalMaterialStatusState) {
   return material.hasVideo ? "已有视频" : "未生成";
+}
+
+export function localMaterialPreviewAction(material: LocalMaterialPreviewState) {
+  return {
+    label: material.isPreviewing ? "停止" : "预览",
+    disabled: !material.hasVideo
+  };
 }
 
 export function localMaterialBoardTitle() {

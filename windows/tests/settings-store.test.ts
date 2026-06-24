@@ -7,6 +7,7 @@ import {
   refreshedAccountSessionFromSyncAccount,
   SettingsStore
 } from "../src/shared/settings-store.ts";
+import type { PetActionSlot } from "../src/shared/pet-action-slots.ts";
 
 function makeStore() {
   const dir = mkdtempSync(path.join(tmpdir(), "cat-desktop-pet-windows-"));
@@ -17,7 +18,7 @@ function makeStore() {
   };
 }
 
-function saveVideoFile(store: SettingsStore, fileName: string, slot = "idle_loop" as const, index = 0) {
+function saveVideoFile(store: SettingsStore, fileName: string, slot: PetActionSlot = "idle_loop", index = 0) {
   const videoPath = path.join(path.dirname(store.filePath), fileName);
   writeFileSync(videoPath, "");
   store.saveVideoPath(videoPath, slot, index);
@@ -627,6 +628,22 @@ test("lists only restorable video slots for Studio display", () => {
 
     assert.deepEqual(store.savedVideoSlots(0), ["idle_loop", "click_react"]);
     assert.deepEqual(store.availableVideoSlots(0), ["idle_loop"]);
+  } finally {
+    cleanup();
+  }
+});
+
+test("lists restorable video paths for Studio preview", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    const idlePath = saveVideoFile(store, "idle.mp4", "idle_loop", 0);
+    const clickPath = saveVideoFile(store, "click.mp4", "click_react", 0);
+    store.saveVideoPath(path.join(path.dirname(store.filePath), "missing.mp4"), "sleep_loop", 0);
+
+    assert.deepEqual(store.availableVideoPaths(0), {
+      idle_loop: idlePath,
+      click_react: clickPath
+    });
   } finally {
     cleanup();
   }

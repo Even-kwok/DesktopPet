@@ -126,6 +126,9 @@ async function bootstrap() {
     localVideoSlots: Array.from({ length: settingsStore.petCount }, (_, index) =>
       settingsStore.availableVideoSlots(index)
     ),
+    localVideoPaths: Array.from({ length: settingsStore.petCount }, (_, index) =>
+      settingsStore.availableVideoPaths(index)
+    ),
     petSizeScales: Array.from({ length: settingsStore.petCount }, (_, index) => settingsStore.petSizeScale(index)),
     isPetVisible: settingsStore.isPetVisible,
     isClickThrough: settingsStore.isClickThrough,

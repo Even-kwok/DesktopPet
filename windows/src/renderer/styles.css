@@ -51,7 +51,7 @@ body {
 .studio-topbar-actions,
 .button-grid,
 .segmented-row,
-.material-row div {
+.material-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -282,11 +282,39 @@ button:disabled {
   background: #fbfcfd;
 }
 
-.material-row span {
+.material-row.previewing {
+  align-items: start;
+}
+
+.material-summary {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 700;
+}
+
+.material-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.material-preview {
+  grid-column: 1 / -1;
+  min-height: 140px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #e9eef2;
+  overflow: hidden;
+}
+
+.material-preview video {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  background: transparent;
 }
 
 .status-line {
@@ -302,6 +330,10 @@ button:disabled {
 
   .material-row {
     grid-template-columns: 1fr;
+  }
+
+  .material-actions {
+    justify-content: flex-start;
   }
 
   .material-group-heading {
