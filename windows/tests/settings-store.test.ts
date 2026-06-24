@@ -666,6 +666,10 @@ test("persists synced pet cards and friend cards separately from account session
     assert.equal(reloaded.syncedPetCards[0]?.displayState, "active");
     assert.equal(reloaded.syncedPetCards[0]?.ownership, "owned");
 
+    reloaded.markSyncedPetHosted("pet_orange");
+    assert.equal(reloaded.syncedPetCards[0]?.displayState, "unavailable");
+    assert.equal(reloaded.syncedPetCards[0]?.ownership, "away");
+
     reloaded.removeFriendCard("friend_1");
     assert.deepEqual(reloaded.friendCards, []);
   } finally {

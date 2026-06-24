@@ -169,6 +169,13 @@ export class SettingsStore {
     this.#write();
   }
 
+  markSyncedPetHosted(petID: string) {
+    this.#data.syncedPetCards = this.syncedPetCards.map((card) =>
+      card.id === petID ? { ...card, displayState: "unavailable", ownership: "away" } : card
+    );
+    this.#write();
+  }
+
   get friendCards() {
     return Array.isArray(this.#data.friendCards)
       ? this.#data.friendCards.filter(isDesktopFriendCard)

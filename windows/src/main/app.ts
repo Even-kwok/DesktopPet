@@ -319,6 +319,7 @@ async function bootstrap() {
         settingsStore.friendCards
       );
       await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
+      settingsStore.markSyncedPetHosted(target.petId);
       return studioState();
     }),
     recallPet: (petId) => mutateFriendActions.run(studioActionKey("recallPet", petId), async () => {

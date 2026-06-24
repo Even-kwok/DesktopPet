@@ -35,6 +35,8 @@ Settings-store studio-cache coverage now verifies negative synced-pet material c
 
 Settings-store studio-cache coverage now verifies cached synced-pet and friend cards with empty identity fields are ignored on restart instead of rendering blank Windows Studio entries.
 
+Settings-store synced-card coverage now verifies successful recall marks a pet as owned/active and successful hosting marks it as away/unavailable, keeping Windows Studio actions aligned with the latest local remote-action result.
+
 Settings-store account-session coverage now verifies cached account sessions with empty access tokens or blank identity/sign-in fields are ignored on restart instead of showing the Windows Studio as signed in with an unusable account.
 
 Desktop sync coverage now verifies remote friend-list responses with negative hosted-pet counts are rejected before they can enter the Windows Studio.
