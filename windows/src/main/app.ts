@@ -26,6 +26,7 @@ import {
   firstRunIdleLoopPromptPlan,
   idleLoopImportTargetAfterAddingPet,
   isSupportedLocalVideoPath,
+  localVideoImportVisibility,
   localVideoPickerOptions,
   localVideoRemovalAction,
   petCountAfterLocalVideoImport
@@ -608,8 +609,12 @@ async function importLocalVideo(input: {
 
   input.settingsStore.saveVideoPath(videoPath, input.slot, input.petIndex);
   if (input.slot === "idle_loop") {
-    input.settingsStore.isPetVisible = true;
-    input.petColonyController.showAll();
+    const didShowAnyPet = input.petColonyController.showAll();
+    input.settingsStore.isPetVisible = localVideoImportVisibility(
+      input.slot,
+      input.settingsStore.isPetVisible,
+      didShowAnyPet
+    );
   } else {
     input.petColonyController.refreshPlayback();
   }

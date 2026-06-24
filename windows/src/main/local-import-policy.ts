@@ -79,6 +79,14 @@ export function localVideoRemovalAction(
   return slot === "idle_loop" && isPetVisible ? "showAll" : "refreshPlayback";
 }
 
+export function localVideoImportVisibility(
+  slot: PetActionSlot,
+  currentIsPetVisible: boolean,
+  didShowAnyPet: boolean
+) {
+  return slot === "idle_loop" ? didShowAnyPet : currentIsPetVisible;
+}
+
 export function isSupportedLocalVideoPath(filePath: string) {
   const extension = path.extname(filePath).slice(1).toLowerCase();
   return supportedLocalVideoExtensions.some((supportedExtension) => extension === supportedExtension);
