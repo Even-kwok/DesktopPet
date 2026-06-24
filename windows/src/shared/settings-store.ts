@@ -414,12 +414,12 @@ function isDesktopAccountSession(value: unknown): value is DesktopAccountSession
   }
 
   return (
-    isString(value.id) &&
-    isString(value.name) &&
-    isString(value.email) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.name) &&
+    isNonEmptyString(value.email) &&
     isNonNegativeInteger(value.credits) &&
     isNonEmptyString(value.accessToken) &&
-    isString(value.signedInAt)
+    isNonEmptyString(value.signedInAt)
   );
 }
 

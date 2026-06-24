@@ -286,6 +286,36 @@ test("filters cached account sessions with empty access tokens", () => {
   }
 });
 
+test("filters cached account sessions with empty identity fields", () => {
+  const malformedAccounts = [
+    { id: " ", name: "栗子主人", email: "demo@desktop.pet", signedInAt: "2026-06-24T00:00:00.000Z" },
+    { id: "user_demo", name: " ", email: "demo@desktop.pet", signedInAt: "2026-06-24T00:00:00.000Z" },
+    { id: "user_demo", name: "栗子主人", email: " ", signedInAt: "2026-06-24T00:00:00.000Z" },
+    { id: "user_demo", name: "栗子主人", email: "demo@desktop.pet", signedInAt: " " }
+  ];
+
+  for (const account of malformedAccounts) {
+    const { store, cleanup } = makeStore();
+    try {
+      writeFileSync(
+        store.filePath,
+        JSON.stringify({
+          currentAccount: {
+            ...account,
+            credits: 120,
+            accessToken: "desktop-token"
+          }
+        })
+      );
+
+      const reloaded = new SettingsStore(store.filePath);
+      assert.equal(reloaded.currentAccount, undefined);
+    } finally {
+      cleanup();
+    }
+  }
+});
+
 test("falls back to the first synced pet when the cached selection is stale", () => {
   const { store, cleanup } = makeStore();
   try {
