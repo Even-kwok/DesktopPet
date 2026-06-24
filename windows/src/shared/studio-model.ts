@@ -57,6 +57,13 @@ export function loginPanelDetail() {
   return "Windows 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。";
 }
 
+export function canSyncDesktopBundle(
+  account: DesktopAccountSession | undefined,
+  isSyncingDesktopBundle = false
+) {
+  return Boolean(account && !isSyncingDesktopBundle);
+}
+
 export function friendHostingDetail(friend: FriendHostingDetailState) {
   return `${friend.status} · 托管 ${friend.hostedPets} 只`;
 }

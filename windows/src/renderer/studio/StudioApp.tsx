@@ -14,6 +14,7 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   accountDetail,
   accountDisplayName,
+  canSyncDesktopBundle,
   canRefreshFriends,
   canRequestFriendHosting,
   canRunFriendMutation,
@@ -117,6 +118,7 @@ export function StudioApp() {
   const [selectedPetIndex, setSelectedPetIndex] = useState(0);
   const [petNameDraft, setPetNameDraft] = useState("Pet 1");
   const [friendEmail, setFriendEmail] = useState("");
+  const [isSyncingDesktopBundle, setIsSyncingDesktopBundle] = useState(false);
   const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
   const [isMutatingFriend, setIsMutatingFriend] = useState(false);
   const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
@@ -186,6 +188,24 @@ export function StudioApp() {
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
   const displayedPetCount = studioPetCountForDisplay(state.petCount);
   const displayedPetIndexes = studioPetIndexesForDisplay(state.petCount);
+
+  const syncDesktopBundle = async () => {
+    if (!canSyncDesktopBundle(account, isSyncingDesktopBundle)) {
+      return;
+    }
+
+    setStatusMessage(pendingStatusMessageForSyncAction());
+    setIsSyncingDesktopBundle(true);
+    try {
+      await runAction(
+        () => bridge?.sync?.(),
+        "已同步网页端素材。",
+        (result) => statusMessageForSyncAction(result)
+      );
+    } finally {
+      setIsSyncingDesktopBundle(false);
+    }
+  };
 
   const refreshFriends = async () => {
     if (!canRefreshFriends(account, isRefreshingFriends)) {
@@ -300,15 +320,8 @@ export function StudioApp() {
             </button>
           ) : null}
           <button
-            onClick={() => {
-              setStatusMessage(pendingStatusMessageForSyncAction());
-              void runAction(
-                () => bridge?.sync?.(),
-                "已同步网页端素材。",
-                (result) => statusMessageForSyncAction(result)
-              );
-            }}
-            disabled={!account}
+            onClick={() => void syncDesktopBundle()}
+            disabled={!canSyncDesktopBundle(account, isSyncingDesktopBundle)}
           >
             同步
           </button>

@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 217 tests.
+- `npm test`: passed, 218 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -90,6 +90,8 @@ Studio local-material coverage now verifies Windows uses the Mac material status
 Studio local-material preview coverage now verifies Windows exposes restorable local video paths for Studio previews and uses the same enabled/disabled preview action states as the Mac material cards.
 
 Studio renderer-list coverage now verifies malformed pet counts display as safe non-negative counts and keep a bounded placeholder pet selector instead of rendering invalid list lengths.
+
+Studio sync-action coverage now verifies Windows follows the Mac sync gate: syncing is disabled while signed out or while a desktop bundle sync is already in progress.
 
 Studio sync-result coverage now verifies malformed summary counts fall back to the generic success copy instead of showing `NaN`, infinite, or negative counts in the Windows UI.
 

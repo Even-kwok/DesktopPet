@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   accountDetail,
   accountDisplayName,
+  canSyncDesktopBundle,
   canSubmitFriendEmail,
   canRefreshFriends,
   canRunFriendMutation,
@@ -67,6 +68,21 @@ test("builds Mac-parity login panel copy for Windows", () => {
     loginPanelDetail(),
     "Windows 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。"
   );
+});
+
+test("gates Mac-parity desktop sync while pending", () => {
+  const account = {
+    id: "u1",
+    name: "栗子主人",
+    email: "demo@desktop.pet",
+    credits: 120,
+    accessToken: "token",
+    signedInAt: "now"
+  };
+
+  assert.equal(canSyncDesktopBundle(undefined), false);
+  assert.equal(canSyncDesktopBundle(account), true);
+  assert.equal(canSyncDesktopBundle(account, true), false);
 });
 
 test("builds Mac-parity friend hosting detail copy", () => {
