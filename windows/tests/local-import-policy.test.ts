@@ -21,6 +21,12 @@ test("normalizes invalid pet counts during local idle-loop import planning", () 
   assert.equal(petCountAfterLocalVideoImport("bad" as unknown as number, 1, "idle_loop"), 2);
 });
 
+test("keeps pet count unchanged for invalid local import pet indexes", () => {
+  assert.equal(petCountAfterLocalVideoImport(2, Number.NaN, "idle_loop"), 2);
+  assert.equal(petCountAfterLocalVideoImport(2, Number.POSITIVE_INFINITY, "idle_loop"), 2);
+  assert.equal(petCountAfterLocalVideoImport(2, -1, "idle_loop"), 2);
+});
+
 test("keeps pet count unchanged for non-idle local material imports", () => {
   assert.equal(petCountAfterLocalVideoImport(0, 0, "click_react"), 0);
   assert.equal(petCountAfterLocalVideoImport(2, 0, "sleep_loop"), 2);

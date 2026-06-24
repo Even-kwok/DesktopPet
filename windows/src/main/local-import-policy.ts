@@ -52,8 +52,12 @@ export function petCountAfterLocalVideoImport(
   slot: PetActionSlot
 ) {
   const currentCount = normalizedPetCount(currentPetCount);
+  if (slot !== "idle_loop" || !Number.isFinite(petIndex)) {
+    return currentCount;
+  }
+
   const targetPetIndex = Math.trunc(petIndex);
-  if (slot !== "idle_loop" || targetPetIndex < 0) {
+  if (targetPetIndex < 0) {
     return currentCount;
   }
 
