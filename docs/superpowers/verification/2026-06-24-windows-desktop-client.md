@@ -17,7 +17,7 @@ Material-slot coverage now verifies Windows exposes the same trigger description
 
 Material-group coverage now verifies Windows exposes the same Mac Studio group titles and helper descriptions, such as `基础状态` with `宠物显示、睡觉等基础素材。`, and shows group-level completion counts in the Studio.
 
-Studio material-board coverage now verifies Windows uses the Mac `动作卡册` title and the same core helper copy that material actions appear in their corresponding scenes.
+Studio material-board coverage now verifies Windows uses the Mac `动作卡册` title and the same helper copy that material actions appear in their corresponding scenes, including the preview prompt.
 
 System wake coverage now includes the pet-window resume policy: hidden pet windows stay hidden, while visible pet windows are restored and replay the current state without issuing a second state-machine `show` event.
 

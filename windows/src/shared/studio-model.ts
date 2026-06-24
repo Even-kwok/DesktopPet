@@ -93,7 +93,7 @@ export function localMaterialBoardTitle() {
 }
 
 export function localMaterialBoardDetail() {
-  return "有素材的动作会在对应场景出现。";
+  return "有素材的动作会在对应场景出现；点预览看看效果。";
 }
 
 export function syncedPetPanelTitle() {

@@ -96,7 +96,7 @@ test("builds Mac-parity local material preview action state", () => {
 
 test("builds Mac-parity local material board copy", () => {
   assert.equal(localMaterialBoardTitle(), "动作卡册");
-  assert.equal(localMaterialBoardDetail(), "有素材的动作会在对应场景出现。");
+  assert.equal(localMaterialBoardDetail(), "有素材的动作会在对应场景出现；点预览看看效果。");
 });
 
 test("builds Mac-parity synced pet panel copy", () => {
