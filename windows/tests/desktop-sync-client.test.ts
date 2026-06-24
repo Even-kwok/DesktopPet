@@ -583,6 +583,27 @@ test("maps malformed remove-friend responses to invalid response", async () => {
   }
 });
 
+test("maps remove-friend responses with empty deleted friend IDs to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: { deletedFriendId: " " }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.removeFriend("friend_1", "desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("maps malformed hosting request responses to invalid response", async () => {
   const server = await withServer(() => ({
     status: 200,
@@ -609,6 +630,36 @@ test("maps malformed hosting request responses to invalid response", async () =>
   }
 });
 
+test("maps hosting request responses with empty action fields to invalid response", async () => {
+  const malformedResponses = [
+    { requestId: " ", status: "pending", petId: "pet_1", toUserId: "user_friend" },
+    { requestId: "request_1", status: " ", petId: "pet_1", toUserId: "user_friend" },
+    { requestId: "request_1", status: "pending", petId: " ", toUserId: "user_friend" },
+    { requestId: "request_1", status: "pending", petId: "pet_1", toUserId: " " }
+  ];
+
+  for (const body of malformedResponses) {
+    const server = await withServer(() => ({
+      status: 200,
+      body
+    }));
+
+    try {
+      const client = new DesktopPetSyncClient(server.baseURL);
+
+      await assert.rejects(
+        client.requestHosting("pet_1", "user_friend", "desktop-token"),
+        (error) =>
+          error instanceof DesktopPetSyncError &&
+          error.code === "invalidResponse" &&
+          error.message === "桌面同步返回异常。"
+      );
+    } finally {
+      await server.close();
+    }
+  }
+});
+
 test("maps malformed recall responses to invalid response", async () => {
   const server = await withServer(() => ({
     status: 200,
@@ -630,6 +681,34 @@ test("maps malformed recall responses to invalid response", async () => {
     );
   } finally {
     await server.close();
+  }
+});
+
+test("maps recall responses with empty action fields to invalid response", async () => {
+  const malformedResponses = [
+    { petId: " ", status: "recalled" },
+    { petId: "pet_1", status: " " }
+  ];
+
+  for (const body of malformedResponses) {
+    const server = await withServer(() => ({
+      status: 200,
+      body
+    }));
+
+    try {
+      const client = new DesktopPetSyncClient(server.baseURL);
+
+      await assert.rejects(
+        client.recallPet("pet_1", "desktop-token"),
+        (error) =>
+          error instanceof DesktopPetSyncError &&
+          error.code === "invalidResponse" &&
+          error.message === "桌面同步返回异常。"
+      );
+    } finally {
+      await server.close();
+    }
   }
 });
 

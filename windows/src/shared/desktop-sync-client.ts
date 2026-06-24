@@ -410,7 +410,7 @@ function isDesktopFriendResponse(value: unknown): value is { friend: DesktopFrie
 }
 
 function isDesktopFriendDeleteResponse(value: unknown): value is DesktopFriendDeleteResponse {
-  return isRecord(value) && isString(value.deletedFriendId);
+  return isRecord(value) && isNonEmptyString(value.deletedFriendId);
 }
 
 function isDesktopHostingRequestResponse(value: unknown): value is DesktopHostingRequestResponse {
@@ -419,15 +419,15 @@ function isDesktopHostingRequestResponse(value: unknown): value is DesktopHostin
   }
 
   return (
-    isString(value.requestId) &&
-    isString(value.status) &&
-    isString(value.petId) &&
-    isString(value.toUserId)
+    isNonEmptyString(value.requestId) &&
+    isNonEmptyString(value.status) &&
+    isNonEmptyString(value.petId) &&
+    isNonEmptyString(value.toUserId)
   );
 }
 
 function isDesktopRecallResponse(value: unknown): value is DesktopRecallResponse {
-  return isRecord(value) && isString(value.petId) && isString(value.status);
+  return isRecord(value) && isNonEmptyString(value.petId) && isNonEmptyString(value.status);
 }
 
 function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
