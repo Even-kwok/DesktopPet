@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   StudioActionBusyError,
-  createSingleFlightActionGroup
+  createSingleFlightActionGroup,
+  studioActionKey
 } from "../src/main/studio-action-guard.ts";
 
 test("coalesces duplicate studio actions while one action is still running", async () => {
@@ -51,6 +52,21 @@ test("rejects a different studio action instead of reusing the in-flight result"
 
   assert.equal(runCount, 1);
   first.catch(() => undefined);
+});
+
+test("builds stable studio action keys from the action target", () => {
+  assert.equal(
+    studioActionKey("addFriend", " friend@example.com "),
+    studioActionKey("addFriend", "friend@example.com")
+  );
+  assert.notEqual(
+    studioActionKey("removeFriend", "friend_1"),
+    studioActionKey("removeFriend", "friend_2")
+  );
+  assert.notEqual(
+    studioActionKey("requestHosting", "pet_1", "friend_1"),
+    studioActionKey("requestHosting", "pet_1", "friend_2")
+  );
 });
 
 test("allows a later studio action after the current one settles", async () => {

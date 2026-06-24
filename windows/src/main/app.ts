@@ -36,7 +36,10 @@ import {
   replacementWarningDialogOptions
 } from "./sync-policy.ts";
 import { importDesktopBundle } from "./desktop-bundle-importer.ts";
-import { createSingleFlightActionGroup } from "./studio-action-guard.ts";
+import {
+  createSingleFlightActionGroup,
+  studioActionKey
+} from "./studio-action-guard.ts";
 import {
   refreshedAccountSessionFromSyncAccount,
   SettingsStore
@@ -123,7 +126,7 @@ async function bootstrap() {
 
   registerIpcHandlers(ipcMain, {
     getStudioState: studioState,
-    signIn: (email, password) => signInActions.run("signIn", async () => {
+    signIn: (email, password) => signInActions.run(studioActionKey("signIn", email), async () => {
       const trimmedEmail = email.trim();
       if (!trimmedEmail || !password) {
         throw new Error("请输入邮箱和密码。");
@@ -279,7 +282,7 @@ async function bootstrap() {
       settingsStore.saveFriendCards(friends);
       return studioState();
     }),
-    addFriend: (email) => mutateFriendActions.run("addFriend", async () => {
+    addFriend: (email) => mutateFriendActions.run(studioActionKey("addFriend", email), async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
@@ -289,14 +292,14 @@ async function bootstrap() {
       settingsStore.upsertFriendCard(addedFriend);
       return { addedFriend, ...studioState() };
     }),
-    removeFriend: (friendId) => mutateFriendActions.run("removeFriend", async () => {
+    removeFriend: (friendId) => mutateFriendActions.run(studioActionKey("removeFriend", friendId), async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveFriendRemovalTarget(friendId, settingsStore.friendCards);
       await desktopSyncClient.removeFriend(target.friendId, account.accessToken);
       settingsStore.removeFriendCard(target.friendId);
       return studioState();
     }),
-    requestHosting: (petId, toUserId) => mutateFriendActions.run("requestHosting", async () => {
+    requestHosting: (petId, toUserId) => mutateFriendActions.run(studioActionKey("requestHosting", petId, toUserId), async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveHostingRequestTarget(
         petId,
@@ -307,7 +310,7 @@ async function bootstrap() {
       await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
       return studioState();
     }),
-    recallPet: (petId) => mutateFriendActions.run("recallPet", async () => {
+    recallPet: (petId) => mutateFriendActions.run(studioActionKey("recallPet", petId), async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const target = resolveRecallPetTarget(petId, settingsStore.syncedPetCards);
       await desktopSyncClient.recallPet(target.petId, account.accessToken);

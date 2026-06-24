@@ -28,3 +28,10 @@ export function createSingleFlightActionGroup() {
     }
   };
 }
+
+export function studioActionKey(action: string, ...targets: Array<string | number | undefined | null>) {
+  return JSON.stringify([
+    action,
+    ...targets.map((target) => String(target ?? "").trim())
+  ]);
+}
