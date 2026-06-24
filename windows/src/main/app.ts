@@ -9,6 +9,7 @@ import { StudioWindowController } from "./studio-window-controller.ts";
 import { registerIpcHandlers } from "./ipc.ts";
 import {
   existingInstanceReopenActions,
+  initialLaunchActions,
   singleInstanceStartupPlan
 } from "./app-lifecycle-policy.ts";
 import {
@@ -435,10 +436,13 @@ async function bootstrap() {
     refreshTray();
   }
 
-  studioWindowController.show();
+  const launchActions = initialLaunchActions();
+  if (launchActions.showStudio) {
+    studioWindowController.show();
+  }
 
   const firstRunPrompt = firstRunIdleLoopPromptPlan({
-    showsFirstRunPrompt: true,
+    showsFirstRunPrompt: launchActions.showsFirstRunPrompt,
     didRestoreVideo,
     hasFirstPetIdleLoop: settingsStore.restoreVideoPath("idle_loop", 0) !== undefined
   });
