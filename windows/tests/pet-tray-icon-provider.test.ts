@@ -5,6 +5,7 @@ import { PetTrayIconProvider } from "../src/main/pet-tray-icon-provider.ts";
 test("generates and caches pet tray thumbnails from idle-loop video paths", async () => {
   const createdPaths: string[] = [];
   const provider = new PetTrayIconProvider({
+    fallbackIcon: "fallback-paw",
     createThumbnailFromPath: async (videoPath, size) => {
       createdPaths.push(`${videoPath}:${size.width}x${size.height}`);
       return { id: `thumb:${videoPath}`, isEmpty: () => false };
@@ -12,8 +13,8 @@ test("generates and caches pet tray thumbnails from idle-loop video paths", asyn
   });
   let readyCount = 0;
 
-  assert.equal(provider.iconForVideo("C:/cats/idle.mp4", () => readyCount += 1), undefined);
-  assert.equal(provider.iconForVideo("C:/cats/idle.mp4", () => readyCount += 1), undefined);
+  assert.equal(provider.iconForVideo("C:/cats/idle.mp4", () => readyCount += 1), "fallback-paw");
+  assert.equal(provider.iconForVideo("C:/cats/idle.mp4", () => readyCount += 1), "fallback-paw");
 
   await Promise.resolve();
 
@@ -25,8 +26,9 @@ test("generates and caches pet tray thumbnails from idle-loop video paths", asyn
   );
 });
 
-test("ignores missing, empty, and failed pet tray thumbnail requests", async () => {
+test("uses fallback pet tray icons for missing, empty, and failed thumbnail requests", async () => {
   const provider = new PetTrayIconProvider({
+    fallbackIcon: "fallback-paw",
     createThumbnailFromPath: async (videoPath) => {
       if (videoPath.endsWith("empty.mp4")) {
         return { isEmpty: () => true };
@@ -37,20 +39,21 @@ test("ignores missing, empty, and failed pet tray thumbnail requests", async () 
   });
   let readyCount = 0;
 
-  assert.equal(provider.iconForVideo(undefined, () => readyCount += 1), undefined);
-  assert.equal(provider.iconForVideo("C:/cats/empty.mp4", () => readyCount += 1), undefined);
-  assert.equal(provider.iconForVideo("C:/cats/broken.mp4", () => readyCount += 1), undefined);
+  assert.equal(provider.iconForVideo(undefined, () => readyCount += 1), "fallback-paw");
+  assert.equal(provider.iconForVideo("C:/cats/empty.mp4", () => readyCount += 1), "fallback-paw");
+  assert.equal(provider.iconForVideo("C:/cats/broken.mp4", () => readyCount += 1), "fallback-paw");
 
   await Promise.resolve();
 
-  assert.equal(provider.iconForVideo("C:/cats/empty.mp4"), undefined);
-  assert.equal(provider.iconForVideo("C:/cats/broken.mp4"), undefined);
+  assert.equal(provider.iconForVideo("C:/cats/empty.mp4"), "fallback-paw");
+  assert.equal(provider.iconForVideo("C:/cats/broken.mp4"), "fallback-paw");
   assert.equal(readyCount, 0);
 });
 
 test("can invalidate cached pet tray thumbnails after local material changes", async () => {
   let revision = 0;
   const provider = new PetTrayIconProvider({
+    fallbackIcon: "fallback-paw",
     createThumbnailFromPath: async (videoPath) => ({
       id: `thumb:${videoPath}:${revision}`,
       isEmpty: () => false

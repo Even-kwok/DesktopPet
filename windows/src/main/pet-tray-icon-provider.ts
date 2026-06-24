@@ -5,11 +5,13 @@ type CreateThumbnailFromPath = (
 
 export type PetTrayIconProviderOptions = {
   createThumbnailFromPath: CreateThumbnailFromPath;
+  fallbackIcon?: unknown;
   thumbnailSize?: { width: number; height: number };
 };
 
 export class PetTrayIconProvider {
   readonly #createThumbnailFromPath: CreateThumbnailFromPath;
+  readonly #fallbackIcon: unknown;
   readonly #thumbnailSize: { width: number; height: number };
   readonly #cache = new Map<string, unknown>();
   readonly #failedPaths = new Set<string>();
@@ -18,12 +20,13 @@ export class PetTrayIconProvider {
 
   constructor(options: PetTrayIconProviderOptions) {
     this.#createThumbnailFromPath = options.createThumbnailFromPath;
+    this.#fallbackIcon = options.fallbackIcon;
     this.#thumbnailSize = options.thumbnailSize ?? { width: 28, height: 28 };
   }
 
   iconForVideo(videoPath: string | undefined, onReady?: () => void) {
     if (!videoPath) {
-      return undefined;
+      return this.#fallbackIcon;
     }
 
     const cachedIcon = this.#cache.get(videoPath);
@@ -32,7 +35,7 @@ export class PetTrayIconProvider {
     }
 
     if (this.#failedPaths.has(videoPath) || this.#pendingGeneration.has(videoPath)) {
-      return undefined;
+      return this.#fallbackIcon;
     }
 
     const generation = this.#generation;
@@ -62,7 +65,7 @@ export class PetTrayIconProvider {
         }
       });
 
-    return undefined;
+    return this.#fallbackIcon;
   }
 
   invalidate() {

@@ -74,7 +74,8 @@ async function bootstrap() {
   const desktopSyncClient = new DesktopPetSyncClient(process.env.CAT_DESKTOP_PET_WEB_BASE_URL);
   const remoteMaterialRoot = path.join(app.getPath("appData"), "CatDesktopPet", "RemoteMaterials");
   const petTrayIconProvider = new PetTrayIconProvider({
-    createThumbnailFromPath: (videoPath, size) => nativeImage.createThumbnailFromPath(videoPath, size)
+    createThumbnailFromPath: (videoPath, size) => nativeImage.createThumbnailFromPath(videoPath, size),
+    fallbackIcon: makePetTrayFallbackIcon()
   });
   const petColonyController = new PetColonyController(
     settingsStore,
@@ -615,6 +616,12 @@ function payloadRecord(payload: unknown) {
 function makeTrayIcon() {
   return nativeImage.createFromDataURL(
     "data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%3E%3Ccircle%20cx='8'%20cy='8'%20r='7'%20fill='%232f7d68'/%3E%3Ctext%20x='8'%20y='11'%20font-size='9'%20text-anchor='middle'%20fill='white'%3EP%3C/text%3E%3C/svg%3E"
+  );
+}
+
+function makePetTrayFallbackIcon() {
+  return nativeImage.createFromDataURL(
+    "data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%20viewBox='0%200%2028%2028'%3E%3Crect%20width='28'%20height='28'%20rx='7'%20fill='%23eef2f5'/%3E%3Ccircle%20cx='9'%20cy='10'%20r='2.1'%20fill='%232f7d68'/%3E%3Ccircle%20cx='14'%20cy='8.2'%20r='2.1'%20fill='%232f7d68'/%3E%3Ccircle%20cx='19'%20cy='10'%20r='2.1'%20fill='%232f7d68'/%3E%3Cpath%20d='M8.2%2018.2c0-3.2%202.5-5.7%205.8-5.7s5.8%202.5%205.8%205.7c0%202.1-1.6%203.2-3.3%202.2-1.5-.9-3.5-.9-5%200-1.7%201-3.3-.1-3.3-2.2Z'%20fill='%232f7d68'/%3E%3C/svg%3E"
   );
 }
 
