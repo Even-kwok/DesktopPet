@@ -73,6 +73,22 @@ export function localMaterialBoardDetail() {
   return "有素材的动作会在对应场景出现。";
 }
 
+export function syncedPetPanelTitle() {
+  return "我的猫咪";
+}
+
+export function syncedPetPanelDetail(petCount: number) {
+  return `${petCount} 只`;
+}
+
+export function syncedPetPanelEmptyTitle() {
+  return "还没有同步猫咪";
+}
+
+export function syncedPetPanelEmptyDetail() {
+  return "点右上角同步，从网页端拉取账号下的猫咪和素材。";
+}
+
 export function statusTextForSyncedPet(pet: SyncedPetState) {
   if (pet.ownership === "away") {
     return "托管在朋友那里";

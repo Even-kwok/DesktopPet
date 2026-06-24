@@ -16,6 +16,10 @@ import {
   resolveRecallPetTarget,
   shouldShowRecallAction,
   syncedPetCardAction,
+  syncedPetPanelDetail,
+  syncedPetPanelEmptyDetail,
+  syncedPetPanelEmptyTitle,
+  syncedPetPanelTitle,
   statusTextForSyncedPet,
   syncedPetCardsAfterHostingRequest
 } from "../src/shared/studio-model.ts";
@@ -54,6 +58,13 @@ test("builds Mac-parity local material status copy", () => {
 test("builds Mac-parity local material board copy", () => {
   assert.equal(localMaterialBoardTitle(), "动作卡册");
   assert.equal(localMaterialBoardDetail(), "有素材的动作会在对应场景出现。");
+});
+
+test("builds Mac-parity synced pet panel copy", () => {
+  assert.equal(syncedPetPanelTitle(), "我的猫咪");
+  assert.equal(syncedPetPanelDetail(4), "4 只");
+  assert.equal(syncedPetPanelEmptyTitle(), "还没有同步猫咪");
+  assert.equal(syncedPetPanelEmptyDetail(), "点右上角同步，从网页端拉取账号下的猫咪和素材。");
 });
 
 test("computes pet status and available actions", () => {

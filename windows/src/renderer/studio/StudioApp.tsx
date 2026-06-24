@@ -22,6 +22,10 @@ import {
   localMaterialBoardTitle,
   localMaterialStatusText,
   syncedPetCardAction,
+  syncedPetPanelDetail,
+  syncedPetPanelEmptyDetail,
+  syncedPetPanelEmptyTitle,
+  syncedPetPanelTitle,
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
 import {
@@ -326,12 +330,15 @@ export function StudioApp() {
 
         <div className="studio-panel">
           <div className="panel-heading">
-            <h2>同步宠物</h2>
-            <span>{state.syncedPetCards.length} 只</span>
+            <h2>{syncedPetPanelTitle()}</h2>
+            <span>{syncedPetPanelDetail(state.syncedPetCards.length)}</span>
           </div>
           <div className="synced-list">
             {state.syncedPetCards.length === 0 ? (
-              <p className="empty-copy">同步后这里会显示网页端可下发到桌面的猫咪。</p>
+              <div className="empty-copy">
+                <strong>{syncedPetPanelEmptyTitle()}</strong>
+                <span>{syncedPetPanelEmptyDetail()}</span>
+              </div>
             ) : (
               state.syncedPetCards.map((pet) => {
                 const isSelected = pet.id === selectedSyncedPet?.id;

@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 211 tests.
+- `npm test`: passed, 212 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -72,6 +72,8 @@ Studio status coverage now verifies pets marked as `away` show the same friend-h
 Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 N 只` detail copy as the Mac Studio for hosted-pet counts.
 
 Studio friend-panel coverage now verifies Windows uses the Mac `好友` title, `N 位 · 可寄养和删除` summary, and the same empty-state guidance copy.
+
+Studio synced-pet-panel coverage now verifies Windows uses the Mac `我的猫咪` title, `N 只` summary, and the same empty sync-state guidance copy.
 
 Studio synced-pet-card coverage now verifies Windows uses the Mac per-card action rules: unselected cards show `选择`, selected recallable cards show `召回`, and selected active cards show no action.
 
