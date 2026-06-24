@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 230 tests.
+- `npm test`: passed, 234 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -26,6 +26,8 @@ Material-group coverage now verifies Windows exposes the same Mac Studio group t
 Studio material-board coverage now verifies Windows uses the Mac `动作卡册` title and the same helper copy that material actions appear in their corresponding scenes, including the preview prompt.
 
 System wake coverage now includes the pet-window resume policy: hidden pet windows stay hidden, while visible pet windows are restored and replay the current state without issuing a second state-machine `show` event.
+
+Timed pet-action coverage now verifies Windows rechecks sleep and idle-random video availability when the timer fires, matching the Mac guard when a material is removed after scheduling.
 
 Startup restoration coverage now verifies that a previously hidden session does not show pets, a visible session stays visible when at least one `idle_loop` can be restored, and saved visibility is turned off when no pet can be restored.
 

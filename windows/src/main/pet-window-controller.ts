@@ -22,6 +22,7 @@ import {
   shouldFinishRendererShow
 } from "./renderer-load-policy.ts";
 import { petWindowBrowserOptions } from "./electron-window-options.ts";
+import { planTimedPetWindowAction } from "./pet-window-timer-policy.ts";
 import { planPetWindowWakeResume } from "./pet-window-wake-policy.ts";
 import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
@@ -428,29 +429,45 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   #tryEnterSleep() {
-    if (this.#stateMachine.state !== "idle" || !this.frame || !this.isVisible) {
-      return;
-    }
+    const frame = this.frame;
+    const plan = planTimedPetWindowAction({
+      state: this.#stateMachine.state,
+      hasAvailableVideo: Boolean(this.#settingsStore.restoreVideoPath("sleep_loop", this.#petIndex)),
+      hasFrame: Boolean(frame),
+      isVisible: this.isVisible,
+      isCursorNearPet: frame ? rectContainsPoint(expandRect(frame, 70), screen.getCursorScreenPoint()) : false,
+      stateMachineEvent: "sleep"
+    });
 
-    if (rectContainsPoint(expandRect(this.frame, 70), screen.getCursorScreenPoint())) {
+    if (plan.action === "reschedule") {
       this.#scheduleSleepTimer();
       return;
     }
 
-    this.#stateMachine.send("sleep");
+    if (plan.action === "send") {
+      this.#stateMachine.send(plan.stateMachineEvent);
+    }
   }
 
   #tryPlayIdleRandomAction() {
-    if (this.#stateMachine.state !== "idle" || !this.frame || !this.isVisible) {
-      return;
-    }
+    const frame = this.frame;
+    const plan = planTimedPetWindowAction({
+      state: this.#stateMachine.state,
+      hasAvailableVideo: this.#hasAvailableSlot(idleRandomActionSlots),
+      hasFrame: Boolean(frame),
+      isVisible: this.isVisible,
+      isCursorNearPet: frame ? rectContainsPoint(expandRect(frame, 35), screen.getCursorScreenPoint()) : false,
+      stateMachineEvent: "idleActionDue"
+    });
 
-    if (rectContainsPoint(expandRect(this.frame, 35), screen.getCursorScreenPoint())) {
+    if (plan.action === "reschedule") {
       this.#scheduleIdleActionTimer();
       return;
     }
 
-    this.#stateMachine.send("idleActionDue");
+    if (plan.action === "send") {
+      this.#stateMachine.send(plan.stateMachineEvent);
+    }
   }
 
   #updateMouseMonitor() {
