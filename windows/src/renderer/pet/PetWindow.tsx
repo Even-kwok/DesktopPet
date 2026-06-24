@@ -4,6 +4,7 @@ import {
   nextPetPlaybackRequest,
   nextPetVisualEffectRequest
 } from "./pet-playback-command.ts";
+import { createPetPointerInteraction } from "./pet-pointer-interaction.ts";
 import type {
   PetPlaybackMode,
   PetPlaybackRequest,
@@ -29,15 +30,21 @@ export function PetWindow() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const lastDragLocationRef = useRef<{ x: number; y: number } | null>(null);
-  const dragStartLocationRef = useRef<{ x: number; y: number } | null>(null);
-  const movedDuringClickRef = useRef(false);
-  const dragStartedRef = useRef(false);
   const petIndexRef = useRef(0);
   const modeRef = useRef<PetPlaybackMode>("loop");
+  const pointerInteractionRef = useRef<ReturnType<typeof createPetPointerInteraction> | null>(null);
   const [playbackRequest, setPlaybackRequest] = useState<PetPlaybackRequest>();
   const [visualEffectRequest, setVisualEffectRequest] = useState<PetVisualEffectRequest>();
   const [isDropBounceActive, setIsDropBounceActive] = useState(false);
+
+  if (!pointerInteractionRef.current) {
+    pointerInteractionRef.current = createPetPointerInteraction({
+      onClick: () => window.desktopPet?.petClick?.(petIndexRef.current),
+      onDragStarted: () => window.desktopPet?.petDragStarted?.(petIndexRef.current),
+      onDragBy: (delta) => window.desktopPet?.petDragBy?.(petIndexRef.current, delta),
+      onDragEnded: () => window.desktopPet?.petDragEnded?.(petIndexRef.current)
+    });
+  }
 
   useEffect(() => {
     const bridge = window.desktopPet;
@@ -128,55 +135,38 @@ export function PetWindow() {
         ref={canvasRef}
         className={isDropBounceActive ? "pet-canvas drop-bounce" : "pet-canvas"}
         onPointerDown={(event) => {
-          lastDragLocationRef.current = { x: event.screenX, y: event.screenY };
-          dragStartLocationRef.current = { x: event.screenX, y: event.screenY };
-          movedDuringClickRef.current = false;
-          dragStartedRef.current = false;
+          pointerInteractionRef.current?.pointerDown({
+            screenX: event.screenX,
+            screenY: event.screenY
+          });
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
-          const lastLocation = lastDragLocationRef.current;
-          const dragStartLocation = dragStartLocationRef.current;
-          if (!lastLocation || !dragStartLocation) {
-            return;
-          }
-
-          const totalX = event.screenX - dragStartLocation.x;
-          const totalY = event.screenY - dragStartLocation.y;
-          if (Math.hypot(totalX, totalY) > 3) {
-            if (!dragStartedRef.current) {
-              dragStartedRef.current = true;
-              window.desktopPet?.petDragStarted?.(petIndexRef.current);
-            }
-            movedDuringClickRef.current = true;
-          }
-
-          const delta = {
-            x: event.screenX - lastLocation.x,
-            y: event.screenY - lastLocation.y
-          };
-          lastDragLocationRef.current = { x: event.screenX, y: event.screenY };
-
-          if (delta.x !== 0 || delta.y !== 0) {
-            window.desktopPet?.petDragBy?.(petIndexRef.current, delta);
-          }
+          pointerInteractionRef.current?.pointerMove({
+            screenX: event.screenX,
+            screenY: event.screenY
+          });
         }}
         onPointerUp={(event) => {
-          if (!movedDuringClickRef.current) {
-            window.desktopPet?.petClick?.(petIndexRef.current);
-          } else if (dragStartedRef.current) {
-            window.desktopPet?.petDragEnded?.(petIndexRef.current);
-          }
-
-          lastDragLocationRef.current = null;
-          dragStartLocationRef.current = null;
-          movedDuringClickRef.current = false;
-          dragStartedRef.current = false;
-          event.currentTarget.releasePointerCapture(event.pointerId);
+          pointerInteractionRef.current?.pointerUp();
+          releasePointerCaptureIfNeeded(event);
+        }}
+        onPointerCancel={(event) => {
+          pointerInteractionRef.current?.pointerCancel();
+          releasePointerCaptureIfNeeded(event);
+        }}
+        onLostPointerCapture={() => {
+          pointerInteractionRef.current?.pointerCancel();
         }}
       />
     </div>
   );
+}
+
+function releasePointerCaptureIfNeeded(event: React.PointerEvent<HTMLCanvasElement>) {
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
 }
 
 function drawCurrentFrame(
