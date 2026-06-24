@@ -40,9 +40,7 @@ export function PetWindow() {
   if (!pointerInteractionRef.current) {
     pointerInteractionRef.current = createPetPointerInteraction({
       onClick: () => window.desktopPet?.petClick?.(petIndexRef.current),
-      onDragStarted: () => window.desktopPet?.petDragStarted?.(petIndexRef.current),
-      onDragBy: (delta) => window.desktopPet?.petDragBy?.(petIndexRef.current, delta),
-      onDragEnded: () => window.desktopPet?.petDragEnded?.(petIndexRef.current)
+      onDragBy: (delta) => window.desktopPet?.petDragBy?.(petIndexRef.current, delta)
     });
   }
 

@@ -5,9 +5,7 @@ export type PetPointerLocation = {
 
 export type PetPointerInteractionHandlers = {
   onClick: () => void;
-  onDragStarted: () => void;
   onDragBy: (delta: { x: number; y: number }) => void;
-  onDragEnded: () => void;
 };
 
 export function createPetPointerInteraction(
@@ -17,13 +15,11 @@ export function createPetPointerInteraction(
   let lastDragLocation: PetPointerLocation | undefined;
   let dragStartLocation: PetPointerLocation | undefined;
   let movedDuringClick = false;
-  let dragStarted = false;
 
   function reset() {
     lastDragLocation = undefined;
     dragStartLocation = undefined;
     movedDuringClick = false;
-    dragStarted = false;
   }
 
   return {
@@ -31,7 +27,6 @@ export function createPetPointerInteraction(
       lastDragLocation = location;
       dragStartLocation = location;
       movedDuringClick = false;
-      dragStarted = false;
     },
     pointerMove(location: PetPointerLocation) {
       if (!lastDragLocation || !dragStartLocation) {
@@ -41,10 +36,6 @@ export function createPetPointerInteraction(
       const totalX = location.screenX - dragStartLocation.screenX;
       const totalY = location.screenY - dragStartLocation.screenY;
       if (Math.hypot(totalX, totalY) > clickDragThreshold) {
-        if (!dragStarted) {
-          dragStarted = true;
-          handlers.onDragStarted();
-        }
         movedDuringClick = true;
       }
 
@@ -65,17 +56,11 @@ export function createPetPointerInteraction(
 
       if (!movedDuringClick) {
         handlers.onClick();
-      } else if (dragStarted) {
-        handlers.onDragEnded();
       }
 
       reset();
     },
     pointerCancel() {
-      if (dragStarted) {
-        handlers.onDragEnded();
-      }
-
       reset();
     }
   };

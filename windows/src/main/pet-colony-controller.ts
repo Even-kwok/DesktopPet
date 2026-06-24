@@ -188,19 +188,14 @@ export class PetColonyController {
     this.#updateProximityInteractionTimer();
   }
 
-  dragPetStarted(petIndex: number) {
-    this.#petControllers[petIndex]?.dragStarted?.();
-  }
+  dragPetStarted(_petIndex: number) {}
 
   dragPetBy(petIndex: number, delta: { x: number; y: number }) {
     this.#petControllers[petIndex]?.dragBy?.(delta);
     this.#updateProximityInteractionTimer();
   }
 
-  dragPetEnded(petIndex: number) {
-    this.#petControllers[petIndex]?.dragEnded?.();
-    this.#updateProximityInteractionTimer();
-  }
+  dragPetEnded(_petIndex: number) {}
 
   clickPet(petIndex: number) {
     this.#petControllers[petIndex]?.click?.();

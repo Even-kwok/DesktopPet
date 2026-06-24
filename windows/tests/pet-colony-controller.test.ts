@@ -15,6 +15,9 @@ class FakePetWindow {
   frame = { x: 0, y: 0, width: 150, height: 150 };
   triggeredSlots: PetActionSlot[] = [];
   bringToFrontCount = 0;
+  dragByCount = 0;
+  dragStartedCount = 0;
+  dragEndedCount = 0;
   readonly settingsStore: SettingsStore;
   readonly petIndex: number;
 
@@ -47,6 +50,23 @@ class FakePetWindow {
   refreshDisplayName() {}
   resetPosition() {
     this.frame = { x: 0, y: 0, width: 150, height: 150 };
+  }
+
+  dragBy(delta: { x: number; y: number }) {
+    this.dragByCount += 1;
+    this.frame = {
+      ...this.frame,
+      x: this.frame.x + delta.x,
+      y: this.frame.y + delta.y
+    };
+  }
+
+  dragStarted() {
+    this.dragStartedCount += 1;
+  }
+
+  dragEnded() {
+    this.dragEndedCount += 1;
   }
 
   bringToFront() {
@@ -237,6 +257,26 @@ test("nearby pets trigger paired interactions with cooldown", () => {
     now += 25000;
     colony.checkNearbyPetInteractions();
     assert.deepEqual(windows[0].triggeredSlots, ["head_rub_left", "head_rub_left"]);
+  } finally {
+    cleanup();
+  }
+});
+
+test("dragging moves pets without forwarding animation state changes", () => {
+  const { settingsStore, colony, windows, cleanup } = makeHarness();
+  try {
+    settingsStore.petCount = 1;
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    colony.showAll();
+
+    colony.dragPetStarted(0);
+    colony.dragPetBy(0, { x: 5, y: -2 });
+    colony.dragPetEnded(0);
+
+    assert.equal(windows[0].dragByCount, 1);
+    assert.deepEqual(windows[0].frame, { x: 5, y: -2, width: 150, height: 150 });
+    assert.equal(windows[0].dragStartedCount, 0);
+    assert.equal(windows[0].dragEndedCount, 0);
   } finally {
     cleanup();
   }

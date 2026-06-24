@@ -6,9 +6,7 @@ test("clicks when a pointer up completes without meaningful movement", () => {
   const events: string[] = [];
   const interaction = createPetPointerInteraction({
     onClick: () => events.push("click"),
-    onDragStarted: () => events.push("dragStarted"),
-    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`),
-    onDragEnded: () => events.push("dragEnded")
+    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`)
   });
 
   interaction.pointerDown({ screenX: 100, screenY: 100 });
@@ -18,45 +16,39 @@ test("clicks when a pointer up completes without meaningful movement", () => {
   assert.deepEqual(events, ["dragBy:1,1", "click"]);
 });
 
-test("ends an active drag on pointer up", () => {
+test("drags without changing the pet animation state", () => {
   const events: string[] = [];
   const interaction = createPetPointerInteraction({
     onClick: () => events.push("click"),
-    onDragStarted: () => events.push("dragStarted"),
-    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`),
-    onDragEnded: () => events.push("dragEnded")
+    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`)
   });
 
   interaction.pointerDown({ screenX: 100, screenY: 100 });
   interaction.pointerMove({ screenX: 104, screenY: 100 });
   interaction.pointerUp();
 
-  assert.deepEqual(events, ["dragStarted", "dragBy:4,0", "dragEnded"]);
+  assert.deepEqual(events, ["dragBy:4,0"]);
 });
 
-test("ends an active drag when pointer capture is canceled", () => {
+test("cancels active drag without changing the pet animation state", () => {
   const events: string[] = [];
   const interaction = createPetPointerInteraction({
     onClick: () => events.push("click"),
-    onDragStarted: () => events.push("dragStarted"),
-    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`),
-    onDragEnded: () => events.push("dragEnded")
+    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`)
   });
 
   interaction.pointerDown({ screenX: 100, screenY: 100 });
   interaction.pointerMove({ screenX: 108, screenY: 103 });
   interaction.pointerCancel();
 
-  assert.deepEqual(events, ["dragStarted", "dragBy:8,3", "dragEnded"]);
+  assert.deepEqual(events, ["dragBy:8,3"]);
 });
 
 test("does not click when a tap is canceled before pointer up", () => {
   const events: string[] = [];
   const interaction = createPetPointerInteraction({
     onClick: () => events.push("click"),
-    onDragStarted: () => events.push("dragStarted"),
-    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`),
-    onDragEnded: () => events.push("dragEnded")
+    onDragBy: (delta) => events.push(`dragBy:${delta.x},${delta.y}`)
   });
 
   interaction.pointerDown({ screenX: 40, screenY: 40 });
