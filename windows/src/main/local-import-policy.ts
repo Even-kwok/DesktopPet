@@ -13,7 +13,7 @@ export type FirstRunIdleLoopPromptInput = {
 
 export function idleLoopImportTargetAfterAddingPet(petIndex: number) {
   return {
-    petIndex: Math.max(0, Math.trunc(petIndex)),
+    petIndex: normalizedPetIndex(petIndex),
     slot: "idle_loop" as const
   };
 }
@@ -66,6 +66,10 @@ export function petCountAfterLocalVideoImport(
 
 function normalizedPetCount(count: unknown) {
   return typeof count === "number" && Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
+}
+
+function normalizedPetIndex(index: unknown) {
+  return typeof index === "number" && Number.isFinite(index) ? Math.max(0, Math.trunc(index)) : 0;
 }
 
 export function localVideoRemovalAction(

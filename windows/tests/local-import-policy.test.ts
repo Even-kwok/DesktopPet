@@ -45,6 +45,17 @@ test("requests idle-loop import for the pet added from the tray", () => {
   });
 });
 
+test("normalizes invalid added-pet import targets to the first pet", () => {
+  assert.deepEqual(idleLoopImportTargetAfterAddingPet(Number.NaN), {
+    petIndex: 0,
+    slot: "idle_loop"
+  });
+  assert.deepEqual(idleLoopImportTargetAfterAddingPet(Number.POSITIVE_INFINITY), {
+    petIndex: 0,
+    slot: "idle_loop"
+  });
+});
+
 test("builds Mac-parity local video picker copy", () => {
   assert.deepEqual(localVideoPickerOptions("栗子", "待机循环"), {
     title: "选择 栗子 的「待机循环」视频",
