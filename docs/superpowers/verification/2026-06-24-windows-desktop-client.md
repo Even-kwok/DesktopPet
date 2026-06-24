@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 203 tests.
+- `npm test`: passed, 204 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -62,6 +62,8 @@ Colony-controller coverage now verifies invalid JavaScript pet-count values are 
 Studio selection coverage now verifies invalid renderer pet indexes and malformed pet counts fall back to the first pet instead of leaking `NaN` into the selected pet or name draft.
 
 Studio status coverage now verifies pets marked as `away` show the same friend-hosted status that drives the recall action, even if a refreshed card still reports an active display state.
+
+Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 N 只` detail copy as the Mac Studio for hosted-pet counts.
 
 Studio renderer-list coverage now verifies malformed pet counts display as safe non-negative counts and keep a bounded placeholder pet selector instead of rendering invalid list lengths.
 

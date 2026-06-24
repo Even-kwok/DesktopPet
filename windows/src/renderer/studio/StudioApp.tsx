@@ -10,6 +10,7 @@ import type { DesktopAccountSession, DesktopSyncedPetCard } from "../../shared/s
 import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   canRequestHosting,
+  friendHostingDetail,
   shouldShowRecallAction,
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
@@ -418,7 +419,7 @@ export function StudioApp() {
                   <div>
                     <span>{friend.name}</span>
                     <small>
-                      {friend.status} · 寄养 {friend.hostedPets} 只
+                      {friendHostingDetail(friend)}
                     </small>
                   </div>
                   <div>

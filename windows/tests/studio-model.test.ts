@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   accountDetail,
   canRequestHosting,
+  friendHostingDetail,
   resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
   resolveRecallPetTarget,
@@ -24,6 +25,10 @@ test("builds account display copy", () => {
     }),
     "demo@desktop.pet · 120 积分"
   );
+});
+
+test("builds Mac-parity friend hosting detail copy", () => {
+  assert.equal(friendHostingDetail({ status: "在线", hostedPets: 2 }), "在线 · 托管 2 只");
 });
 
 test("computes pet status and available actions", () => {

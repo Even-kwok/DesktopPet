@@ -20,12 +20,21 @@ type FriendActionState = {
   id: string;
 };
 
+type FriendHostingDetailState = {
+  status: string;
+  hostedPets: number;
+};
+
 export function accountDetail(account: DesktopAccountSession | undefined) {
   if (!account) {
     return "登录后可同步网页端账号下的宠物数据。";
   }
 
   return `${account.email} · ${account.credits} 积分`;
+}
+
+export function friendHostingDetail(friend: FriendHostingDetailState) {
+  return `${friend.status} · 托管 ${friend.hostedPets} 只`;
 }
 
 export function statusTextForSyncedPet(pet: SyncedPetState) {
