@@ -153,7 +153,7 @@ export class PetColonyController {
 
     this.#ensurePetControllers(petIndex + 1);
     this.#settingsStore.setPetSizeScale(scale, petIndex);
-    this.#petControllers[petIndex].setSizeScale(scale);
+    this.#petControllers[petIndex].setSizeScale(this.#settingsStore.petSizeScale(petIndex));
     this.#updateProximityInteractionTimer();
   }
 

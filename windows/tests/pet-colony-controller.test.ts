@@ -195,6 +195,20 @@ test("ignores invalid pet indexes from renderer commands", () => {
   }
 });
 
+test("forwards clamped pet size scale to active windows", () => {
+  const { settingsStore, colony, windows, cleanup } = makeHarness();
+  try {
+    settingsStore.petCount = 1;
+
+    colony.setPetSizeScale(0.1, 0);
+
+    assert.equal(settingsStore.petSizeScale(0), 0.3);
+    assert.equal(windows[0].sizeScale, 0.3);
+  } finally {
+    cleanup();
+  }
+});
+
 test("nearby pets trigger paired interactions with cooldown", () => {
   let now = 1000;
   const { settingsStore, colony, windows, cleanup } = makeHarness({
