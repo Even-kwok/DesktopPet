@@ -333,8 +333,8 @@ function isDesktopLoginResponse(value: unknown): value is DesktopLoginResponse {
 
   return (
     isString(value.mode) &&
-    isString(value.tokenType) &&
-    isString(value.accessToken) &&
+    isBearerTokenType(value.tokenType) &&
+    isNonEmptyString(value.accessToken) &&
     isNonNegativeInteger(value.expiresIn) &&
     isDesktopSyncAccount(value.account)
   );
@@ -473,6 +473,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isString(value: unknown) {
   return typeof value === "string";
+}
+
+function isNonEmptyString(value: unknown) {
+  return isString(value) && value.trim().length > 0;
+}
+
+function isBearerTokenType(value: unknown) {
+  return isString(value) && value.toLowerCase() === "bearer";
 }
 
 function isRemoteUrlString(value: unknown) {
