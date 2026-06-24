@@ -1,22 +1,17 @@
 import { applyPetSizeScale, defaultPetFrame } from "../shared/settings-store.ts";
-import type { Rect, SettingsStore } from "../shared/settings-store.ts";
+import type { Rect, ScreenArea, SettingsStore } from "../shared/settings-store.ts";
 
-export type ScreenSize = {
-  width: number;
-  height: number;
-};
-
-export function petFrameForScreen(settingsStore: SettingsStore, petIndex: number, screenSize: ScreenSize) {
-  return settingsStore.petFrame(petIndex, screenSize);
+export function petFrameForScreen(settingsStore: SettingsStore, petIndex: number, screenArea: ScreenArea) {
+  return settingsStore.petFrame(petIndex, screenArea);
 }
 
 export function resetPetFrameForScreen(
   settingsStore: SettingsStore,
   petIndex: number,
-  screenSize: ScreenSize
+  screenArea: ScreenArea
 ): Rect {
   const frame = applyPetSizeScale(
-    defaultPetFrame(petIndex, screenSize),
+    defaultPetFrame(petIndex, screenArea),
     settingsStore.petSizeScale(petIndex)
   );
   settingsStore.setPetFrame(frame, petIndex);
@@ -27,9 +22,9 @@ export function setPetSizeScaleForScreen(
   settingsStore: SettingsStore,
   petIndex: number,
   scale: number,
-  screenSize: ScreenSize
+  screenArea: ScreenArea
 ): Rect {
-  const previousFrame = settingsStore.petFrame(petIndex, screenSize);
+  const previousFrame = settingsStore.petFrame(petIndex, screenArea);
   settingsStore.setPetSizeScale(scale, petIndex);
   const frame = applyPetSizeScale(previousFrame, settingsStore.petSizeScale(petIndex));
   settingsStore.setPetFrame(frame, petIndex);

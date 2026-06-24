@@ -5,6 +5,7 @@ import type { DesktopFriendCard, DesktopSyncAccount } from "./desktop-sync-clien
 import type { PetActionSlot } from "./pet-action-slots.ts";
 
 export type Rect = { x: number; y: number; width: number; height: number };
+export type ScreenArea = { x?: number; y?: number; width: number; height: number };
 
 export type DesktopAccountSession = {
   id: string;
@@ -238,7 +239,7 @@ export class SettingsStore {
     this.#write();
   }
 
-  petFrame(index: number, screenSize = { width: 1024, height: 768 }): Rect {
+  petFrame(index: number, screenSize: ScreenArea = { width: 1024, height: 768 }): Rect {
     const frame = this.#readPet(index)?.frame;
     if (isRect(frame)) {
       return frame;
@@ -343,14 +344,16 @@ export class SettingsStore {
   }
 }
 
-export function defaultPetFrame(index: number, screenSize: { width: number; height: number }): Rect {
+export function defaultPetFrame(index: number, screenSize: ScreenArea): Rect {
   const columns = Math.max(1, Math.min(6, Math.trunc((screenSize.width - maxPetSize.width) / 42)));
   const column = Math.max(index, 0) % columns;
   const row = Math.trunc(Math.max(index, 0) / columns);
+  const originX = screenSize.x ?? 0;
+  const originY = screenSize.y ?? 0;
 
   return {
-    x: screenSize.width / 2 - maxPetSize.width / 2 + column * 34,
-    y: screenSize.height / 2 - maxPetSize.height / 2 - row * 34,
+    x: originX + screenSize.width / 2 - maxPetSize.width / 2 + column * 34,
+    y: originY + screenSize.height / 2 - maxPetSize.height / 2 - row * 34,
     width: maxPetSize.width,
     height: maxPetSize.height
   };

@@ -33,6 +33,20 @@ test("uses the actual screen size for first pet frame", () => {
   }
 });
 
+test("includes the Windows work area origin when deriving default pet frames", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    assert.deepEqual(petFrameForScreen(store, 0, { x: 100, y: 80, width: 1920, height: 1080 }), {
+      x: 985,
+      y: 545,
+      width: 150,
+      height: 150
+    });
+  } finally {
+    cleanup();
+  }
+});
+
 test("resets and resizes around the screen-derived pet center", () => {
   const { store, cleanup } = makeStore();
   try {

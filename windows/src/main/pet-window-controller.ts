@@ -518,7 +518,7 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   #currentScreenSize() {
-    return screen.getPrimaryDisplay().workAreaSize;
+    return screen.getPrimaryDisplay().workArea;
   }
 }
 
