@@ -29,6 +29,7 @@ import { showPetsActionPlan } from "./pet-visibility-policy.ts";
 import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
 import { refreshedFriendCardsAfterSync } from "./sync-policy.ts";
+import { importDesktopBundle } from "./desktop-bundle-importer.ts";
 import {
   refreshedAccountSessionFromSyncAccount,
   SettingsStore
@@ -36,21 +37,15 @@ import {
 import { SleepRecoveryCoordinator } from "../shared/sleep-recovery-coordinator.ts";
 import {
   DesktopPetSyncClient,
-  DesktopPetSyncError,
-  displayablePets,
-  localMaterialReplacementDescriptions,
-  readyDesktopMaterials,
-  syncedPetCardsFromBundle
+  localMaterialReplacementDescriptions
 } from "../shared/desktop-sync-client.ts";
 import { allPetActionSlots, petActionSlotDisplayName } from "../shared/pet-action-slots.ts";
 import { reviewPetVideoImport } from "../shared/video-import-review.ts";
-import { remoteMaterialDestinationPath, writeRemoteMaterialAtomically } from "../shared/remote-material-cache.ts";
 import {
   resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
   resolveRecallPetTarget
 } from "../shared/studio-model.ts";
-import type { DesktopPetBundleMaterial } from "../shared/desktop-sync-client.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 import type { ExistingInstanceReopenAction } from "./app-lifecycle-policy.ts";
 
@@ -484,70 +479,6 @@ function requireAccount<T extends { accessToken: string } | undefined>(account: 
   }
 
   return account;
-}
-
-async function importDesktopBundle(
-  bundle: Awaited<ReturnType<DesktopPetSyncClient["fetchBundle"]>>,
-  input: {
-    settingsStore: SettingsStore;
-    petColonyController: PetColonyController;
-    remoteMaterialRoot: string;
-  }
-) {
-  const petsWithMaterials = bundle.pets.filter((pet) => pet.materials.length > 0);
-  if (petsWithMaterials.length === 0) {
-    throw DesktopPetSyncError.emptyBundle();
-  }
-
-  const desktopPets = displayablePets(bundle);
-  if (desktopPets.length === 0) {
-    input.settingsStore.saveSyncedPetCards(syncedPetCardsFromBundle(bundle));
-    throw DesktopPetSyncError.missingIdleLoop();
-  }
-
-  if (input.settingsStore.petCount < desktopPets.length) {
-    input.petColonyController.setPetCount(desktopPets.length);
-  }
-
-  let materialCount = 0;
-  for (const [petIndex, pet] of desktopPets.entries()) {
-    input.settingsStore.setPetName(pet.name, petIndex);
-
-    for (const material of readyDesktopMaterials(pet)) {
-      const videoPath = await downloadRemoteMaterial(material, pet.id, input.remoteMaterialRoot);
-      input.settingsStore.saveVideoPath(videoPath, material.slot, petIndex);
-      materialCount += 1;
-    }
-  }
-
-  if (materialCount === 0) {
-    throw DesktopPetSyncError.emptyBundle();
-  }
-
-  input.settingsStore.saveSyncedPetCards(syncedPetCardsFromBundle(bundle));
-  input.settingsStore.isPetVisible = true;
-  input.petColonyController.refreshDisplayNames();
-  input.petColonyController.showAll();
-
-  return {
-    petCount: desktopPets.length,
-    materialCount
-  };
-}
-
-async function downloadRemoteMaterial(
-  material: DesktopPetBundleMaterial,
-  petID: string,
-  remoteMaterialRoot: string
-) {
-  const response = await fetch(material.videoUrl);
-  if (!response.ok) {
-    throw DesktopPetSyncError.invalidResponse();
-  }
-
-  const destination = remoteMaterialDestinationPath(remoteMaterialRoot, petID, material);
-  await writeRemoteMaterialAtomically(destination, Buffer.from(await response.arrayBuffer()));
-  return destination;
 }
 
 async function importLocalVideo(input: {
