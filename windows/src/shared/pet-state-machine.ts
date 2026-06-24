@@ -17,6 +17,7 @@ export type PetEvent =
   | "idleActionDue"
   | "nearbyPet"
   | "reactionFinished"
+  | "reactionUnavailable"
   | "dragStarted"
   | "dragEnded"
   | "sleep"
@@ -86,6 +87,11 @@ export class PetStateMachine {
       case "reactionFinished":
         if (["clicked", "catchingBug", "idleAction", "socialInteraction"].includes(this.#state)) {
           this.#transitionTo("idle");
+        }
+        break;
+      case "reactionUnavailable":
+        if (["clicked", "catchingBug", "idleAction", "socialInteraction"].includes(this.#state)) {
+          this.#returnToIdle(120);
         }
         break;
       case "dragStarted":

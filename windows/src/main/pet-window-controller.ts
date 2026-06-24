@@ -325,7 +325,7 @@ export class PetWindowController implements PetWindowControllerLike {
   #playFirstAvailable(slots: PetActionSlot[]) {
     const slot = this.#randomAvailableSlot(slots);
     if (!slot) {
-      this.#stateMachine.send("reactionFinished");
+      this.#stateMachine.send("reactionUnavailable");
       return;
     }
 

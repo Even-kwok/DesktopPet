@@ -40,6 +40,24 @@ test("reactions return to idle after reactionFinished", () => {
   }
 });
 
+test("missing reaction videos return to idle after the Mac fallback delay", () => {
+  const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+  const machine = new PetStateMachine(undefined, (callback, delayMs) => {
+    scheduled.push({ callback, delayMs });
+  });
+
+  machine.send("show");
+  machine.send("click");
+  machine.send("reactionUnavailable");
+
+  assert.equal(machine.state, "clicked");
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].delayMs, 120);
+
+  scheduled[0].callback();
+  assert.equal(machine.state, "idle");
+});
+
 test("drag ends with dropped and scheduler returns to idle", () => {
   const scheduled: Array<() => void> = [];
   const machine = new PetStateMachine(undefined, (callback) => scheduled.push(callback));
