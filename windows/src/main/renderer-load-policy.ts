@@ -13,3 +13,10 @@ export function shouldFinishRendererShow(input: {
 }) {
   return input.isVisible && input.requestRevision === input.currentRevision;
 }
+
+export function canSendRendererCommand(input: {
+  hasWindow: boolean;
+  isWebContentsDestroyed: boolean;
+}) {
+  return input.hasWindow && !input.isWebContentsDestroyed;
+}

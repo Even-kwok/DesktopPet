@@ -15,6 +15,7 @@ import {
   nearbyPetInteractionSlots
 } from "../shared/pet-action-slots.ts";
 import {
+  canSendRendererCommand,
   hasLoadedRendererURL,
   nextRendererShowRevision,
   shouldFinishRendererShow
@@ -493,7 +494,18 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   #sendCommand(command: unknown) {
-    this.#window?.webContents.send("pet:command", command);
+    const window = this.#window;
+    if (
+      !window ||
+      !canSendRendererCommand({
+        hasWindow: true,
+        isWebContentsDestroyed: window.webContents.isDestroyed()
+      })
+    ) {
+      return;
+    }
+
+    window.webContents.send("pet:command", command);
   }
 
   #saveBounds(bounds: Rectangle) {

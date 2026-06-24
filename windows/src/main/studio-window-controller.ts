@@ -7,7 +7,7 @@ import {
 } from "./studio-window-policy.js";
 import type { StudioWindowCommand } from "./studio-window-policy.js";
 import { ipcChannels } from "./ipc.js";
-import { nextRendererShowRevision } from "./renderer-load-policy.js";
+import { canSendRendererCommand, nextRendererShowRevision } from "./renderer-load-policy.js";
 
 export type StudioWindowControllerOptions = {
   preloadPath: string;
@@ -72,7 +72,13 @@ export class StudioWindowController {
 
   notifyStateChanged() {
     const window = this.#window;
-    if (!window) {
+    if (
+      !window ||
+      !canSendRendererCommand({
+        hasWindow: true,
+        isWebContentsDestroyed: window.webContents.isDestroyed()
+      })
+    ) {
       return;
     }
 

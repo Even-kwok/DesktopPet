@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canSendRendererCommand,
   nextRendererShowRevision,
   shouldFinishRendererShow
 } from "../src/main/renderer-load-policy.ts";
@@ -31,6 +32,30 @@ test("allows only the latest visible renderer show request to finish", () => {
       requestRevision: secondShow,
       currentRevision: secondShow,
       isVisible: true
+    }),
+    true
+  );
+});
+
+test("sends renderer commands only to live web contents", () => {
+  assert.equal(
+    canSendRendererCommand({
+      hasWindow: false,
+      isWebContentsDestroyed: false
+    }),
+    false
+  );
+  assert.equal(
+    canSendRendererCommand({
+      hasWindow: true,
+      isWebContentsDestroyed: true
+    }),
+    false
+  );
+  assert.equal(
+    canSendRendererCommand({
+      hasWindow: true,
+      isWebContentsDestroyed: false
     }),
     true
   );
