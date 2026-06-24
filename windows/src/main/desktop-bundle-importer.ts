@@ -37,12 +37,12 @@ export async function importDesktopBundle(
     downloadRemoteMaterial?: DownloadRemoteMaterial;
   }
 ) {
+  input.settingsStore.saveSyncedPetCards(syncedPetCardsFromBundle(bundle));
+
   const petsWithMaterials = bundle.pets.filter((pet) => pet.materials.length > 0);
   if (petsWithMaterials.length === 0) {
     throw DesktopPetSyncError.emptyBundle();
   }
-
-  input.settingsStore.saveSyncedPetCards(syncedPetCardsFromBundle(bundle));
 
   const desktopPets = displayablePets(bundle);
   if (desktopPets.length === 0) {

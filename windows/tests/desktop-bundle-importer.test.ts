@@ -29,6 +29,24 @@ function makeDisplayableBundle(): DesktopPetBundle {
   };
 }
 
+function makeBundleWithoutMaterials(): DesktopPetBundle {
+  return {
+    version: 1,
+    generatedAt: "2026-06-24T00:00:00.000Z",
+    pets: [
+      {
+        id: "pet_empty",
+        petNumber: "CAT-EMPTY",
+        name: "团子",
+        type: "cat",
+        ownership: "owned",
+        displayState: "active",
+        materials: []
+      }
+    ]
+  };
+}
+
 test("caches synced pet cards before remote material downloads can fail", async () => {
   const savedCards: DesktopSyncedPetCard[][] = [];
   const settingsStore = {
@@ -61,5 +79,37 @@ test("caches synced pet cards before remote material downloads can fail", async 
   assert.deepEqual(
     savedCards.map((cards) => cards.map((card) => card.id)),
     [["pet_orange"]]
+  );
+});
+
+test("caches synced pet cards before empty material bundles fail", async () => {
+  const savedCards: DesktopSyncedPetCard[][] = [];
+  const settingsStore = {
+    petCount: 1,
+    isPetVisible: false,
+    setPetName: () => undefined,
+    saveVideoPath: () => undefined,
+    saveSyncedPetCards: (cards: DesktopSyncedPetCard[]) => {
+      savedCards.push(cards);
+    }
+  };
+  const petColonyController = {
+    setPetCount: () => undefined,
+    refreshDisplayNames: () => undefined,
+    showAll: () => true
+  };
+
+  await assert.rejects(
+    importDesktopBundle(makeBundleWithoutMaterials(), {
+      settingsStore,
+      petColonyController,
+      remoteMaterialRoot: "/tmp/remote-materials"
+    }),
+    (error) => error instanceof Error && error.message === "网页端还没有可同步的视频素材。"
+  );
+
+  assert.deepEqual(
+    savedCards.map((cards) => cards.map((card) => card.id)),
+    [["pet_empty"]]
   );
 });
