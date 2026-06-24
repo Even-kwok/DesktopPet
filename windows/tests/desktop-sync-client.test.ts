@@ -241,6 +241,27 @@ test("maps malformed add-friend responses to invalid response", async () => {
   }
 });
 
+test("maps malformed remove-friend responses to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: { deletedFriendId: 123 }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.removeFriend("friend_1", "desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("describes local videos replaced by cloud sync", () => {
   const bundle = {
     version: 1,

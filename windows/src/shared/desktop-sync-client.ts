@@ -56,6 +56,10 @@ export type DesktopFriendCard = {
   hostedPets: number;
 };
 
+export type DesktopFriendDeleteResponse = {
+  deletedFriendId: string;
+};
+
 export type DesktopHostingRequestResponse = {
   requestId: string;
   status: string;
@@ -174,14 +178,20 @@ export class DesktopPetSyncClient {
     return response.friend;
   }
 
-  removeFriend(friendId: string, accessToken: string) {
-    return this.#sendJSON<{ deletedFriendId: string }>({
+  async removeFriend(friendId: string, accessToken: string) {
+    const response = await this.#sendJSON<unknown>({
       path: "/api/friends",
       method: "DELETE",
       body: { friendId },
       accessToken,
       unauthorizedError: DesktopPetSyncError.sessionExpired()
     });
+
+    if (!isDesktopFriendDeleteResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response;
   }
 
   requestHosting(petId: string, toUserId: string, accessToken: string) {
@@ -380,6 +390,10 @@ function isDesktopFriendsResponse(value: unknown): value is { friends: DesktopFr
 
 function isDesktopFriendResponse(value: unknown): value is { friend: DesktopFriendCard } {
   return isRecord(value) && isDesktopFriendCard(value.friend);
+}
+
+function isDesktopFriendDeleteResponse(value: unknown): value is DesktopFriendDeleteResponse {
+  return isRecord(value) && isString(value.deletedFriendId);
 }
 
 function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
