@@ -250,7 +250,7 @@ export class SettingsStore {
   }
 
   setPetFrame(frame: Rect, index: number) {
-    if (!isExistingPetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount) || !isRect(frame)) {
       return;
     }
 

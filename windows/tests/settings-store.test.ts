@@ -474,6 +474,28 @@ test("does not save pet size or frame for the inactive boundary slot", () => {
   }
 });
 
+test("does not overwrite valid pet frames with malformed frame writes", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+    const validFrame = { x: 12, y: 34, width: 150, height: 150 };
+    store.setPetFrame(validFrame, 0);
+
+    store.setPetFrame({ x: Number.NaN, y: 99, width: 150, height: 150 }, 0);
+    store.setPetFrame({ x: 20, y: 99, width: Number.POSITIVE_INFINITY, height: 150 }, 0);
+    store.setPetFrame({ x: 20, y: 99, width: 0, height: 150 }, 0);
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: Array<{ frame?: unknown }>;
+    };
+
+    assert.deepEqual(store.petFrame(0), validFrame);
+    assert.deepEqual(persisted.pets?.[0]?.frame, validFrame);
+  } finally {
+    cleanup();
+  }
+});
+
 test("ignores unknown saved video slot keys like the Mac settings store", () => {
   const { store, cleanup } = makeStore();
   try {
