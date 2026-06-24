@@ -124,8 +124,7 @@ export class DesktopPetSyncClient {
       path: "/api/desktop/auth/login",
       method: "POST",
       body: { email, password },
-      unauthorizedError: DesktopPetSyncError.loginFailed(),
-      clientError: DesktopPetSyncError.loginFailed()
+      unauthorizedError: DesktopPetSyncError.loginFailed()
     });
 
     if (!isDesktopLoginResponse(response)) {

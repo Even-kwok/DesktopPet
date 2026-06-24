@@ -95,7 +95,7 @@ test("maps malformed login responses to invalid response", async () => {
   }
 });
 
-test("maps invalid login requests to login failure copy", async () => {
+test("maps invalid login requests to Mac-parity invalid response copy", async () => {
   const server = await withServer(() => ({
     status: 400,
     body: { error: "INVALID_LOGIN_REQUEST" }
@@ -108,8 +108,8 @@ test("maps invalid login requests to login failure copy", async () => {
       client.login("not-an-email", "123456"),
       (error) =>
         error instanceof DesktopPetSyncError &&
-        error.code === "loginFailed" &&
-        error.message === "登录失败，请检查账号和密码。"
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
     );
   } finally {
     await server.close();
