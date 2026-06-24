@@ -361,6 +361,51 @@ test("maps desktop bundles with negative recommended polling intervals to invali
   }
 });
 
+test("maps desktop bundles with empty pet identity fields to invalid response", async () => {
+  const malformedPets = [
+    { id: " ", name: "栗子" },
+    { id: "pet_local", name: " " }
+  ];
+
+  for (const pet of malformedPets) {
+    const server = await withServer(() => ({
+      status: 200,
+      body: {
+        version: 1,
+        generatedAt: "2026-06-24T00:00:00.000Z",
+        pets: [
+          {
+            ...pet,
+            type: "cat",
+            materials: [
+              {
+                slot: "idle_loop",
+                name: "待机循环",
+                videoUrl: "https://example.com/idle.mp4",
+                status: "ready"
+              }
+            ]
+          }
+        ]
+      }
+    }));
+
+    try {
+      const client = new DesktopPetSyncClient(server.baseURL);
+
+      await assert.rejects(
+        client.fetchBundle("desktop-token"),
+        (error) =>
+          error instanceof DesktopPetSyncError &&
+          error.code === "invalidResponse" &&
+          error.message === "桌面同步返回异常。"
+      );
+    } finally {
+      await server.close();
+    }
+  }
+});
+
 test("maps desktop bundles with malformed material URLs to invalid response", async () => {
   const server = await withServer(() => ({
     status: 200,
@@ -438,6 +483,36 @@ test("maps malformed friend list responses to invalid response", async () => {
     );
   } finally {
     await server.close();
+  }
+});
+
+test("maps friend list responses with empty friend identity fields to invalid response", async () => {
+  const malformedFriends = [
+    { id: " ", name: "阿雯" },
+    { id: "friend_1", name: " " }
+  ];
+
+  for (const friend of malformedFriends) {
+    const server = await withServer(() => ({
+      status: 200,
+      body: {
+        friends: [{ ...friend, status: "在线", hostedPets: 1 }]
+      }
+    }));
+
+    try {
+      const client = new DesktopPetSyncClient(server.baseURL);
+
+      await assert.rejects(
+        client.fetchFriends("desktop-token"),
+        (error) =>
+          error instanceof DesktopPetSyncError &&
+          error.code === "invalidResponse" &&
+          error.message === "桌面同步返回异常。"
+      );
+    } finally {
+      await server.close();
+    }
   }
 });
 

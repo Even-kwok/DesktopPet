@@ -374,11 +374,11 @@ function isDesktopPetBundlePet(value: unknown): value is DesktopPetBundlePet {
   }
 
   return (
-    isString(value.id) &&
+    isNonEmptyString(value.id) &&
     isOptionalString(value.petNumber) &&
     isOptionalString(value.ownerUserId) &&
     isOptionalString(value.currentHostUserId) &&
-    isString(value.name) &&
+    isNonEmptyString(value.name) &&
     isString(value.type) &&
     isOptionalString(value.ownership) &&
     isOptionalString(value.displayState) &&
@@ -436,8 +436,8 @@ function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
   }
 
   return (
-    isString(value.id) &&
-    isString(value.name) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.name) &&
     isString(value.status) &&
     isNonNegativeInteger(value.hostedPets)
   );

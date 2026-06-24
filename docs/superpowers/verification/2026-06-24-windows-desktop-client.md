@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 188 tests.
+- `npm test`: passed, 190 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -38,6 +38,8 @@ Settings-store studio-cache coverage now verifies cached synced-pet and friend c
 Settings-store account-session coverage now verifies cached account sessions with empty access tokens are ignored on restart instead of showing the Windows Studio as signed in with an unusable token.
 
 Desktop sync coverage now verifies remote friend-list responses with negative hosted-pet counts are rejected before they can enter the Windows Studio.
+
+Desktop sync identity coverage now verifies remote pet bundle and friend-list responses with empty pet or friend `id`/`name` fields are rejected before they can enter the Windows Studio or sync cache.
 
 Desktop sync account coverage now verifies login and bundle account records with negative credit balances are rejected before they can be shown in the Windows Studio.
 
