@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 209 tests.
+- `npm test`: passed, 210 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -16,6 +16,8 @@ The Windows tray menu now also has automated coverage for Mac-parity pet submenu
 Material-slot coverage now verifies Windows exposes the same trigger descriptions as the Mac Studio cards, including `默认循环`, `点击宠物`, `鼠标经过宠物`, `另一只宠物靠近`, and `待机随机`.
 
 Material-group coverage now verifies Windows exposes the same Mac Studio group titles and helper descriptions, such as `基础状态` with `宠物显示、睡觉等基础素材。`, and shows group-level completion counts in the Studio.
+
+Studio material-board coverage now verifies Windows uses the Mac `动作卡册` title and the same core helper copy that material actions appear in their corresponding scenes.
 
 System wake coverage now includes the pet-window resume policy: hidden pet windows stay hidden, while visible pet windows are restored and replay the current state without issuing a second state-machine `show` event.
 

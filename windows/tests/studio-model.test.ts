@@ -5,6 +5,8 @@ import {
   canRequestHosting,
   friendHostingDetail,
   localMaterialStatusText,
+  localMaterialBoardDetail,
+  localMaterialBoardTitle,
   resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
   resolveRecallPetTarget,
@@ -36,6 +38,11 @@ test("builds Mac-parity friend hosting detail copy", () => {
 test("builds Mac-parity local material status copy", () => {
   assert.equal(localMaterialStatusText({ hasVideo: true }), "已有视频");
   assert.equal(localMaterialStatusText({ hasVideo: false }), "未生成");
+});
+
+test("builds Mac-parity local material board copy", () => {
+  assert.equal(localMaterialBoardTitle(), "动作卡册");
+  assert.equal(localMaterialBoardDetail(), "有素材的动作会在对应场景出现。");
 });
 
 test("computes pet status and available actions", () => {

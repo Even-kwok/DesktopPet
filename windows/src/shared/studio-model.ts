@@ -49,6 +49,14 @@ export function localMaterialStatusText(material: LocalMaterialStatusState) {
   return material.hasVideo ? "已有视频" : "未生成";
 }
 
+export function localMaterialBoardTitle() {
+  return "动作卡册";
+}
+
+export function localMaterialBoardDetail() {
+  return "有素材的动作会在对应场景出现。";
+}
+
 export function statusTextForSyncedPet(pet: SyncedPetState) {
   if (pet.ownership === "away") {
     return "托管在朋友那里";

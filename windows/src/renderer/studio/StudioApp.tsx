@@ -14,6 +14,8 @@ import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
   canRequestHosting,
   friendHostingDetail,
+  localMaterialBoardDetail,
+  localMaterialBoardTitle,
   localMaterialStatusText,
   syncedPetCardAction,
   statusTextForSyncedPet
@@ -455,7 +457,10 @@ export function StudioApp() {
 
       <section className="studio-panel material-panel">
         <div className="panel-heading">
-          <h2>状态视频</h2>
+          <div>
+            <h2>{localMaterialBoardTitle()}</h2>
+            <p>{localMaterialBoardDetail()}</p>
+          </div>
           <span>Pet {selectedPetIndex + 1}</span>
         </div>
         <div className="material-groups">
