@@ -13,6 +13,7 @@ import {
   singleInstanceStartupPlan,
   systemWakeActions
 } from "./app-lifecycle-policy.ts";
+import { startupPetVisibilityRestorePlan } from "./startup-restore-policy.ts";
 import {
   bindMenuActions,
   buildTrayMenuTemplate,
@@ -464,10 +465,21 @@ async function bootstrap() {
   };
   refreshTray();
 
-  let didRestoreVideo = false;
-  if (settingsStore.isPetVisible) {
-    didRestoreVideo = petColonyController.showAll();
-    settingsStore.isPetVisible = didRestoreVideo;
+  const wasPetVisible = settingsStore.isPetVisible;
+  const initialStartupVisibilityPlan = startupPetVisibilityRestorePlan({
+    wasPetVisible,
+    didShowAnyPet: false
+  });
+  const didShowAnyPet = initialStartupVisibilityPlan.shouldShowPets
+    ? petColonyController.showAll()
+    : false;
+  const startupVisibilityPlan = startupPetVisibilityRestorePlan({
+    wasPetVisible,
+    didShowAnyPet
+  });
+  const didRestoreVideo = startupVisibilityPlan.didRestoreVideo;
+  settingsStore.isPetVisible = startupVisibilityPlan.nextIsPetVisible;
+  if (startupVisibilityPlan.shouldRefreshTray) {
     refreshTray();
   }
 
