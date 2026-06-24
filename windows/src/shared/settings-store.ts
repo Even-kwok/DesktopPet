@@ -180,8 +180,13 @@ export class SettingsStore {
   }
 
   upsertFriendCard(card: DesktopFriendCard) {
-    const cards = this.friendCards.filter((friend) => friend.id !== card.id);
-    cards.push(card);
+    const cards = [...this.friendCards];
+    const index = cards.findIndex((friend) => friend.id === card.id);
+    if (index >= 0) {
+      cards[index] = card;
+    } else {
+      cards.push(card);
+    }
     this.#data.friendCards = cards;
     this.#write();
   }

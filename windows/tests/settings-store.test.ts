@@ -386,6 +386,30 @@ test("persists synced pet cards and friend cards separately from account session
   }
 });
 
+test("updates existing friend cards without changing their order like the Mac studio cache", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.saveFriendCards([
+      { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
+      { id: "friend_2", name: "小林", status: "离线", hostedPets: 0 }
+    ]);
+
+    store.upsertFriendCard({ id: "friend_1", name: "阿雯", status: "忙碌", hostedPets: 2 });
+    store.upsertFriendCard({ id: "friend_3", name: "小张", status: "在线", hostedPets: 0 });
+
+    assert.deepEqual(
+      store.friendCards.map((friend) => [friend.id, friend.status, friend.hostedPets]),
+      [
+        ["friend_1", "忙碌", 2],
+        ["friend_2", "离线", 0],
+        ["friend_3", "在线", 0]
+      ]
+    );
+  } finally {
+    cleanup();
+  }
+});
+
 test("refreshes account session from sync account while preserving desktop token", () => {
   const current = {
     id: "old_user",
