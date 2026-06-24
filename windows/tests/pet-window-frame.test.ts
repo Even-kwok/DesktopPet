@@ -50,6 +50,7 @@ test("includes the Windows work area origin when deriving default pet frames", (
 test("resets and resizes around the screen-derived pet center", () => {
   const { store, cleanup } = makeStore();
   try {
+    store.petCount = 2;
     store.setPetFrame({ x: 10, y: 20, width: 30, height: 40 }, 1);
     store.setPetSizeScale(0.5, 1);
 

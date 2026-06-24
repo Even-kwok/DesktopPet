@@ -229,7 +229,7 @@ export class SettingsStore {
   }
 
   setPetSizeScale(scale: number, index: number) {
-    if (!isWritablePetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount)) {
       return;
     }
 
@@ -248,7 +248,7 @@ export class SettingsStore {
   }
 
   setPetFrame(frame: Rect, index: number) {
-    if (!isWritablePetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount)) {
       return;
     }
 
@@ -464,8 +464,4 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isExistingPetIndex(index: number, petCount: number) {
   return Number.isInteger(index) && index >= 0 && index < petCount;
-}
-
-function isWritablePetIndex(index: number, petCount: number) {
-  return Number.isInteger(index) && index >= 0 && index <= petCount;
 }

@@ -391,6 +391,27 @@ test("does not save pet names for the inactive boundary slot", () => {
   }
 });
 
+test("does not save pet size or frame for the inactive boundary slot", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+
+    store.setPetSizeScale(0.5, 1);
+    store.setPetFrame({ x: 1, y: 2, width: 75, height: 75 }, 1);
+    store.isPetVisible = true;
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: Array<{ sizeScale?: number; frame?: unknown }>;
+    };
+
+    assert.equal(store.petSizeScale(1), 1);
+    assert.equal(persisted.pets?.[1]?.sizeScale, undefined);
+    assert.equal(persisted.pets?.[1]?.frame, undefined);
+  } finally {
+    cleanup();
+  }
+});
+
 test("ignores unknown saved video slot keys like the Mac settings store", () => {
   const { store, cleanup } = makeStore();
   try {

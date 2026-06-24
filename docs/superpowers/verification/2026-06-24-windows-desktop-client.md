@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 169 tests.
+- `npm test`: passed, 170 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -20,6 +20,8 @@ Startup restoration coverage now verifies that a previously hidden session does 
 Remote material import coverage now directly verifies that an existing local material path is left untouched if the corresponding cloud material download fails.
 
 Local import planning coverage now verifies that invalid Windows IPC pet indexes do not turn an `idle_loop` import request into a `NaN` pet count or collapse the saved pet list.
+
+Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
 
 ## Electron Smoke Evidence
 
