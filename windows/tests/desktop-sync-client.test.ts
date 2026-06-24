@@ -514,6 +514,51 @@ test("maps desktop bundles with malformed material URLs to invalid response", as
   }
 });
 
+test("maps desktop bundles with empty material display fields to invalid response", async () => {
+  const malformedMaterials = [
+    { name: " ", status: "ready" },
+    { name: "待机循环", status: " " }
+  ];
+
+  for (const material of malformedMaterials) {
+    const server = await withServer(() => ({
+      status: 200,
+      body: {
+        version: 1,
+        generatedAt: "2026-06-24T00:00:00.000Z",
+        pets: [
+          {
+            id: "pet_local",
+            name: "栗子",
+            type: "cat",
+            materials: [
+              {
+                slot: "idle_loop",
+                videoUrl: "https://example.com/idle.mp4",
+                ...material
+              }
+            ]
+          }
+        ]
+      }
+    }));
+
+    try {
+      const client = new DesktopPetSyncClient(server.baseURL);
+
+      await assert.rejects(
+        client.fetchBundle("desktop-token"),
+        (error) =>
+          error instanceof DesktopPetSyncError &&
+          error.code === "invalidResponse" &&
+          error.message === "桌面同步返回异常。"
+      );
+    } finally {
+      await server.close();
+    }
+  }
+});
+
 test("maps unauthorized bundle fetches to session expired", async () => {
   const server = await withServer(() => ({ status: 401, body: { error: "DESKTOP_AUTH_REQUIRED" } }));
 
@@ -582,6 +627,29 @@ test("maps friend list responses with empty friend identity fields to invalid re
     } finally {
       await server.close();
     }
+  }
+});
+
+test("maps friend list responses with empty friend statuses to invalid response", async () => {
+  const server = await withServer(() => ({
+    status: 200,
+    body: {
+      friends: [{ id: "friend_1", name: "阿雯", status: " ", hostedPets: 1 }]
+    }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.fetchFriends("desktop-token"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "invalidResponse" &&
+        error.message === "桌面同步返回异常。"
+    );
+  } finally {
+    await server.close();
   }
 });
 

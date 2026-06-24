@@ -395,9 +395,9 @@ function isDesktopPetBundleMaterial(value: unknown): value is DesktopPetBundleMa
 
   return (
     isPetActionSlot(value.slot) &&
-    isString(value.name) &&
+    isNonEmptyString(value.name) &&
     isRemoteUrlString(value.videoUrl) &&
-    isString(value.status)
+    isNonEmptyString(value.status)
   );
 }
 
@@ -438,7 +438,7 @@ function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
   return (
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.name) &&
-    isString(value.status) &&
+    isNonEmptyString(value.status) &&
     isNonNegativeInteger(value.hostedPets)
   );
 }
