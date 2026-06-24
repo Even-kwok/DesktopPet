@@ -29,6 +29,7 @@ test("computes pet status and available actions", () => {
   assert.equal(statusTextForSyncedPet({ ownership: "owned", displayState: "active" }), "在我的桌面");
   assert.equal(statusTextForSyncedPet({ ownership: "hosted", displayState: "active" }), "寄养在我的桌面");
   assert.equal(statusTextForSyncedPet({ ownership: "away", displayState: "unavailable" }), "托管在朋友那里");
+  assert.equal(statusTextForSyncedPet({ ownership: "away", displayState: "active" }), "托管在朋友那里");
   assert.equal(canRequestHosting({ ownership: "owned", displayState: "active" }), true);
   assert.equal(canRequestHosting({ ownership: "hosted", displayState: "active" }), false);
   assert.equal(shouldShowRecallAction({ ownership: "away", displayState: "unavailable" }, true), true);

@@ -22,6 +22,10 @@ export function accountDetail(account: DesktopAccountSession | undefined) {
 }
 
 export function statusTextForSyncedPet(pet: SyncedPetState) {
+  if (pet.ownership === "away") {
+    return "托管在朋友那里";
+  }
+
   switch (pet.displayState) {
     case "active":
       return pet.ownership === "hosted" ? "寄养在我的桌面" : "在我的桌面";
