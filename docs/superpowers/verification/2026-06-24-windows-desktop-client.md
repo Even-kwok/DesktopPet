@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 170 tests.
+- `npm test`: passed, 171 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -22,6 +22,8 @@ Remote material import coverage now directly verifies that an existing local mat
 Local import planning coverage now verifies that invalid Windows IPC pet indexes do not turn an `idle_loop` import request into a `NaN` pet count or collapse the saved pet list.
 
 Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
+
+Colony-controller coverage now verifies invalid JavaScript pet-count values are ignored instead of collapsing active Windows pets or entering unsafe controller creation paths.
 
 ## Electron Smoke Evidence
 

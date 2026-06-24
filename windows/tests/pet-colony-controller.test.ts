@@ -218,6 +218,24 @@ test("ignores invalid pet indexes from renderer commands", () => {
   }
 });
 
+test("ignores invalid pet counts without collapsing the active colony", () => {
+  const { settingsStore, colony, windows, cleanup } = makeHarness();
+  try {
+    settingsStore.petCount = 2;
+    saveVideoFile(settingsStore, "first.mp4", "idle_loop", 0);
+    saveVideoFile(settingsStore, "second.mp4", "idle_loop", 1);
+    settingsStore.isPetVisible = true;
+    colony.showAll();
+
+    colony.setPetCount(Number.NaN);
+
+    assert.equal(settingsStore.petCount, 2);
+    assert.deepEqual(windows.map((window) => window.isVisible), [true, true]);
+  } finally {
+    cleanup();
+  }
+});
+
 test("forwards clamped pet size scale to active windows", () => {
   const { settingsStore, colony, windows, cleanup } = makeHarness();
   try {

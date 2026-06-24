@@ -75,6 +75,10 @@ export class PetColonyController {
   }
 
   setPetCount(count: number) {
+    if (!Number.isFinite(count)) {
+      return;
+    }
+
     const newCount = Math.max(0, Math.trunc(count));
     this.#ensurePetControllers(newCount);
     this.#settingsStore.petCount = newCount;
