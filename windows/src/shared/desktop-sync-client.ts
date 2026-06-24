@@ -498,6 +498,12 @@ function isInteger(value: unknown) {
 }
 
 export function safeRemoteMaterialPathComponent(value: string) {
-  const safe = value.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  const safe = Array.from(value, (character) =>
+    isSafeRemoteMaterialPathCharacter(character) ? character : "-"
+  ).join("").replace(/^-+|-+$/g, "");
   return safe || "pet";
+}
+
+function isSafeRemoteMaterialPathCharacter(character: string) {
+  return /^[\p{L}\p{N}_-]$/u.test(character);
 }

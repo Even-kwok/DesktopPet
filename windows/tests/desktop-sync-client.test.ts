@@ -480,3 +480,8 @@ test("maps bundle pets to cached studio cards", () => {
   ]);
   assert.equal(safeRemoteMaterialPathComponent("pet/demo:1"), "pet-demo-1");
 });
+
+test("keeps Unicode alphanumerics and one replacement per unsafe cache path character", () => {
+  assert.equal(safeRemoteMaterialPathComponent("猫//栗子:1"), "猫--栗子-1");
+  assert.equal(safeRemoteMaterialPathComponent("///"), "pet");
+});
