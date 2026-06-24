@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 221 tests.
+- `npm test`: passed, 222 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -100,6 +100,8 @@ Studio sync-action coverage now verifies Windows follows the Mac sync gate: sync
 Studio sync-result coverage now verifies malformed summary counts fall back to the generic success copy instead of showing `NaN`, infinite, or negative counts in the Windows UI.
 
 Studio action-runner coverage now verifies failed actions still refresh the latest Studio state before showing the error message, so Mac-parity partial sync side effects such as cached pet cards remain visible after import-stage failures.
+
+Studio refresh coverage now verifies tray-side and other main-process state changes send a refresh command to an already-open Studio window without opening hidden/unloaded Studio windows.
 
 ## Electron Smoke Evidence
 

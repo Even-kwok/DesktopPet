@@ -1,6 +1,7 @@
 import { BrowserWindow } from "electron";
 import { studioWindowBrowserOptions } from "./electron-window-options.js";
 import {
+  studioCommandForExternalStateChange,
   studioCommandDispatchPlan,
   studioRendererLoadTarget
 } from "./studio-window-policy.js";
@@ -67,6 +68,21 @@ export class StudioWindowController {
     this.#nextShowRevision();
     this.#isVisible = false;
     this.#window?.hide();
+  }
+
+  notifyStateChanged() {
+    const window = this.#window;
+    if (!window) {
+      return;
+    }
+
+    const command = studioCommandForExternalStateChange({
+      currentURL: window.webContents.getURL(),
+      isVisible: this.isVisible
+    });
+    if (command) {
+      window.webContents.send(ipcChannels.studioCommand, command);
+    }
   }
 
   #createWindow() {

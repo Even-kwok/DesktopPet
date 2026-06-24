@@ -49,6 +49,17 @@ export function studioCommandForShow(command?: StudioWindowCommand): StudioWindo
   return command ?? { type: "refresh" };
 }
 
+export function studioCommandForExternalStateChange(input: {
+  currentURL: string;
+  isVisible: boolean;
+}): StudioWindowCommand | undefined {
+  if (!input.isVisible || !hasLoadedRendererURL(input.currentURL)) {
+    return undefined;
+  }
+
+  return { type: "refresh" };
+}
+
 export function studioCommandDispatchPlan(input: {
   command?: StudioWindowCommand;
   requestRevision: number;

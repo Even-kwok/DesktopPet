@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  studioCommandForExternalStateChange,
   studioCommandDispatchPlan,
   studioCommandForShow,
   studioCommandFromPetPayload,
@@ -68,6 +69,30 @@ test("refreshes Studio state when showing without a specific command", () => {
 
   assert.deepEqual(studioCommandForShow(undefined), { type: "refresh" });
   assert.equal(studioCommandForShow(selectCommand), selectCommand);
+});
+
+test("refreshes visible Studio windows after tray-side state changes", () => {
+  assert.deepEqual(
+    studioCommandForExternalStateChange({
+      currentURL: "file:///app/out/renderer/index.html",
+      isVisible: true
+    }),
+    { type: "refresh" }
+  );
+  assert.equal(
+    studioCommandForExternalStateChange({
+      currentURL: "file:///app/out/renderer/index.html",
+      isVisible: false
+    }),
+    undefined
+  );
+  assert.equal(
+    studioCommandForExternalStateChange({
+      currentURL: "",
+      isVisible: true
+    }),
+    undefined
+  );
 });
 
 test("sends only the latest visible Studio show command after renderer loading", () => {

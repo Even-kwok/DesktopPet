@@ -105,6 +105,7 @@ async function bootstrap() {
   const refreshFriendActions = createSingleFlightActionGroup();
   const mutateFriendActions = createSingleFlightActionGroup();
   let refreshTray = () => {};
+  const notifyStudioStateChanged = () => studioWindowController?.notifyStateChanged();
   runExistingInstanceReopenAction = (action) => {
     switch (action) {
       case "resumePets":
@@ -198,6 +199,7 @@ async function bootstrap() {
       });
       petTrayIconProvider.invalidate();
       refreshTray();
+      notifyStudioStateChanged();
       return { summary, ...studioState() };
     }),
     selectSyncedPet: (petId) => {
@@ -209,17 +211,20 @@ async function bootstrap() {
     addPet: () => {
       const petIndex = petColonyController.addPet();
       refreshTray();
+      notifyStudioStateChanged();
       return { petIndex, ...studioState() };
     },
     removePet: (petIndex) => {
       settingsStore.isPetVisible = settingsStore.isPetVisible && petColonyController.removePet(petIndex);
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     renamePet: (petIndex, name) => {
       settingsStore.setPetName(name, petIndex);
       petColonyController.refreshDisplayNames();
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     importVideo: async (petIndex, slot) => {
@@ -231,6 +236,7 @@ async function bootstrap() {
       });
       petTrayIconProvider.invalidate();
       refreshTray();
+      notifyStudioStateChanged();
       return { result, ...studioState() };
     },
     removeVideo: (petIndex, slot) => {
@@ -244,11 +250,13 @@ async function bootstrap() {
       }
       petTrayIconProvider.invalidate();
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     setPetSize: (petIndex, scale) => {
       petColonyController.setPetSizeScale(scale, petIndex);
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     showPets: async () => {
@@ -265,24 +273,28 @@ async function bootstrap() {
         petTrayIconProvider.invalidate();
       }
       refreshTray();
+      notifyStudioStateChanged();
       return { result, didShow: settingsStore.isPetVisible, ...studioState() };
     },
     hidePets: () => {
       settingsStore.isPetVisible = false;
       petColonyController.hideAll();
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     toggleClickThrough: () => {
       settingsStore.isClickThrough = !settingsStore.isClickThrough;
       petColonyController.setClickThrough(settingsStore.isClickThrough);
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     toggleMouseoverCatch: () => {
       settingsStore.isMouseoverCatchEnabled = !settingsStore.isMouseoverCatchEnabled;
       petColonyController.refreshPlayback();
       refreshTray();
+      notifyStudioStateChanged();
       return studioState();
     },
     resetPositions: () => {
@@ -290,12 +302,14 @@ async function bootstrap() {
       if (resetPositionsActionPlan().refreshTray) {
         refreshTray();
       }
+      notifyStudioStateChanged();
       return studioState();
     },
     refreshFriends: () => refreshFriendActions.run("refreshFriends", async () => {
       const account = requireAccount(settingsStore.currentAccount);
       const friends = await desktopSyncClient.fetchFriends(account.accessToken);
       settingsStore.saveFriendCards(friends);
+      notifyStudioStateChanged();
       return studioState();
     }),
     addFriend: (email) => mutateFriendActions.run(studioActionKey("addFriend", email), async () => {
@@ -306,6 +320,7 @@ async function bootstrap() {
       }
       const addedFriend = await desktopSyncClient.addFriend(trimmedEmail, account.accessToken);
       settingsStore.upsertFriendCard(addedFriend);
+      notifyStudioStateChanged();
       return { addedFriend, ...studioState() };
     }),
     removeFriend: (friendId) => mutateFriendActions.run(studioActionKey("removeFriend", friendId), async () => {
@@ -313,6 +328,7 @@ async function bootstrap() {
       const target = resolveFriendRemovalTarget(friendId, settingsStore.friendCards);
       await desktopSyncClient.removeFriend(target.friendId, account.accessToken);
       settingsStore.removeFriendCard(target.friendId);
+      notifyStudioStateChanged();
       return studioState();
     }),
     requestHosting: (petId, toUserId) => mutateFriendActions.run(studioActionKey("requestHosting", petId, toUserId), async () => {
@@ -329,6 +345,7 @@ async function bootstrap() {
       if (nextSyncedPetCards !== syncedPetCards) {
         settingsStore.saveSyncedPetCards([...nextSyncedPetCards]);
       }
+      notifyStudioStateChanged();
       return studioState();
     }),
     recallPet: (petId) => mutateFriendActions.run(studioActionKey("recallPet", petId), async () => {
@@ -336,6 +353,7 @@ async function bootstrap() {
       const target = resolveRecallPetTarget(petId, settingsStore.syncedPetCards);
       await desktopSyncClient.recallPet(target.petId, account.accessToken);
       settingsStore.markSyncedPetRecalled(target.petId);
+      notifyStudioStateChanged();
       return studioState();
     }),
     petDragStarted: (petIndex) => {
@@ -388,6 +406,7 @@ async function bootstrap() {
               .then(() => {
                 petTrayIconProvider.invalidate();
                 refreshTray();
+                notifyStudioStateChanged();
               })
               .catch(showActionError);
           },
@@ -408,31 +427,37 @@ async function bootstrap() {
                   .then(() => {
                     petTrayIconProvider.invalidate();
                     refreshTray();
+                    notifyStudioStateChanged();
                   })
                   .catch(showActionError);
               }
             }
             refreshTray();
+            notifyStudioStateChanged();
           },
           toggleClickThrough: () => {
             settingsStore.isClickThrough = !settingsStore.isClickThrough;
             petColonyController.setClickThrough(settingsStore.isClickThrough);
             refreshTray();
+            notifyStudioStateChanged();
           },
           toggleMouseoverCatch: () => {
             settingsStore.isMouseoverCatchEnabled = !settingsStore.isMouseoverCatchEnabled;
             petColonyController.refreshPlayback();
             refreshTray();
+            notifyStudioStateChanged();
           },
           resetPositions: () => {
             petColonyController.resetPositions();
             if (resetPositionsActionPlan().refreshTray) {
               refreshTray();
             }
+            notifyStudioStateChanged();
           },
           addPet: () => {
             const petIndex = petColonyController.addPet();
             refreshTray();
+            notifyStudioStateChanged();
             void importLocalVideo({
               ...idleLoopImportTargetAfterAddingPet(petIndex),
               settingsStore,
@@ -441,6 +466,7 @@ async function bootstrap() {
               .then(() => {
                 petTrayIconProvider.invalidate();
                 refreshTray();
+                notifyStudioStateChanged();
               })
               .catch(showActionError);
           },
@@ -450,11 +476,13 @@ async function bootstrap() {
             settingsStore.isPetVisible = settingsStore.isPetVisible && petColonyController.removePet(petIndex);
             petTrayIconProvider.invalidate();
             refreshTray();
+            notifyStudioStateChanged();
           },
           setPetSize: (payload) => {
             const record = payloadRecord(payload);
             petColonyController.setPetSizeScale(Number(record.scale), Number(record.petIndex));
             refreshTray();
+            notifyStudioStateChanged();
           },
           removeStateVideo: (payload) => {
             const record = payloadRecord(payload);
@@ -468,6 +496,7 @@ async function bootstrap() {
             }
             petTrayIconProvider.invalidate();
             refreshTray();
+            notifyStudioStateChanged();
           },
           quit: () => app.quit()
         }) as MenuItemConstructorOptions[]
