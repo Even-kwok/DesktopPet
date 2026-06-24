@@ -194,24 +194,36 @@ export class DesktopPetSyncClient {
     return response;
   }
 
-  requestHosting(petId: string, toUserId: string, accessToken: string) {
-    return this.#sendJSON<DesktopHostingRequestResponse>({
+  async requestHosting(petId: string, toUserId: string, accessToken: string) {
+    const response = await this.#sendJSON<unknown>({
       path: "/api/hosting/requests",
       method: "POST",
       body: { petId, toUserId },
       accessToken,
       unauthorizedError: DesktopPetSyncError.sessionExpired()
     });
+
+    if (!isDesktopHostingRequestResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response;
   }
 
-  recallPet(petId: string, accessToken: string) {
-    return this.#sendJSON<DesktopRecallResponse>({
+  async recallPet(petId: string, accessToken: string) {
+    const response = await this.#sendJSON<unknown>({
       path: "/api/hosting/recall",
       method: "POST",
       body: { petId },
       accessToken,
       unauthorizedError: DesktopPetSyncError.sessionExpired()
     });
+
+    if (!isDesktopRecallResponse(response)) {
+      throw DesktopPetSyncError.invalidResponse();
+    }
+
+    return response;
   }
 
   async #sendJSON<T>(input: {
@@ -394,6 +406,23 @@ function isDesktopFriendResponse(value: unknown): value is { friend: DesktopFrie
 
 function isDesktopFriendDeleteResponse(value: unknown): value is DesktopFriendDeleteResponse {
   return isRecord(value) && isString(value.deletedFriendId);
+}
+
+function isDesktopHostingRequestResponse(value: unknown): value is DesktopHostingRequestResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.requestId) &&
+    isString(value.status) &&
+    isString(value.petId) &&
+    isString(value.toUserId)
+  );
+}
+
+function isDesktopRecallResponse(value: unknown): value is DesktopRecallResponse {
+  return isRecord(value) && isString(value.petId) && isString(value.status);
 }
 
 function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
