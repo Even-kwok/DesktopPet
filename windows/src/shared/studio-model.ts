@@ -9,6 +9,13 @@ type SyncedPetActionState = SyncedPetState & {
   id: string;
 };
 
+type HostingRequestState = {
+  requestId?: string;
+  status: string;
+  petId?: string;
+  toUserId?: string;
+};
+
 type FriendActionState = {
   id: string;
 };
@@ -74,6 +81,13 @@ export function resolveHostingRequestTarget(
     petId: selectedPet.id,
     toUserId: selectedFriend.id
   };
+}
+
+export function syncedPetCardsAfterHostingRequest<T extends SyncedPetActionState>(
+  syncedPetCards: readonly T[],
+  _response: HostingRequestState
+) {
+  return syncedPetCards;
 }
 
 export function resolveRecallPetTarget(

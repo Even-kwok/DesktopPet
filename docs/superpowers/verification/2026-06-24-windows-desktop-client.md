@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 202 tests.
+- `npm test`: passed, 203 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -35,7 +35,7 @@ Settings-store studio-cache coverage now verifies negative synced-pet material c
 
 Settings-store studio-cache coverage now verifies cached synced-pet and friend cards with empty identity fields are ignored on restart instead of rendering blank Windows Studio entries.
 
-Settings-store synced-card coverage now verifies successful recall marks a pet as owned/active and successful hosting marks it as away/unavailable, keeping Windows Studio actions aligned with the latest local remote-action result.
+Settings-store synced-card coverage now verifies successful recall marks a pet as owned/active, while Studio hosting-request coverage verifies pending hosting requests keep synced pet cards unchanged until a later sync reports a hosted/away state.
 
 Settings-store account-session coverage now verifies cached account sessions with empty access tokens or blank identity/sign-in fields are ignored on restart instead of showing the Windows Studio as signed in with an unusable account.
 

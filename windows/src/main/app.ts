@@ -60,7 +60,8 @@ import {
 import {
   resolveFriendRemovalTarget,
   resolveHostingRequestTarget,
-  resolveRecallPetTarget
+  resolveRecallPetTarget,
+  syncedPetCardsAfterHostingRequest
 } from "../shared/studio-model.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 import type { ExistingInstanceReopenAction } from "./app-lifecycle-policy.ts";
@@ -318,8 +319,12 @@ async function bootstrap() {
         settingsStore.syncedPetCards,
         settingsStore.friendCards
       );
-      await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
-      settingsStore.markSyncedPetHosted(target.petId);
+      const response = await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
+      const syncedPetCards = settingsStore.syncedPetCards;
+      const nextSyncedPetCards = syncedPetCardsAfterHostingRequest(syncedPetCards, response);
+      if (nextSyncedPetCards !== syncedPetCards) {
+        settingsStore.saveSyncedPetCards([...nextSyncedPetCards]);
+      }
       return studioState();
     }),
     recallPet: (petId) => mutateFriendActions.run(studioActionKey("recallPet", petId), async () => {
