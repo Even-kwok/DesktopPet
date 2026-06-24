@@ -1,6 +1,5 @@
 import { BrowserWindow } from "electron";
-import { pathToFileURL } from "node:url";
-import { videoMetadataProbeScript } from "../shared/local-video-metadata-script.ts";
+import { videoMetadataProbeScriptForLocalPath } from "../shared/local-video-metadata-script.ts";
 
 export type LocalVideoMetadata = {
   durationSeconds: number;
@@ -27,7 +26,7 @@ export async function probeLocalVideoMetadata(videoPath: string): Promise<LocalV
   try {
     await probeWindow.loadURL("data:text/html;charset=utf-8,<html><body></body></html>");
     return (await probeWindow.webContents.executeJavaScript(
-      videoMetadataProbeScript(pathToFileURL(videoPath).toString()),
+      videoMetadataProbeScriptForLocalPath(videoPath),
       true
     )) as LocalVideoMetadata;
   } finally {

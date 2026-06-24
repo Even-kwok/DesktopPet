@@ -1,4 +1,10 @@
+import { localVideoSourceURL } from "./local-video-url.ts";
+
 const metadataProbeTimeoutMs = 10000;
+
+export function videoMetadataProbeScriptForLocalPath(videoPath: string) {
+  return videoMetadataProbeScript(localVideoSourceURL(videoPath));
+}
 
 export function videoMetadataProbeScript(videoURL: string) {
   return `

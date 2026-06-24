@@ -1,3 +1,5 @@
+import { localVideoSourceURL } from "../../shared/local-video-url.ts";
+
 export type PetPlaybackMode = "loop" | "playOnce";
 
 export type PetPlaybackLoadCommand = {
@@ -79,19 +81,7 @@ export function nextPetVisualEffectRequest(
 }
 
 export function toVideoSource(videoPath: string) {
-  if (/^(file|https?|blob):/i.test(videoPath)) {
-    return videoPath;
-  }
-
-  const normalizedPath = videoPath.replace(/\\/g, "/");
-  const encodedPath = encodeLocalPath(normalizedPath);
-  if (normalizedPath.startsWith("//")) {
-    return `file://${encodedPath.replace(/^\/+/, "")}`;
-  }
-
-  return normalizedPath.startsWith("/")
-    ? `file://${encodedPath}`
-    : `file:///${encodedPath}`;
+  return localVideoSourceURL(videoPath);
 }
 
 function isPetPlaybackMode(value: unknown): value is PetPlaybackMode {
@@ -100,17 +90,4 @@ function isPetPlaybackMode(value: unknown): value is PetPlaybackMode {
 
 function isValidPetIndex(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
-}
-
-function encodeLocalPath(filePath: string) {
-  return filePath
-    .split("/")
-    .map((segment) => {
-      if (!segment || /^[A-Za-z]:$/.test(segment)) {
-        return segment;
-      }
-
-      return encodeURIComponent(segment);
-    })
-    .join("/");
 }

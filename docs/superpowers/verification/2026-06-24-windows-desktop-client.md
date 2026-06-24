@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 224 tests.
+- `npm test`: passed, 226 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -40,6 +40,8 @@ Local import visibility coverage now verifies that an `idle_loop` import only sa
 Tray add-pet import coverage now verifies that the follow-up `idle_loop` import target falls back to the first pet when an invalid add result is encountered.
 
 Local import target coverage now verifies renderer-supplied pet indexes are normalized before the Windows app builds picker copy, grows pet count, saves the selected video, and refreshes playback.
+
+Local video metadata coverage now verifies Windows drive-letter paths and UNC network share paths are normalized into safe `file://` probe URLs before the hidden Electron metadata reader inspects imported videos.
 
 Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
 
