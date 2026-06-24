@@ -203,9 +203,10 @@ export class SettingsStore {
   }
 
   petName(index: number) {
-    const rawName = this.#readPet(index)?.name;
+    const displayIndex = normalizedPetReadIndex(index);
+    const rawName = this.#readPet(displayIndex)?.name;
     const name = typeof rawName === "string" ? rawName.trim() : "";
-    return name ? name : `Pet ${index + 1}`;
+    return name ? name : `Pet ${displayIndex + 1}`;
   }
 
   setPetName(name: string, index: number) {
@@ -240,11 +241,12 @@ export class SettingsStore {
   }
 
   petFrame(index: number, screenSize: ScreenArea = { width: 1024, height: 768 }): Rect {
-    const frame = this.#readPet(index)?.frame;
+    const displayIndex = normalizedPetReadIndex(index);
+    const frame = this.#readPet(displayIndex)?.frame;
     if (isRect(frame)) {
       return frame;
     }
-    return applyPetSizeScale(defaultPetFrame(index, screenSize), this.petSizeScale(index));
+    return applyPetSizeScale(defaultPetFrame(displayIndex, screenSize), this.petSizeScale(displayIndex));
   }
 
   setPetFrame(frame: Rect, index: number) {
@@ -376,6 +378,10 @@ function normalizedPetCount(count: unknown, fallback: number) {
   return typeof count === "number" && Number.isFinite(count)
     ? Math.max(0, Math.trunc(count))
     : fallback;
+}
+
+function normalizedPetReadIndex(index: number) {
+  return Number.isInteger(index) && index >= 0 ? index : 0;
 }
 
 function booleanOrDefault(value: unknown, fallback: boolean) {

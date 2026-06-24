@@ -358,6 +358,34 @@ test("reads out-of-range pet data without expanding later persisted pet data", (
   }
 });
 
+test("uses safe first-pet defaults for invalid JavaScript pet indexes", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+    store.setPetName("栗子", 0);
+
+    assert.equal(store.petName(Number.NaN), "栗子");
+    assert.equal(store.petName(Number.POSITIVE_INFINITY), "栗子");
+    assert.equal(store.petName(-1), "栗子");
+    assert.deepEqual(store.petFrame(Number.NaN, { width: 1024, height: 768 }), {
+      x: 437,
+      y: 309,
+      width: 150,
+      height: 150
+    });
+
+    store.isPetVisible = true;
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: unknown[];
+    };
+
+    assert.ok((persisted.pets?.length ?? 0) <= 1);
+  } finally {
+    cleanup();
+  }
+});
+
 test("does not save videos for inactive future pet slots", () => {
   const { store, cleanup } = makeStore();
   try {

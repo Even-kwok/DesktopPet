@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 181 tests.
+- `npm test`: passed, 182 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -24,6 +24,8 @@ Local import planning coverage now verifies that invalid Windows IPC pet indexes
 Tray add-pet import coverage now verifies that the follow-up `idle_loop` import target falls back to the first pet when an invalid add result is encountered.
 
 Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
+
+Settings-store display coverage now verifies invalid JavaScript pet indexes fall back to the first pet name and default frame instead of leaking `Pet NaN` or invalid coordinates into Windows UI surfaces.
 
 Settings-store studio-cache coverage now verifies negative synced-pet material counts and friend hosted-pet counts are treated as malformed instead of being shown in the Windows Studio.
 
