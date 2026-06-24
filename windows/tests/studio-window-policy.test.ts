@@ -37,6 +37,15 @@ test("loads the Studio renderer only before the window has navigated", () => {
 
   assert.deepEqual(
     studioRendererLoadTarget({
+      currentURL: "about:blank",
+      studioRendererURL: "http://localhost:5173",
+      studioRendererFile: rendererFile
+    }),
+    { type: "url", value: "http://localhost:5173" }
+  );
+
+  assert.deepEqual(
+    studioRendererLoadTarget({
       currentURL: "file:///app/out/renderer/index.html",
       studioRendererFile: rendererFile
     }),

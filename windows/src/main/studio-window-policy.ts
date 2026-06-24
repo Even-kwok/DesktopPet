@@ -1,3 +1,5 @@
+import { hasLoadedRendererURL } from "./renderer-load-policy.ts";
+
 export type StudioRendererLoadInput = {
   currentURL: string;
   studioRendererURL?: string;
@@ -19,7 +21,7 @@ export type StudioWindowCommand =
     };
 
 export function studioRendererLoadTarget(input: StudioRendererLoadInput): StudioRendererLoadTarget {
-  if (input.currentURL) {
+  if (hasLoadedRendererURL(input.currentURL)) {
     return { type: "none" };
   }
 

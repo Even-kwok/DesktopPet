@@ -14,6 +14,7 @@ import {
   mouseoverCatchSlots,
   nearbyPetInteractionSlots
 } from "../shared/pet-action-slots.ts";
+import { hasLoadedRendererURL } from "./renderer-load-policy.ts";
 import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
 
 export type PetWindowControllerOptions = {
@@ -200,7 +201,7 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   async #loadRenderer(window: BrowserWindow) {
-    if (window.webContents.getURL()) {
+    if (hasLoadedRendererURL(window.webContents.getURL())) {
       return;
     }
 
