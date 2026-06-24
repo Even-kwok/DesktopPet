@@ -326,6 +326,20 @@ test("does not restore missing video files while retaining saved slot references
 
     assert.equal(store.restoreVideoPath("idle_loop", 0), undefined);
     assert.deepEqual(store.savedVideoSlots(0), ["idle_loop"]);
+    assert.deepEqual(store.availableVideoSlots(0), []);
+  } finally {
+    cleanup();
+  }
+});
+
+test("lists only restorable video slots for Studio display", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    saveVideoFile(store, "idle.mp4", "idle_loop", 0);
+    store.saveVideoPath(path.join(path.dirname(store.filePath), "missing.mp4"), "click_react", 0);
+
+    assert.deepEqual(store.savedVideoSlots(0), ["idle_loop", "click_react"]);
+    assert.deepEqual(store.availableVideoSlots(0), ["idle_loop"]);
   } finally {
     cleanup();
   }

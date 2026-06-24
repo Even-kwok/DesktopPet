@@ -264,6 +264,10 @@ export class SettingsStore {
       : [];
   }
 
+  availableVideoSlots(index: number) {
+    return allPetActionSlots.filter((slot) => this.restoreVideoPath(slot, index) !== undefined);
+  }
+
   removePet(index: number) {
     if (!isExistingPetIndex(index, this.petCount)) {
       return;

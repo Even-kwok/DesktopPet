@@ -101,7 +101,9 @@ async function bootstrap() {
     selectedSyncedPetID: settingsStore.selectedSyncedPetID,
     syncedPetCards: settingsStore.syncedPetCards,
     friendCards: settingsStore.friendCards,
-    localVideoSlots: Array.from({ length: settingsStore.petCount }, (_, index) => settingsStore.savedVideoSlots(index)),
+    localVideoSlots: Array.from({ length: settingsStore.petCount }, (_, index) =>
+      settingsStore.availableVideoSlots(index)
+    ),
     petSizeScales: Array.from({ length: settingsStore.petCount }, (_, index) => settingsStore.petSizeScale(index)),
     isPetVisible: settingsStore.isPetVisible,
     isClickThrough: settingsStore.isClickThrough,
