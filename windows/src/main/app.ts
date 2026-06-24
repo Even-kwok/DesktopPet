@@ -10,7 +10,8 @@ import { registerIpcHandlers } from "./ipc.ts";
 import {
   existingInstanceReopenActions,
   initialLaunchActions,
-  singleInstanceStartupPlan
+  singleInstanceStartupPlan,
+  systemWakeActions
 } from "./app-lifecycle-policy.ts";
 import {
   bindMenuActions,
@@ -80,7 +81,7 @@ async function bootstrap() {
   });
   const sleepRecoveryCoordinator = new SleepRecoveryCoordinator(
     () => petColonyController.prepareForSystemSleep(),
-    () => petColonyController.resumeAfterSystemWake()
+    () => systemWakeActions().forEach((action) => runExistingInstanceReopenAction(action))
   );
   let refreshTray = () => {};
   runExistingInstanceReopenAction = (action) => {

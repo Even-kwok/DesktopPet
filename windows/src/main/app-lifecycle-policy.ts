@@ -1,4 +1,5 @@
 export type ExistingInstanceReopenAction = "resumePets" | "showStudio" | "refreshTray";
+export type SystemWakeAction = "resumePets" | "refreshTray";
 
 export type InitialLaunchActions = {
   showStudio: boolean;
@@ -20,4 +21,8 @@ export function initialLaunchActions(): InitialLaunchActions {
 
 export function existingInstanceReopenActions(): ExistingInstanceReopenAction[] {
   return ["resumePets", "showStudio", "refreshTray"];
+}
+
+export function systemWakeActions(): SystemWakeAction[] {
+  return ["resumePets", "refreshTray"];
 }

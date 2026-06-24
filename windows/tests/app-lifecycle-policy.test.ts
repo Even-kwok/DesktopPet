@@ -3,7 +3,8 @@ import test from "node:test";
 import {
   existingInstanceReopenActions,
   initialLaunchActions,
-  singleInstanceStartupPlan
+  singleInstanceStartupPlan,
+  systemWakeActions
 } from "../src/main/app-lifecycle-policy.ts";
 
 test("quits a duplicate Windows app instance before bootstrapping", () => {
@@ -20,4 +21,8 @@ test("starts like the Mac app by opening Studio without the first-run import pro
     showStudio: true,
     showsFirstRunPrompt: false
   });
+});
+
+test("refreshes the tray after Windows wake like the Mac menu refresh path", () => {
+  assert.deepEqual(systemWakeActions(), ["resumePets", "refreshTray"]);
 });
