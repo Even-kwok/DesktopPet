@@ -95,6 +95,27 @@ test("maps malformed login responses to invalid response", async () => {
   }
 });
 
+test("maps invalid login requests to login failure copy", async () => {
+  const server = await withServer(() => ({
+    status: 400,
+    body: { error: "INVALID_LOGIN_REQUEST" }
+  }));
+
+  try {
+    const client = new DesktopPetSyncClient(server.baseURL);
+
+    await assert.rejects(
+      client.login("not-an-email", "123456"),
+      (error) =>
+        error instanceof DesktopPetSyncError &&
+        error.code === "loginFailed" &&
+        error.message === "登录失败，请检查账号和密码。"
+    );
+  } finally {
+    await server.close();
+  }
+});
+
 test("fetches desktop bundle with bearer token and filters displayable pets", async () => {
   const server = await withServer((request) => {
     assert.equal(request.url, "/api/desktop/pets");

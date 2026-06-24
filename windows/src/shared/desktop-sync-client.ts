@@ -124,7 +124,8 @@ export class DesktopPetSyncClient {
       path: "/api/desktop/auth/login",
       method: "POST",
       body: { email, password },
-      unauthorizedError: DesktopPetSyncError.loginFailed()
+      unauthorizedError: DesktopPetSyncError.loginFailed(),
+      clientError: DesktopPetSyncError.loginFailed()
     });
 
     if (!isDesktopLoginResponse(response)) {
@@ -232,6 +233,7 @@ export class DesktopPetSyncClient {
     body?: Record<string, string>;
     accessToken?: string;
     unauthorizedError: DesktopPetSyncError;
+    clientError?: DesktopPetSyncError;
   }) {
     const headers: Record<string, string> = {};
 
@@ -252,6 +254,10 @@ export class DesktopPetSyncClient {
     if (!response.ok) {
       if (response.status === 401) {
         throw input.unauthorizedError;
+      }
+
+      if (response.status >= 400 && response.status < 500 && input.clientError) {
+        throw input.clientError;
       }
 
       throw DesktopPetSyncError.invalidResponse();
