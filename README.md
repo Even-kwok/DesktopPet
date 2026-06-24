@@ -54,7 +54,9 @@ npm install
 npm run dev
 ```
 
-The Windows client opens a compact studio window and a system tray entry. To sync against a local web studio instead of the deployed mock-first endpoint:
+The Windows client starts from the system tray like the Mac menu bar app. Use the tray menu to choose local state videos, show or hide pets, toggle click-through, toggle mouseover catch, and reset positions. The compact studio window is optional and opens from `打开素材工作台`.
+
+To sync against a local web studio instead of the deployed endpoint:
 
 ```bash
 CAT_DESKTOP_PET_WEB_BASE_URL=http://localhost:3000 npm run dev

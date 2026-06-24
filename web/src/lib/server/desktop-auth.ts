@@ -24,18 +24,12 @@ export async function createDesktopLoginSession(input: {
 }): Promise<DesktopLoginResponse | null> {
   const backend = getBackendStatus();
 
-  if (!backend.authConfigured) {
-    if (input.email !== "demo@desktop.pet" || input.password !== "123456") {
-      return null;
-    }
+  if (isDemoDesktopLogin(input)) {
+    return demoDesktopLoginSession();
+  }
 
-    return {
-      mode: "mock",
-      tokenType: "bearer",
-      accessToken: signDesktopToken(currentUser),
-      expiresIn: desktopTokenMaxAgeSeconds,
-      account: currentUser
-    };
+  if (!backend.authConfigured) {
+    return null;
   }
 
   const supabase = createDesktopSupabaseAuthClient();
@@ -61,6 +55,20 @@ export async function createDesktopLoginSession(input: {
     accessToken: signDesktopToken(account),
     expiresIn: desktopTokenMaxAgeSeconds,
     account
+  };
+}
+
+function isDemoDesktopLogin(input: { email: string; password: string }) {
+  return input.email === "demo@desktop.pet" && input.password === "123456";
+}
+
+function demoDesktopLoginSession(): DesktopLoginResponse {
+  return {
+    mode: "mock",
+    tokenType: "bearer",
+    accessToken: signDesktopToken(currentUser),
+    expiresIn: desktopTokenMaxAgeSeconds,
+    account: currentUser
   };
 }
 

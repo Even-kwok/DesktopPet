@@ -12,7 +12,7 @@ Run from `windows/` on the current branch:
 Run from `web/` on the current branch:
 
 - `npm run lint`: passed.
-- `npm run test:unit`: passed, 104 tests.
+- `npm run test:unit`: passed, 105 tests.
 - `npm run build`: passed.
 
 Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, stay non-focusable like the Mac nonactivating panel, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
@@ -36,6 +36,8 @@ Pet-window playback refresh coverage now verifies hidden Windows pet windows ign
 Startup restoration coverage now verifies that a previously hidden session does not show pets, a visible session stays visible when at least one `idle_loop` can be restored, and saved visibility is turned off when no pet can be restored.
 
 Startup restoration coverage now also verifies Windows applies the saved click-through setting before restoring pet visibility, matching the Mac restart path.
+
+Launch coverage now verifies Windows starts like a Mac menu bar utility by staying in the tray instead of opening the Studio/login window automatically.
 
 Remote material import coverage now directly verifies that an existing local material path is left untouched if the corresponding cloud material download fails.
 
@@ -82,6 +84,8 @@ Desktop sync account coverage now verifies login and bundle account records with
 Desktop sync session coverage now verifies login responses with negative token expiry values are rejected before the Windows client caches a bearer session.
 
 Desktop sync bearer-session coverage now verifies login responses with empty modes, empty access tokens, or unsupported token types are rejected before the Windows client stores an unusable session.
+
+Desktop auth coverage now verifies the Mac demo account remains usable for desktop test clients even when the deployed web backend has Supabase auth configured.
 
 Desktop sync bundle metadata coverage now verifies negative bundle versions, negative recommended polling intervals, empty bundle timestamps, and empty sync mode/source values are rejected before they can influence Windows sync behavior.
 

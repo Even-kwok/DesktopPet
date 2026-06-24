@@ -14,7 +14,7 @@ export function singleInstanceStartupPlan(hasSingleInstanceLock: boolean) {
 
 export function initialLaunchActions(): InitialLaunchActions {
   return {
-    showStudio: true,
+    showStudio: false,
     showsFirstRunPrompt: false
   };
 }

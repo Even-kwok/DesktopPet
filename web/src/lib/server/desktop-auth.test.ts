@@ -93,6 +93,43 @@ test("desktop login returns a long-lived desktop token instead of the Supabase a
   }
 });
 
+test("desktop login keeps the Mac demo account usable when Supabase auth is configured", async () => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+  process.env.AUTH_MOCK_COOKIE_SECRET = "desktop-test-secret";
+  const originalFetch = globalThis.fetch;
+  let didCallSupabase = false;
+  globalThis.fetch = async () => {
+    didCallSupabase = true;
+    return new Response(JSON.stringify({ error: "invalid_credentials" }), { status: 400 });
+  };
+
+  try {
+    const session = await createDesktopLoginSession({
+      email: "demo@desktop.pet",
+      password: "123456"
+    });
+
+    assert.ok(session);
+    assert.equal(didCallSupabase, false);
+    assert.equal(session.mode, "mock");
+    assert.equal(session.account.email, "demo@desktop.pet");
+
+    const auth = await getDesktopAuthContext(
+      new Request("https://example.com/api/desktop/pets", {
+        headers: {
+          authorization: `Bearer ${session.accessToken}`
+        }
+      })
+    );
+
+    assert.equal(auth.mode, "supabase");
+    assert.equal(auth.user?.email, "demo@desktop.pet");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 function signDesktopToken(payload: Record<string, unknown>) {
   const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const signature = createHmac("sha256", "desktop-test-secret")

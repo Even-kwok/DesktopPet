@@ -16,9 +16,9 @@ test("reopens the existing instance like the Mac dock reopen path", () => {
   assert.deepEqual(existingInstanceReopenActions(), ["resumePets", "showStudio", "refreshTray"]);
 });
 
-test("starts like the Mac app by opening Studio without the first-run import prompt", () => {
+test("starts like the Mac menu app without opening the Studio login window", () => {
   assert.deepEqual(initialLaunchActions(), {
-    showStudio: true,
+    showStudio: false,
     showsFirstRunPrompt: false
   });
 });
