@@ -63,10 +63,15 @@ test("validates hosting requests like the Mac studio action entry", () => {
 
 test("validates recall requests against synced pet cards", () => {
   const syncedPetCards = [
-    { id: "pet_away", ownership: "away", displayState: "unavailable" }
+    { id: "pet_away", ownership: "away", displayState: "unavailable" },
+    { id: "pet_owned", ownership: "owned", displayState: "active" }
   ];
 
   assert.deepEqual(resolveRecallPetTarget("pet_away", syncedPetCards), { petId: "pet_away" });
+  assert.throws(
+    () => resolveRecallPetTarget("pet_owned", syncedPetCards),
+    /这只猫不需要召回。/
+  );
   assert.throws(
     () => resolveRecallPetTarget("pet_missing", syncedPetCards),
     /请先同步并选择一只猫咪。/

@@ -81,6 +81,10 @@ export function resolveRecallPetTarget(
     throw new Error("请先同步并选择一只猫咪。");
   }
 
+  if (!canRecall(selectedPet)) {
+    throw new Error("这只猫不需要召回。");
+  }
+
   return {
     petId: selectedPet.id
   };
