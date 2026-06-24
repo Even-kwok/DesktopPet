@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 204 tests.
+- `npm test`: passed, 205 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -68,6 +68,8 @@ Studio friend-row coverage now verifies Windows uses the same `状态 · 托管 
 Studio renderer-list coverage now verifies malformed pet counts display as safe non-negative counts and keep a bounded placeholder pet selector instead of rendering invalid list lengths.
 
 Studio sync-result coverage now verifies malformed summary counts fall back to the generic success copy instead of showing `NaN`, infinite, or negative counts in the Windows UI.
+
+Studio action-runner coverage now verifies failed actions still refresh the latest Studio state before showing the error message, so Mac-parity partial sync side effects such as cached pet cards remain visible after import-stage failures.
 
 ## Electron Smoke Evidence
 

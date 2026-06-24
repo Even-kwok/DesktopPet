@@ -34,8 +34,7 @@ import {
   statusMessageForRemoveVideoAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
-  statusMessageForSyncAction,
-  statusMessageForActionResult
+  statusMessageForSyncAction
 } from "./studio-action-result.ts";
 import {
   nextSelectedPetIndexAfterStudioRefresh,
@@ -44,6 +43,7 @@ import {
   studioPetCountForDisplay,
   studioPetIndexesForDisplay
 } from "./studio-selection.ts";
+import { runStudioAction } from "./studio-action-runner.ts";
 import {
   isSelectedStudioPetSize,
   studioPetSizeOptions
@@ -150,17 +150,14 @@ export function StudioApp() {
     afterSuccess?: (result: unknown) => string | void,
     afterError?: (error: unknown) => string | void
   ) => {
-    try {
-      const result = await action();
-      await refreshState(result);
-      const nextStatusMessage = afterSuccess?.(result);
-      setStatusMessage(nextStatusMessage ?? statusMessageForActionResult(result, successMessage));
-    } catch (error) {
-      const nextStatusMessage = afterError?.(error);
-      setStatusMessage(
-        nextStatusMessage ?? (error instanceof Error ? error.message : "操作失败，请稍后重试。")
-      );
-    }
+    await runStudioAction({
+      action,
+      refreshState,
+      setStatusMessage,
+      successMessage,
+      afterSuccess,
+      afterError
+    });
   };
 
   const account = state.account;
