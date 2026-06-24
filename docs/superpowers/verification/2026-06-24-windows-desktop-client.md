@@ -23,6 +23,8 @@ System wake coverage now includes the pet-window resume policy: hidden pet windo
 
 Startup restoration coverage now verifies that a previously hidden session does not show pets, a visible session stays visible when at least one `idle_loop` can be restored, and saved visibility is turned off when no pet can be restored.
 
+Startup restoration coverage now also verifies Windows applies the saved click-through setting before restoring pet visibility, matching the Mac restart path.
+
 Remote material import coverage now directly verifies that an existing local material path is left untouched if the corresponding cloud material download fails.
 
 Local import planning coverage now verifies that invalid Windows IPC pet indexes do not turn an `idle_loop` import request into a `NaN` pet count or collapse the saved pet list.

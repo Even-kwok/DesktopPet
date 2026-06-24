@@ -508,14 +508,19 @@ async function bootstrap() {
   const wasPetVisible = settingsStore.isPetVisible;
   const initialStartupVisibilityPlan = startupPetVisibilityRestorePlan({
     wasPetVisible,
-    didShowAnyPet: false
+    didShowAnyPet: false,
+    isClickThrough: settingsStore.isClickThrough
   });
+  if (initialStartupVisibilityPlan.shouldApplyClickThrough) {
+    petColonyController.setClickThrough(initialStartupVisibilityPlan.clickThrough);
+  }
   const didShowAnyPet = initialStartupVisibilityPlan.shouldShowPets
     ? petColonyController.showAll()
     : false;
   const startupVisibilityPlan = startupPetVisibilityRestorePlan({
     wasPetVisible,
-    didShowAnyPet
+    didShowAnyPet,
+    isClickThrough: settingsStore.isClickThrough
   });
   const didRestoreVideo = startupVisibilityPlan.didRestoreVideo;
   settingsStore.isPetVisible = startupVisibilityPlan.nextIsPetVisible;

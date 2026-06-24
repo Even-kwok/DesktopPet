@@ -6,9 +6,12 @@ test("does not show pets when the previous session was hidden", () => {
   assert.deepEqual(
     startupPetVisibilityRestorePlan({
       wasPetVisible: false,
-      didShowAnyPet: false
+      didShowAnyPet: false,
+      isClickThrough: true
     }),
     {
+      shouldApplyClickThrough: true,
+      clickThrough: true,
       shouldShowPets: false,
       didRestoreVideo: false,
       nextIsPetVisible: false,
@@ -21,9 +24,12 @@ test("keeps pets visible when restart restores at least one idle loop", () => {
   assert.deepEqual(
     startupPetVisibilityRestorePlan({
       wasPetVisible: true,
-      didShowAnyPet: true
+      didShowAnyPet: true,
+      isClickThrough: true
     }),
     {
+      shouldApplyClickThrough: true,
+      clickThrough: true,
       shouldShowPets: true,
       didRestoreVideo: true,
       nextIsPetVisible: true,
@@ -36,9 +42,12 @@ test("turns off saved visibility when restart cannot restore any idle loop", () 
   assert.deepEqual(
     startupPetVisibilityRestorePlan({
       wasPetVisible: true,
-      didShowAnyPet: false
+      didShowAnyPet: false,
+      isClickThrough: false
     }),
     {
+      shouldApplyClickThrough: true,
+      clickThrough: false,
       shouldShowPets: true,
       didRestoreVideo: false,
       nextIsPetVisible: false,
