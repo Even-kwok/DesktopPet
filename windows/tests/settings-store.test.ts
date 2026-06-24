@@ -372,6 +372,25 @@ test("does not save videos for inactive future pet slots", () => {
   }
 });
 
+test("does not save pet names for the inactive boundary slot", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+
+    store.setPetName("Ghost", 1);
+    store.isPetVisible = true;
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: Array<{ name?: string }>;
+    };
+
+    assert.equal(store.petName(1), "Pet 2");
+    assert.equal(persisted.pets?.[1]?.name, undefined);
+  } finally {
+    cleanup();
+  }
+});
+
 test("ignores unknown saved video slot keys like the Mac settings store", () => {
   const { store, cleanup } = makeStore();
   try {

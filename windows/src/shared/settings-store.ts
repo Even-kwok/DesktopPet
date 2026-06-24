@@ -208,7 +208,7 @@ export class SettingsStore {
   }
 
   setPetName(name: string, index: number) {
-    if (!isWritablePetIndex(index, this.petCount)) {
+    if (!isExistingPetIndex(index, this.petCount)) {
       return;
     }
 
