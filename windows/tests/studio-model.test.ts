@@ -20,6 +20,7 @@ import {
   loginPanelDetail,
   loginPanelTitle,
   localMaterialPreviewAction,
+  localMaterialPreviewHint,
   localMaterialStatusText,
   localMaterialBoardDetail,
   localMaterialBoardTitle,
@@ -173,6 +174,11 @@ test("builds Mac-parity local material preview action state", () => {
     label: "停止",
     disabled: false
   });
+});
+
+test("builds Mac-parity local material preview hints", () => {
+  assert.equal(localMaterialPreviewHint({ hasVideo: true }), "点预览播放");
+  assert.equal(localMaterialPreviewHint({ hasVideo: false }), "等待素材");
 });
 
 test("builds Mac-parity local material board copy", () => {

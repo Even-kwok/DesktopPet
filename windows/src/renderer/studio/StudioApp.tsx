@@ -34,6 +34,7 @@ import {
   localMaterialStatusText,
   shouldSubmitFriendEmailKey,
   loginValidationMessage,
+  localMaterialPreviewHint,
   syncedPetCardAction,
   syncedPetPanelDetail,
   syncedPetPanelEmptyDetail,
@@ -628,6 +629,7 @@ export function StudioApp() {
                           {slotName}
                           <small>{petActionSlotTriggerDescription(slot)}</small>
                           <small>{localMaterialStatusText({ hasVideo })}</small>
+                          <small>{localMaterialPreviewHint({ hasVideo })}</small>
                         </span>
                         <div className="material-actions">
                           <button

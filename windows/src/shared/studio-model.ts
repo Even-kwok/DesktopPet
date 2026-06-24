@@ -145,6 +145,10 @@ export function localMaterialPreviewAction(material: LocalMaterialPreviewState) 
   };
 }
 
+export function localMaterialPreviewHint(material: LocalMaterialStatusState) {
+  return material.hasVideo ? "点预览播放" : "等待素材";
+}
+
 export function localMaterialBoardTitle() {
   return "动作卡册";
 }
