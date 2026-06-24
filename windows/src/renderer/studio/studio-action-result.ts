@@ -136,9 +136,13 @@ function syncSummaryFromActionResult(result: unknown) {
   }
 
   const record = summary as Record<string, unknown>;
-  return typeof record.petCount === "number" && typeof record.materialCount === "number"
+  return isSummaryCount(record.petCount) && isSummaryCount(record.materialCount)
     ? { petCount: record.petCount, materialCount: record.materialCount }
     : undefined;
+}
+
+function isSummaryCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function importVideoWarningMessagesFromActionResult(result: unknown) {

@@ -116,6 +116,21 @@ test("uses Mac-parity copy for desktop sync results", () => {
   assert.equal(statusMessageForSyncAction({ canceled: true }), "已取消同步，本地动作保持不变。");
 });
 
+test("falls back for malformed desktop sync summaries", () => {
+  assert.equal(
+    statusMessageForSyncAction({ summary: { petCount: Number.NaN, materialCount: 9 } }),
+    "已同步网页端素材。"
+  );
+  assert.equal(
+    statusMessageForSyncAction({ summary: { petCount: 2, materialCount: Number.POSITIVE_INFINITY } }),
+    "已同步网页端素材。"
+  );
+  assert.equal(
+    statusMessageForSyncAction({ summary: { petCount: -1, materialCount: 9 } }),
+    "已同步网页端素材。"
+  );
+});
+
 test("uses Mac-parity pending copy for desktop sync", () => {
   assert.equal(pendingStatusMessageForSyncAction(), "正在从网页同步生成好的素材...");
 });
