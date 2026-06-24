@@ -335,7 +335,7 @@ function isDesktopLoginResponse(value: unknown): value is DesktopLoginResponse {
     isString(value.mode) &&
     isString(value.tokenType) &&
     isString(value.accessToken) &&
-    isInteger(value.expiresIn) &&
+    isNonNegativeInteger(value.expiresIn) &&
     isDesktopSyncAccount(value.account)
   );
 }
