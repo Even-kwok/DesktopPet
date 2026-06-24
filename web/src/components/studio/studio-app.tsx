@@ -41,6 +41,7 @@ import {
   petPanelImageUrl,
   petPanelStats,
   recallSuccessMessage,
+  resolveWindowsClientDownloadUrl,
   studioStatusMessageClassName
 } from "@/lib/studio-layout";
 import type {
@@ -86,7 +87,9 @@ const materialTierSections: Array<{
 ];
 
 const macClientDownloadUrl = process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null;
-const windowsClientDownloadUrl = process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL?.trim() || null;
+const windowsClientDownloadUrl = resolveWindowsClientDownloadUrl(
+  process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL
+);
 const clientPlatformCards = buildClientPlatformCards(macClientDownloadUrl, windowsClientDownloadUrl);
 
 export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {

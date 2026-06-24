@@ -12,7 +12,7 @@ Run from `windows/` on the current branch:
 Run from `web/` on the current branch:
 
 - `npm run lint`: passed.
-- `npm run test:unit`: passed, 103 tests.
+- `npm run test:unit`: passed, 104 tests.
 - `npm run build`: passed.
 
 Additional automated coverage now includes the shared Electron `BrowserWindow` option builders for the Windows pet and Studio windows. These tests assert transparent always-on-top pet windows use an explicit transparent background, stay non-focusable like the Mac nonactivating panel, and that both renderer surfaces use a sandboxed preload bridge with Node integration disabled.
@@ -138,6 +138,8 @@ Renderer load coverage now verifies failed Electron renderer loads settle withou
 Web studio publish-status coverage now verifies desktop sync success and failure copy refers to the shared desktop clients instead of only the Mac client, so generated materials point users toward both Mac and Windows desktop sync.
 
 Web studio recall-status coverage now verifies successful recall copy points to the shared desktop App sync path instead of only the Mac App, so Windows users get accurate post-recall guidance.
+
+Web client-download coverage now verifies the Windows card defaults to the published `windows-test` GitHub Release ZIP while still allowing `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` to override it.
 
 ## Electron Smoke Evidence
 

@@ -13,11 +13,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` and `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` in `.env.local` to enable the corresponding desktop download buttons in the client center.
+Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` in `.env.local` to enable the Mac desktop download button. The Windows button defaults to the latest `windows-test` GitHub Release ZIP and can be overridden with `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL`.
 
 ## Windows Test Download
 
-The Windows card becomes downloadable when `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` points at a public ZIP URL.
+The Windows card is downloadable by default through the `windows-test` GitHub Release ZIP. Set `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` only when you want to override that URL.
 
 Recommended first-test flow:
 
@@ -35,9 +35,8 @@ Recommended first-test flow:
    https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
    ```
 
-3. Add the public ZIP URL to Vercel production as `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL`.
-4. Redeploy the `web` Vercel project.
-5. Open the production site on Windows and use the `下载 Windows 版` button from the client center.
+3. Redeploy the `web` Vercel project. If you want to use a different storage URL, add it to Vercel production as `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` before deploying.
+4. Open the production site on Windows and use the `下载 Windows 版` button from the client center.
 
 ## First MVP
 

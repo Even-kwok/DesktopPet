@@ -13,6 +13,7 @@ import {
   petPanelImageUrl,
   petPanelStats,
   recallSuccessMessage,
+  resolveWindowsClientDownloadUrl,
   studioStatusMessageClassName
 } from "./studio-layout.ts";
 import { materialSlots } from "./material-slots.ts";
@@ -132,6 +133,17 @@ test("client platform cards expose desktop download states and future mobile sta
     actionUrl: "https://example.com/CatDesktopPetSetup.exe",
     isEnabled: true
   });
+});
+
+test("Windows client download URL defaults to the published test release", () => {
+  assert.equal(
+    resolveWindowsClientDownloadUrl(null),
+    "https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip"
+  );
+  assert.equal(
+    resolveWindowsClientDownloadUrl(" https://example.com/custom-windows.zip "),
+    "https://example.com/custom-windows.zip"
+  );
 });
 
 test("material workflow steps describe the current generation path", () => {

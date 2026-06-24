@@ -32,7 +32,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` and `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` in `web/.env.local` to enable the corresponding download buttons in the client center.
+Set `NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL` in `web/.env.local` to enable the Mac download button. The Windows button defaults to the latest `windows-test` GitHub Release ZIP and can be overridden with `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL`.
 
 Current web MVP includes:
 

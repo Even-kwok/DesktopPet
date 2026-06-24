@@ -152,7 +152,7 @@ These routes are mock-first. The next step is replacing the mock bodies with Sup
 
 ## Windows Client Test Download
 
-The web client center already reads `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL`. When this env var is a public ZIP URL, the signed-out home and signed-in Studio show `下载 Windows 版`.
+The web client center defaults the Windows download button to the `windows-test` GitHub Release ZIP. `NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL` can override this with another public ZIP URL.
 
 First Windows testing flow:
 
@@ -176,14 +176,13 @@ windows/release/CatDesktopPet-win-x64.zip
 https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
 ```
 
-3. Upload the ZIP to a public download URL. For the first test this can be a GitHub Release asset, Supabase Storage public object, Vercel Blob object, or another temporary public file host.
-4. Add the URL in Vercel production:
+3. Redeploy the `web` project. If you want to use another public download URL, add it in Vercel production:
 
 ```text
 NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL=https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip
 ```
 
-5. Redeploy the `web` project. The current linked project is:
+4. The current linked Vercel project is:
 
 ```text
 Team: guoyaowens-projects
@@ -191,7 +190,7 @@ Project: web
 Project ID: prj_eK7l5ukD6Yc5WuSog21Mzedr2uWA
 ```
 
-6. Open the production site from Windows, download the ZIP, extract it, and run `CatDesktopPet.exe`.
+5. Open the production site from Windows, download the ZIP, extract it, and run `CatDesktopPet.exe`.
 
 This test ZIP is intentionally unsigned. Windows may show SmartScreen or an unknown-publisher warning. After the manual Windows smoke test passes, prepare a signed installer/update path instead of treating the unsigned ZIP as a public production release.
 

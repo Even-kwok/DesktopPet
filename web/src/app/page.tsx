@@ -4,7 +4,7 @@ import {
   resolveSignedOutAuthMode
 } from "@/lib/auth-entry";
 import { sanitizeRedirectPath } from "@/lib/auth-policy";
-import { buildClientPlatformCards } from "@/lib/studio-layout";
+import { buildClientPlatformCards, resolveWindowsClientDownloadUrl } from "@/lib/studio-layout";
 import { getCurrentAuthContext } from "@/lib/server/auth";
 import { getStudioBootstrap } from "@/lib/server/studio-data";
 import { getBackendStatus } from "@/lib/supabase/server";
@@ -36,7 +36,7 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
   const authMode = resolveSignedOutAuthMode(firstParam(params.auth));
   const clientCards = buildClientPlatformCards(
     process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null,
-    process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL?.trim() || null
+    resolveWindowsClientDownloadUrl(process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL)
   );
 
   return (

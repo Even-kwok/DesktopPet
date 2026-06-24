@@ -44,6 +44,13 @@ export type ClientPlatformCard = {
   isEnabled: boolean;
 };
 
+export const defaultWindowsClientDownloadUrl =
+  "https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip";
+
+export function resolveWindowsClientDownloadUrl(downloadUrl: string | null | undefined) {
+  return downloadUrl?.trim() || defaultWindowsClientDownloadUrl;
+}
+
 export function buildClientPlatformCards(
   macDownloadUrl: string | null,
   windowsDownloadUrl: string | null = null
