@@ -51,13 +51,17 @@ export function petCountAfterLocalVideoImport(
   petIndex: number,
   slot: PetActionSlot
 ) {
-  const currentCount = Math.max(0, Math.trunc(currentPetCount));
+  const currentCount = normalizedPetCount(currentPetCount);
   const targetPetIndex = Math.trunc(petIndex);
   if (slot !== "idle_loop" || targetPetIndex < 0) {
     return currentCount;
   }
 
   return Math.max(currentCount, targetPetIndex + 1);
+}
+
+function normalizedPetCount(count: unknown) {
+  return typeof count === "number" && Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
 }
 
 export function localVideoRemovalAction(
