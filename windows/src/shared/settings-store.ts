@@ -418,7 +418,7 @@ function isDesktopAccountSession(value: unknown): value is DesktopAccountSession
     isString(value.name) &&
     isString(value.email) &&
     isNonNegativeInteger(value.credits) &&
-    isString(value.accessToken) &&
+    isNonEmptyString(value.accessToken) &&
     isString(value.signedInAt)
   );
 }
@@ -454,6 +454,10 @@ function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
 
 function isString(value: unknown) {
   return typeof value === "string";
+}
+
+function isNonEmptyString(value: unknown) {
+  return isString(value) && value.trim().length > 0;
 }
 
 function isOptionalString(value: unknown) {

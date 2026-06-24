@@ -206,6 +206,31 @@ test("filters malformed account and studio cache records", () => {
   }
 });
 
+test("filters cached account sessions with empty access tokens", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    writeFileSync(
+      store.filePath,
+      JSON.stringify({
+        currentAccount: {
+          id: "user_demo",
+          name: "栗子主人",
+          email: "demo@desktop.pet",
+          credits: 120,
+          accessToken: "   ",
+          signedInAt: "2026-06-24T00:00:00.000Z"
+        }
+      })
+    );
+
+    const reloaded = new SettingsStore(store.filePath);
+
+    assert.equal(reloaded.currentAccount, undefined);
+  } finally {
+    cleanup();
+  }
+});
+
 test("falls back to the first synced pet when the cached selection is stale", () => {
   const { store, cleanup } = makeStore();
   try {

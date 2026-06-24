@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 185 tests.
+- `npm test`: passed, 186 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -30,6 +30,8 @@ Settings-store coverage now also verifies that inactive boundary pet slots canno
 Settings-store display coverage now verifies invalid JavaScript pet indexes fall back to the first pet name and default frame instead of leaking `Pet NaN` or invalid coordinates into Windows UI surfaces.
 
 Settings-store studio-cache coverage now verifies negative synced-pet material counts and friend hosted-pet counts are treated as malformed instead of being shown in the Windows Studio.
+
+Settings-store account-session coverage now verifies cached account sessions with empty access tokens are ignored on restart instead of showing the Windows Studio as signed in with an unusable token.
 
 Desktop sync coverage now verifies remote friend-list responses with negative hosted-pet counts are rejected before they can enter the Windows Studio.
 
