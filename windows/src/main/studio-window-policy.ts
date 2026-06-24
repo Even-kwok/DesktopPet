@@ -1,4 +1,4 @@
-import { hasLoadedRendererURL } from "./renderer-load-policy.ts";
+import { hasLoadedRendererURL, shouldFinishRendererShow } from "./renderer-load-policy.ts";
 
 export type StudioRendererLoadInput = {
   currentURL: string;
@@ -47,4 +47,17 @@ export function studioCommandFromPetPayload(payload: unknown): StudioWindowComma
 
 export function studioCommandForShow(command?: StudioWindowCommand): StudioWindowCommand {
   return command ?? { type: "refresh" };
+}
+
+export function studioCommandDispatchPlan(input: {
+  command?: StudioWindowCommand;
+  requestRevision: number;
+  currentRevision: number;
+  isVisible: boolean;
+}): StudioWindowCommand | undefined {
+  if (!shouldFinishRendererShow(input)) {
+    return undefined;
+  }
+
+  return studioCommandForShow(input.command);
 }

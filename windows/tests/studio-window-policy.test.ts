@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  studioCommandDispatchPlan,
   studioCommandForShow,
   studioCommandFromPetPayload,
   studioRendererLoadTarget
@@ -67,4 +68,45 @@ test("refreshes Studio state when showing without a specific command", () => {
 
   assert.deepEqual(studioCommandForShow(undefined), { type: "refresh" });
   assert.equal(studioCommandForShow(selectCommand), selectCommand);
+});
+
+test("sends only the latest visible Studio show command after renderer loading", () => {
+  const staleSelectCommand = { type: "selectPet" as const, petIndex: 2 };
+  const latestSelectCommand = { type: "selectPet" as const, petIndex: 1 };
+
+  assert.equal(
+    studioCommandDispatchPlan({
+      command: staleSelectCommand,
+      requestRevision: 1,
+      currentRevision: 2,
+      isVisible: false
+    }),
+    undefined
+  );
+  assert.equal(
+    studioCommandDispatchPlan({
+      command: staleSelectCommand,
+      requestRevision: 1,
+      currentRevision: 3,
+      isVisible: true
+    }),
+    undefined
+  );
+  assert.deepEqual(
+    studioCommandDispatchPlan({
+      command: latestSelectCommand,
+      requestRevision: 3,
+      currentRevision: 3,
+      isVisible: true
+    }),
+    latestSelectCommand
+  );
+  assert.deepEqual(
+    studioCommandDispatchPlan({
+      requestRevision: 4,
+      currentRevision: 4,
+      isVisible: true
+    }),
+    { type: "refresh" }
+  );
 });
