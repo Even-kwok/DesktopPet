@@ -32,7 +32,8 @@ export function nextSelectedPetIndexAfterStudioRefresh(
 }
 
 export function petNameDraftForIndex(state: StudioSelectionState, petIndex: number) {
-  return state.petNames[petIndex] ?? `Pet ${petIndex + 1}`;
+  const normalizedPetIndex = clampPetIndex(petIndex, state.petCount);
+  return state.petNames[normalizedPetIndex] ?? `Pet ${normalizedPetIndex + 1}`;
 }
 
 export function nextSelectedSyncedPetID(
@@ -76,6 +77,8 @@ function isSyncedPetIDInCards(petID: string | undefined, syncedPetCards: readonl
 }
 
 function clampPetIndex(petIndex: number, petCount: number) {
-  const lastPetIndex = Math.max(petCount - 1, 0);
-  return Math.min(Math.max(petIndex, 0), lastPetIndex);
+  const normalizedPetCount = Number.isFinite(petCount) ? Math.max(Math.trunc(petCount), 0) : 0;
+  const normalizedPetIndex = Number.isInteger(petIndex) && petIndex >= 0 ? petIndex : 0;
+  const lastPetIndex = Math.max(normalizedPetCount - 1, 0);
+  return Math.min(normalizedPetIndex, lastPetIndex);
 }

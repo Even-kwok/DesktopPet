@@ -5,7 +5,7 @@
 Run from `windows/` on the current branch:
 
 - `npm run typecheck`: passed.
-- `npm test`: passed, 171 tests.
+- `npm test`: passed, 173 tests.
 - `npm run build`: passed.
 - `git diff --check`: passed.
 
@@ -24,6 +24,8 @@ Local import planning coverage now verifies that invalid Windows IPC pet indexes
 Settings-store coverage now also verifies that inactive boundary pet slots cannot retain ghost size or frame data before a pet actually exists.
 
 Colony-controller coverage now verifies invalid JavaScript pet-count values are ignored instead of collapsing active Windows pets or entering unsafe controller creation paths.
+
+Studio selection coverage now verifies invalid renderer pet indexes and malformed pet counts fall back to the first pet instead of leaking `NaN` into the selected pet or name draft.
 
 ## Electron Smoke Evidence
 

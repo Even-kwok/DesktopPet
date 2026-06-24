@@ -31,6 +31,20 @@ test("uses the refreshed pet name for the selected pet draft", () => {
   assert.equal(petNameDraftForIndex({ petCount: 2, petNames: [] }, 1), "Pet 2");
 });
 
+test("normalizes invalid studio pet indexes to the first pet", () => {
+  const state = { petCount: 2, petNames: ["Milo", "Luna"] };
+
+  assert.equal(nextSelectedPetIndexAfterAction(Number.NaN, state, undefined), 0);
+  assert.equal(petNameDraftForIndex(state, Number.NaN), "Milo");
+});
+
+test("normalizes invalid studio pet counts to the first pet", () => {
+  const state = { petCount: Number.NaN, petNames: ["Milo", "Luna"] };
+
+  assert.equal(nextSelectedPetIndexAfterAction(1, state, undefined), 0);
+  assert.equal(petNameDraftForIndex(state, 1), "Milo");
+});
+
 test("selects the tray-requested pet from a Studio command", () => {
   const state = { petCount: 2, petNames: ["Milo", "Luna"] };
 
