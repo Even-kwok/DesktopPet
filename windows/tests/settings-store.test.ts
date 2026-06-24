@@ -321,6 +321,34 @@ test("ignores out-of-range pet writes without expanding persisted pet data", () 
   }
 });
 
+test("reads out-of-range pet data without expanding later persisted pet data", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.petCount = 1;
+
+    assert.equal(store.petName(999), "Pet 1000");
+    assert.equal(store.petSizeScale(999), 1);
+    assert.equal(store.restoreVideoPath("idle_loop", 999), undefined);
+    assert.deepEqual(store.savedVideoSlots(999), []);
+    assert.deepEqual(store.petFrame(999, { width: 1024, height: 768 }), {
+      x: 539,
+      y: -5335,
+      width: 150,
+      height: 150
+    });
+
+    store.isPetVisible = true;
+
+    const persisted = JSON.parse(readFileSync(store.filePath, "utf8")) as {
+      pets?: unknown[];
+    };
+
+    assert.ok((persisted.pets?.length ?? 0) <= 1);
+  } finally {
+    cleanup();
+  }
+});
+
 test("ignores unknown saved video slot keys like the Mac settings store", () => {
   const { store, cleanup } = makeStore();
   try {

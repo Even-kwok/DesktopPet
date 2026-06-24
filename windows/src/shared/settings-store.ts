@@ -202,7 +202,7 @@ export class SettingsStore {
   }
 
   petName(index: number) {
-    const rawName = this.#pet(index).name;
+    const rawName = this.#readPet(index)?.name;
     const name = typeof rawName === "string" ? rawName.trim() : "";
     return name ? name : `Pet ${index + 1}`;
   }
@@ -223,7 +223,7 @@ export class SettingsStore {
   }
 
   petSizeScale(index: number) {
-    const rawScale = this.#pet(index).sizeScale;
+    const rawScale = this.#readPet(index)?.sizeScale;
     return clampPetSizeScale(typeof rawScale === "number" ? rawScale : 1);
   }
 
@@ -239,7 +239,7 @@ export class SettingsStore {
   }
 
   petFrame(index: number, screenSize = { width: 1024, height: 768 }): Rect {
-    const frame = this.#pet(index).frame;
+    const frame = this.#readPet(index)?.frame;
     if (isRect(frame)) {
       return frame;
     }
@@ -277,13 +277,13 @@ export class SettingsStore {
   }
 
   restoreVideoPath(slot: PetActionSlot, index: number) {
-    const videos = this.#pet(index).videos;
+    const videos = this.#readPet(index)?.videos;
     const videoPath = isRecord(videos) && typeof videos[slot] === "string" ? videos[slot] : undefined;
     return videoPath && existsSync(videoPath) ? videoPath : undefined;
   }
 
   savedVideoSlots(index: number) {
-    const videos = this.#pet(index).videos;
+    const videos = this.#readPet(index)?.videos;
     return isRecord(videos)
       ? allPetActionSlots.filter((slot) => typeof videos[slot] === "string")
       : [];
@@ -314,6 +314,15 @@ export class SettingsStore {
     }
     this.#data.pets = pets;
     return pets[index];
+  }
+
+  #readPet(index: number) {
+    if (!Number.isInteger(index) || index < 0 || !Array.isArray(this.#data.pets)) {
+      return undefined;
+    }
+
+    const pet = this.#data.pets[index];
+    return isRecord(pet) ? pet : undefined;
   }
 
   #read(): SettingsData {
