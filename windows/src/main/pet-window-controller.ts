@@ -22,6 +22,7 @@ import {
   shouldFinishRendererShow
 } from "./renderer-load-policy.ts";
 import { petWindowBrowserOptions } from "./electron-window-options.ts";
+import { planPetWindowPlaybackRefresh } from "./pet-window-playback-policy.ts";
 import { planTimedPetWindowAction } from "./pet-window-timer-policy.ts";
 import { planPetWindowWakeResume } from "./pet-window-wake-policy.ts";
 import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slots.ts";
@@ -92,7 +93,12 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   refreshPlayback() {
-    this.#applyState(this.#stateMachine.state);
+    const plan = planPetWindowPlaybackRefresh({
+      isVisible: this.isVisible
+    });
+    if (plan.shouldReplayCurrentState) {
+      this.#applyState(this.#stateMachine.state);
+    }
   }
 
   prepareForSystemSleep() {
