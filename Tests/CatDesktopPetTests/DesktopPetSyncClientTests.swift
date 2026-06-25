@@ -544,7 +544,9 @@ final class DesktopPetSyncClientTests: XCTestCase {
 
         XCTAssertEqual(summary.petCount, 1)
         XCTAssertEqual(summary.materialCount, 1)
-        XCTAssertEqual(settingsStore.restoreVideoURL(for: .idleLoop, petIndex: 0), destinationURL)
+        let restoredURL = try XCTUnwrap(settingsStore.restoreVideoURL(for: .idleLoop, petIndex: 0))
+        XCTAssertEqual(restoredURL.lastPathComponent, destinationURL.lastPathComponent)
+        XCTAssertEqual(try Data(contentsOf: restoredURL), Data("cached-video".utf8))
     }
 
     func testImportBundleHidesOldDesktopPetsWhenBundleHasNoDisplayablePets() async throws {
