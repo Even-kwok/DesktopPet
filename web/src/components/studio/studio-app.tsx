@@ -879,6 +879,9 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             <span>积分</span>
             <strong>{user.credits}</strong>
           </div>
+          <a className="button ghost privacy-entry-button" href="/privacy">
+            隐私
+          </a>
           <form action="/api/auth/logout" method="post">
             <input type="hidden" name="next" value="/" />
             <button className="button secondary" type="submit">

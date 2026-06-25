@@ -113,6 +113,9 @@ function SignedOutHome({ params }: { params: Record<string, string | string[] | 
           <a className="button ghost admin-entry-button" href="/admin/login">
             后台
           </a>
+          <a className="button ghost privacy-entry-button" href="/privacy">
+            隐私
+          </a>
         </form>
       </header>
 

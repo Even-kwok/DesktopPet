@@ -3,7 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DesktopPet Studio",
-  description: "Generate and manage desktop pet materials for CatDesktopPet."
+  description: "Generate and manage desktop pet materials for CatDesktopPet.",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }]
+  }
 };
 
 export default function RootLayout({
