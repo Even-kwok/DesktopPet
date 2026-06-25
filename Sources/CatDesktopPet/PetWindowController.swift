@@ -163,7 +163,7 @@ final class PetWindowController: NSObject, NSWindowDelegate {
     }
 
     private var panelTitle: String {
-        "CatDesktopPet - \(settingsStore.petName(for: petIndex))"
+        "\(DesktopClientVersion.appTitle) - \(settingsStore.petName(for: petIndex))"
     }
 
     private func createPetView(in panel: NSPanel) -> PetView {

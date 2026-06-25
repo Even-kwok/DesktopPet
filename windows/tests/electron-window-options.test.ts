@@ -45,6 +45,8 @@ test("builds Windows Studio BrowserWindow options with a sandboxed preload bridg
     minHeight: 460,
     title: "CatDesktopPet",
     show: false,
+    autoHideMenuBar: true,
+    menuBarVisible: false,
     webPreferences: {
       preload: "C:/app/out/preload/index.cjs",
       contextIsolation: true,
@@ -52,4 +54,11 @@ test("builds Windows Studio BrowserWindow options with a sandboxed preload bridg
       sandbox: true
     }
   });
+});
+
+test("builds Windows Studio BrowserWindow title with app version when provided", () => {
+  assert.equal(
+    studioWindowBrowserOptions("C:/app/out/preload/index.cjs", "0.1.2").title,
+    "CatDesktopPet v0.1.2"
+  );
 });

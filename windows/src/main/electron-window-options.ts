@@ -42,14 +42,16 @@ export function petWindowBrowserOptions(input: {
   };
 }
 
-export function studioWindowBrowserOptions(preloadPath: string) {
+export function studioWindowBrowserOptions(preloadPath: string, appVersion?: string) {
   return {
     width: 560,
     height: 560,
     minWidth: 520,
     minHeight: 460,
-    title: "CatDesktopPet",
+    title: appVersion ? `CatDesktopPet v${appVersion}` : "CatDesktopPet",
     show: false,
+    autoHideMenuBar: true,
+    menuBarVisible: false,
     webPreferences: preloadBridgePreferences(preloadPath)
   };
 }

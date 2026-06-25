@@ -4,6 +4,8 @@ import {
   adjustUserCreditsInState,
   canAccountSeePet,
   createHostingRequestInState,
+  desktopEventsForAccount,
+  enqueueDesktopEvent,
   createMockAccountDataState,
   createGenerationJobInState,
   defaultGenerationJobTimeoutMs,
@@ -32,6 +34,10 @@ import {
   type FriendDeleteResult,
   type PetDeleteResult
 } from "@/lib/account-data-state";
+import {
+  isActionVideoNotVideoError,
+  persistActionVideoUrl
+} from "@/lib/server/action-video-storage";
 import { getJimengVideoJob, isJimengJobId } from "@/lib/server/jimeng";
 import {
   getMockAccountDataState,
@@ -41,6 +47,8 @@ import { isReadonlyPet, sortPetsForAccount, starterPetAssetBundleUrl } from "@/l
 import { getBackendStatus, getSupabaseAdminClient } from "@/lib/supabase/server";
 import type {
   CurrentUser,
+  DesktopEvent,
+  DesktopEventType,
   Friend,
   GenerationJob,
   GenerationJobStatus,
@@ -113,6 +121,17 @@ type HostingRequestRow = {
   updated_at?: string | null;
 };
 
+type DesktopEventRow = {
+  id: number;
+  user_id: string;
+  type: DesktopEventType;
+  actor_user_id: string | null;
+  pet_id: string | null;
+  hosting_request_id: string | null;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+};
+
 const mockAccountState = getMockAccountDataState();
 
 const petSelectColumns =
@@ -139,6 +158,7 @@ export async function loadAdminAccountDataState(): Promise<AccountDataState> {
       generationJobs: [...mockAccountState.generationJobs],
       friends: [...mockAccountState.friends],
       hostingRequests: [...mockAccountState.hostingRequests],
+      desktopEvents: [...mockAccountState.desktopEvents],
       referralCodes: [...mockAccountState.referralCodes],
       userReferrals: [...mockAccountState.userReferrals],
       referralRewardLedger: [...mockAccountState.referralRewardLedger],
@@ -248,6 +268,17 @@ export async function listAccountFriends(account: CurrentUser): Promise<Friend[]
   return fetchFriends(account.id);
 }
 
+export async function listAccountDesktopEvents(
+  account: CurrentUser,
+  afterId?: string | null
+): Promise<DesktopEvent[]> {
+  if (getBackendStatus().mode !== "supabase") {
+    return desktopEventsForAccount(mockAccountState, account, afterId);
+  }
+
+  return fetchDesktopEvents(account.id, afterId);
+}
+
 export async function addAccountFriend(input: {
   account: CurrentUser;
   email: string;
@@ -306,19 +337,56 @@ export async function recallAccountPet(input: {
 }): Promise<{ petId: string; status: string }> {
   if (getBackendStatus().mode !== "supabase") {
     const pet = mockAccountState.pets.find(
-      (item) => item.id === input.petId && item.ownerUserId === input.account.id
+      (item) =>
+        item.id === input.petId &&
+        (item.ownerUserId === input.account.id || item.currentHostUserId === input.account.id)
     );
 
     if (!pet) {
       throw new Error("PET_NOT_FOUND");
     }
 
-    pet.currentHostUserId = input.account.id;
+    const isOwnerRecall = pet.ownerUserId === input.account.id;
+    const ownerUserId = pet.ownerUserId;
+    const previousHostUserId = pet.currentHostUserId;
+    const requestIndex = mockAccountState.hostingRequests.findIndex(
+      (request) =>
+        request.petId === pet.id &&
+        request.fromUserId === ownerUserId &&
+        request.toUserId === previousHostUserId &&
+        request.statusCode === "accepted"
+    );
+
+    if (requestIndex >= 0) {
+      mockAccountState.hostingRequests[requestIndex] = {
+        ...mockAccountState.hostingRequests[requestIndex],
+        status: "returned",
+        statusCode: "returned"
+      };
+    }
+
+    pet.currentHostUserId = ownerUserId;
     pet.locationStatus = "at_owner_desktop";
     pet.host = "me";
     pet.ownership = "owned";
     pet.status = "在我的桌面";
-    return { petId: pet.id, status: "已召回到我的桌面" };
+    if (previousHostUserId && previousHostUserId !== ownerUserId) {
+      enqueueDesktopEvent(mockAccountState, {
+        userId: previousHostUserId,
+        type: "pet_recalled",
+        actorUserId: input.account.id,
+        petId: pet.id,
+        hostingRequestId: requestIndex >= 0 ? mockAccountState.hostingRequests[requestIndex].id : null
+      });
+    }
+    enqueueDesktopEvent(mockAccountState, {
+      userId: ownerUserId,
+      type: "pet_recalled",
+      actorUserId: input.account.id,
+      petId: pet.id,
+      hostingRequestId: requestIndex >= 0 ? mockAccountState.hostingRequests[requestIndex].id : null
+    });
+    return { petId: pet.id, status: isOwnerRecall ? "已召回到我的桌面" : "已送回主人" };
   }
 
   return recallSupabasePet(input);
@@ -571,9 +639,12 @@ async function loadSupabaseAccountDataSnapshot(account: CurrentUser): Promise<Ac
   ]);
   const mappedUser = mapUser(account, profile, balance);
   const petIds = petRows.map((pet) => pet.id);
-  const assets = petIds.length > 0 ? await fetchPetAssets(petIds) : [];
+  const [assets, ownerProfiles] = await Promise.all([
+    petIds.length > 0 ? fetchPetAssets(petIds) : Promise.resolve([]),
+    fetchProfilesByIds([...new Set(petRows.map((pet) => pet.owner_user_id))])
+  ]);
   const mappedPets = sortPetsForAccount(withMaterialCounts(
-    petRows.map((pet) => mapPetRow(pet, account.id)),
+    petRows.map((pet) => mapPetRow(pet, account.id, ownerProfiles.get(pet.owner_user_id))),
     assets
   ));
 
@@ -585,6 +656,7 @@ async function loadSupabaseAccountDataSnapshot(account: CurrentUser): Promise<Ac
     generationJobs: await fetchSupabaseGenerationJobs(mappedUser),
     friends: await fetchFriends(account.id),
     hostingRequests: await fetchHostingRequests(account.id),
+    desktopEvents: await fetchDesktopEvents(account.id),
     referralCodes: [],
     userReferrals: [],
     referralRewardLedger: [],
@@ -623,17 +695,19 @@ async function loadSupabaseAdminAccountDataState(): Promise<AccountDataState> {
   );
   const petIds = petRows.map((pet) => pet.id);
   const assets = petIds.length > 0 ? await fetchPetAssets(petIds) : [];
+  const profilesById = new Map(profileRows.map((profile) => [profile.id, profile]));
 
   return {
     users,
     pets: sortPetsForAccount(withMaterialCounts(
-      petRows.map((pet) => mapPetRow(pet)),
+      petRows.map((pet) => mapPetRow(pet, undefined, profilesById.get(pet.owner_user_id))),
       assets
     )),
     assets,
     generationJobs: [],
     friends: [],
     hostingRequests: [],
+    desktopEvents: [],
     referralCodes: [],
     userReferrals: [],
     referralRewardLedger: [],
@@ -1017,6 +1091,10 @@ async function createSupabaseGenerationJob(input: {
 }): Promise<GenerationJob> {
   const supabase = getRequiredSupabaseAdminClient();
   await fetchEditableSupabasePetRow(input.account, input.job.petId);
+  const initialResultUrl = await permanentActionVideoResultUrl({
+    job: input.job,
+    providerJobId: input.job.jobId
+  });
 
   const activeRow = await findActiveSupabaseGenerationJobRow(input.account, {
     petId: input.job.petId,
@@ -1066,7 +1144,7 @@ async function createSupabaseGenerationJob(input: {
       cost: input.job.cost,
       provider: input.provider,
       provider_job_id: input.job.jobId,
-      result_url: input.job.resultUrl ?? null,
+      result_url: initialResultUrl,
       updated_at: new Date().toISOString()
     })
     .select(
@@ -1096,13 +1174,35 @@ async function updateSupabaseGenerationJob(
     throw new Error("GENERATION_JOB_NOT_FOUND");
   }
 
-  const status = job.status === "queued" ? "running" : job.status;
+  let status = job.status === "queued" ? "running" : job.status;
+  let errorMessage = job.message ?? row.error_message;
+  let resultUrl: string | null = null;
+
+  try {
+    resultUrl = await permanentActionVideoResultUrl({
+      job: {
+        ...job,
+        petId: row.pet_id ?? job.petId,
+        slot: row.slot ?? job.slot,
+        resultUrl: job.resultUrl ?? row.result_url
+      },
+      providerJobId: row.provider_job_id ?? row.id
+    });
+  } catch (error) {
+    if (!isActionVideoNotVideoError(error)) {
+      throw error;
+    }
+
+    status = "failed";
+    errorMessage = "ACTION_VIDEO_NOT_VIDEO";
+  }
+
   const updatedRow = await supabase
     .from("generation_jobs")
     .update({
       status,
-      result_url: job.resultUrl ?? row.result_url,
-      error_message: job.message ?? row.error_message,
+      result_url: resultUrl,
+      error_message: errorMessage,
       updated_at: new Date().toISOString()
     })
     .eq("id", row.id)
@@ -1154,6 +1254,28 @@ async function updateSupabaseGenerationJob(
   return mapGenerationJobRow(updatedRow);
 }
 
+async function permanentActionVideoResultUrl(input: {
+  job: GenerationJob;
+  providerJobId: string;
+}) {
+  if (
+    input.job.status !== "succeeded" ||
+    input.job.type !== "action_video" ||
+    !input.job.petId ||
+    !input.job.slot ||
+    !input.job.resultUrl
+  ) {
+    return input.job.resultUrl ?? null;
+  }
+
+  return persistActionVideoUrl({
+    petId: input.job.petId,
+    slot: input.job.slot,
+    jobId: input.providerJobId,
+    videoUrl: input.job.resultUrl
+  });
+}
+
 async function upsertSupabasePetAsset(input: {
   account: CurrentUser;
   petId: string;
@@ -1176,6 +1298,13 @@ async function upsertSupabasePetAsset(input: {
     throw new Error("PET_READONLY");
   }
 
+  const videoUrl = await persistActionVideoUrl({
+    petId: input.petId,
+    slot: input.slot,
+    jobId: "manual",
+    videoUrl: input.videoUrl
+  });
+
   const asset = await supabase
     .from("pet_assets")
     .upsert(
@@ -1183,7 +1312,7 @@ async function upsertSupabasePetAsset(input: {
         pet_id: input.petId,
         slot: input.slot,
         status: "ready",
-        video_url: input.videoUrl,
+        video_url: videoUrl,
         updated_at: new Date().toISOString()
       },
       { onConflict: "pet_id,slot" }
@@ -1291,14 +1420,16 @@ async function createSupabaseHostingRequest(input: {
       .then(unwrapSupabaseMaybeData<ProfileRow>)
   ]);
 
-  if (
-    !pet ||
-    pet.owner_user_id !== input.account.id ||
-    pet.current_host_user_id !== input.account.id ||
-    !friendship ||
-    !friendProfile
-  ) {
-    throw new Error("HOSTING_TARGET_NOT_FOUND");
+  if (!pet || pet.owner_user_id !== input.account.id) {
+    throw new Error("HOSTING_PET_NOT_FOUND");
+  }
+
+  if (pet.current_host_user_id !== input.account.id) {
+    throw new Error("HOSTING_PET_UNAVAILABLE");
+  }
+
+  if (!friendship || !friendProfile) {
+    throw new Error("HOSTING_FRIEND_NOT_FOUND");
   }
 
   const row = await supabase
@@ -1313,6 +1444,16 @@ async function createSupabaseHostingRequest(input: {
     .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
     .single()
     .then(unwrapSupabaseData<HostingRequestRow>);
+
+  await insertSupabaseDesktopEvents([
+    {
+      userId: row.to_user_id,
+      type: "hosting_request_created",
+      actorUserId: row.from_user_id,
+      petId: row.pet_id,
+      hostingRequestId: row.id
+    }
+  ]);
 
   return {
     id: row.id,
@@ -1388,6 +1529,52 @@ async function updateSupabaseHostingRequest(input: {
     .single()
     .then(unwrapSupabaseData<HostingRequestRow>);
 
+  if (input.action === "accept") {
+    await insertSupabaseDesktopEvents([
+      {
+        userId: row.from_user_id,
+        type: "hosting_request_accepted",
+        actorUserId: input.account.id,
+        petId: row.pet_id,
+        hostingRequestId: row.id
+      },
+      {
+        userId: row.to_user_id,
+        type: "desktop_bundle_changed",
+        actorUserId: input.account.id,
+        petId: row.pet_id,
+        hostingRequestId: row.id
+      }
+    ]);
+  } else if (input.action === "decline") {
+    await insertSupabaseDesktopEvents([
+      {
+        userId: row.from_user_id,
+        type: "hosting_request_declined",
+        actorUserId: input.account.id,
+        petId: row.pet_id,
+        hostingRequestId: row.id
+      }
+    ]);
+  } else {
+    await insertSupabaseDesktopEvents([
+      {
+        userId: row.from_user_id,
+        type: "pet_recalled",
+        actorUserId: input.account.id,
+        petId: row.pet_id,
+        hostingRequestId: row.id
+      },
+      {
+        userId: row.to_user_id,
+        type: "pet_recalled",
+        actorUserId: input.account.id,
+        petId: row.pet_id,
+        hostingRequestId: row.id
+      }
+    ]);
+  }
+
   return mapHostingRequestRowForViewer(updatedRow, input.account.id, await fetchHostingRequestDisplayData([updatedRow]));
 }
 
@@ -1395,15 +1582,52 @@ async function recallSupabasePet(input: {
   account: CurrentUser;
   petId: string;
 }): Promise<{ petId: string; status: string }> {
-  const pet = await getRequiredSupabaseAdminClient()
+  const supabase = getRequiredSupabaseAdminClient();
+  const existingPet = await supabase
+    .from("pets")
+    .select("id, owner_user_id, current_host_user_id")
+    .eq("id", input.petId)
+    .maybeSingle()
+    .then(unwrapSupabaseMaybeData<{
+      id: string;
+      owner_user_id: string;
+      current_host_user_id: string | null;
+    }>);
+
+  const canRecallOrReturn = existingPet &&
+    (existingPet.owner_user_id === input.account.id ||
+      existingPet.current_host_user_id === input.account.id);
+
+  if (!existingPet || !canRecallOrReturn) {
+    throw new Error("PET_NOT_FOUND");
+  }
+
+  const ownerUserId = existingPet.owner_user_id;
+  const hostUserId = existingPet.current_host_user_id;
+  const isOwnerRecall = ownerUserId === input.account.id;
+  const returnedRequests = await supabase
+    .from("pet_hosting_requests")
+    .update({
+      status: "returned",
+      updated_at: new Date().toISOString()
+    })
+    .eq("pet_id", input.petId)
+    .eq("from_user_id", ownerUserId)
+    .eq("to_user_id", hostUserId ?? input.account.id)
+    .eq("status", "accepted")
+    .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
+    .then(unwrapSupabaseData<HostingRequestRow[]>);
+  const returnedRequest = returnedRequests[0] ?? null;
+
+  const pet = await supabase
     .from("pets")
     .update({
-      current_host_user_id: input.account.id,
+      current_host_user_id: ownerUserId,
       location_status: "at_owner_desktop",
       updated_at: new Date().toISOString()
     })
     .eq("id", input.petId)
-    .eq("owner_user_id", input.account.id)
+    .eq("owner_user_id", ownerUserId)
     .select("id")
     .maybeSingle()
     .then(unwrapSupabaseMaybeData<{ id: string }>);
@@ -1412,9 +1636,31 @@ async function recallSupabasePet(input: {
     throw new Error("PET_NOT_FOUND");
   }
 
+  const events = [
+    {
+      userId: ownerUserId,
+      type: "pet_recalled" as const,
+      actorUserId: input.account.id,
+      petId: pet.id,
+      hostingRequestId: returnedRequest?.id ?? null
+    }
+  ];
+
+  if (hostUserId && hostUserId !== ownerUserId) {
+    events.push({
+      userId: hostUserId,
+      type: "pet_recalled",
+      actorUserId: input.account.id,
+      petId: pet.id,
+      hostingRequestId: returnedRequest?.id ?? null
+    });
+  }
+
+  await insertSupabaseDesktopEvents(events);
+
   return {
     petId: pet.id,
-    status: "已召回到我的桌面"
+    status: isOwnerRecall ? "已召回到我的桌面" : "已送回主人"
   };
 }
 
@@ -1447,6 +1693,21 @@ async function fetchProfile(userId: string) {
     .eq("id", userId)
     .maybeSingle()
     .then(unwrapSupabaseMaybeData<ProfileRow>);
+}
+
+async function fetchProfilesByIds(userIds: string[]) {
+  const uniqueUserIds = [...new Set(userIds)].filter((userId) => userId.length > 0);
+  if (uniqueUserIds.length === 0) {
+    return new Map<string, ProfileRow>();
+  }
+
+  const profiles = await getRequiredSupabaseAdminClient()
+    .from("profiles")
+    .select("id, email, display_name, account_status")
+    .in("id", uniqueUserIds)
+    .then(unwrapSupabaseData<ProfileRow[]>);
+
+  return new Map(profiles.map((profile) => [profile.id, profile]));
 }
 
 async function fetchCreditBalance(userId: string) {
@@ -1809,6 +2070,7 @@ async function fetchHostingRequests(userId: string): Promise<HostingRequest[]> {
     .from("pet_hosting_requests")
     .select("id, pet_id, from_user_id, to_user_id, status, updated_at")
     .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+    .eq("status", "pending")
     .order("updated_at", { ascending: false })
     .then(unwrapSupabaseData<HostingRequestRow[]>);
 
@@ -1818,6 +2080,48 @@ async function fetchHostingRequests(userId: string): Promise<HostingRequest[]> {
 
   const displayData = await fetchHostingRequestDisplayData(rows);
   return rows.map((row) => mapHostingRequestRowForViewer(row, userId, displayData));
+}
+
+async function fetchDesktopEvents(userId: string, afterId?: string | null): Promise<DesktopEvent[]> {
+  let query = getRequiredSupabaseAdminClient()
+    .from("desktop_events")
+    .select("id, user_id, type, actor_user_id, pet_id, hosting_request_id, payload, created_at")
+    .eq("user_id", userId)
+    .order("id", { ascending: true })
+    .limit(100);
+
+  const afterNumber = numericDesktopEventCursor(afterId);
+  if (afterNumber !== null) {
+    query = query.gt("id", afterNumber);
+  }
+
+  const rows = await query.then(unwrapSupabaseData<DesktopEventRow[]>);
+  return rows.map(mapDesktopEventRow);
+}
+
+async function insertSupabaseDesktopEvents(events: Array<{
+  userId: string;
+  type: DesktopEventType;
+  actorUserId?: string | null;
+  petId?: string | null;
+  hostingRequestId?: string | null;
+  payload?: Record<string, unknown>;
+}>) {
+  if (events.length === 0) {
+    return;
+  }
+
+  await getRequiredSupabaseAdminClient()
+    .from("desktop_events")
+    .insert(events.map((event) => ({
+      user_id: event.userId,
+      type: event.type,
+      actor_user_id: event.actorUserId ?? null,
+      pet_id: event.petId ?? null,
+      hosting_request_id: event.hostingRequestId ?? null,
+      payload: event.payload ?? {}
+    })))
+    .then(unwrapSupabaseMutation);
 }
 
 type HostingRequestDisplayData = {
@@ -1883,6 +2187,19 @@ function mapHostingRequestRowForViewer(
   };
 }
 
+function mapDesktopEventRow(row: DesktopEventRow): DesktopEvent {
+  return {
+    id: String(row.id),
+    userId: row.user_id,
+    type: row.type,
+    actorUserId: row.actor_user_id,
+    petId: row.pet_id,
+    hostingRequestId: row.hosting_request_id,
+    payload: row.payload ?? undefined,
+    createdAt: row.created_at
+  };
+}
+
 function hostingRequestStatusForAction(action: HostingRequestAction) {
   switch (action) {
     case "accept":
@@ -1892,6 +2209,15 @@ function hostingRequestStatusForAction(action: HostingRequestAction) {
     case "return":
       return "returned";
   }
+}
+
+function numericDesktopEventCursor(value: string | null | undefined) {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isSafeInteger(numberValue) ? numberValue : null;
 }
 
 function normalizeHostingRequestStatus(status: string): HostingRequest["statusCode"] {
@@ -1939,13 +2265,15 @@ function mapUser(
   };
 }
 
-function mapPetRow(row: PetRow, viewerUserId?: string): Pet {
+function mapPetRow(row: PetRow, viewerUserId?: string, ownerProfile?: ProfileRow): Pet {
   const ownership = ownershipForPet(row, viewerUserId);
 
   return {
     id: row.id,
     petNumber: row.pet_number,
     ownerUserId: row.owner_user_id,
+    ownerName: ownerProfile?.display_name ?? ownerProfile?.email ?? null,
+    ownerEmail: ownerProfile?.email ?? null,
     currentHostUserId: row.current_host_user_id,
     name: row.name,
     type: row.species,

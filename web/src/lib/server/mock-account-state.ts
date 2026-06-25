@@ -30,6 +30,7 @@ export function resetMockAccountDataStateForTests(state?: Partial<AccountDataSta
   mockAccountState.generationJobs = nextState.generationJobs;
   mockAccountState.friends = nextState.friends;
   mockAccountState.hostingRequests = nextState.hostingRequests;
+  mockAccountState.desktopEvents = nextState.desktopEvents;
   mockAccountState.referralCodes = nextState.referralCodes;
   mockAccountState.userReferrals = nextState.userReferrals;
   mockAccountState.referralRewardLedger = nextState.referralRewardLedger;

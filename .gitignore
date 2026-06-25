@@ -14,5 +14,6 @@ windows/node_modules/
 windows/out/
 windows/dist/
 windows/release/
+release/
 .vercel
 .superpowers/

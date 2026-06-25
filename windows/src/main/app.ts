@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, Menu, nativeImage, powerMonitor, Tray } from "electron";
+import { app, dialog, ipcMain, Menu, nativeImage, net, powerMonitor, Tray } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import { stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,8 @@ import { probeLocalVideoMetadata } from "./local-video-metadata.ts";
 import { resolveRuntimePaths } from "./runtime-paths.ts";
 import { replacementWarningDialogOptions } from "./sync-policy.ts";
 import { importDesktopBundle } from "./desktop-bundle-importer.ts";
+import { DesktopEventStream, desktopEventAction } from "./desktop-event-stream.ts";
+import type { DesktopEvent } from "./desktop-event-stream.ts";
 import {
   createSingleFlightActionGroup,
   studioActionKey
@@ -56,12 +58,6 @@ import {
   reviewPetVideoImport,
   unreadablePetVideoImportMessage
 } from "../shared/video-import-review.ts";
-import {
-  resolveFriendRemovalTarget,
-  resolveHostingRequestTarget,
-  resolveRecallPetTarget,
-  syncedPetCardsAfterHostingRequest
-} from "../shared/studio-model.ts";
 import type { PetActionSlot, VisiblePetActionSlot } from "../shared/pet-action-slots.ts";
 import type { ExistingInstanceReopenAction } from "./app-lifecycle-policy.ts";
 
@@ -70,10 +66,14 @@ let tray: Tray | undefined;
 let runExistingInstanceReopenAction: (action: ExistingInstanceReopenAction) => void = () => {};
 
 async function bootstrap() {
+  const appVersion = app.getVersion();
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const runtimePaths = resolveRuntimePaths(currentDir, process.env.ELECTRON_RENDERER_URL);
   const settingsStore = new SettingsStore(path.join(app.getPath("userData"), "settings.json"));
-  const desktopSyncClient = new DesktopPetSyncClient(process.env.CAT_DESKTOP_PET_WEB_BASE_URL);
+  const desktopSyncClient = new DesktopPetSyncClient(
+    process.env.CAT_DESKTOP_PET_WEB_BASE_URL,
+    (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init)
+  );
   const remoteMaterialRoot = path.join(app.getPath("appData"), "CatDesktopPet", "RemoteMaterials");
   const petTrayIconProvider = new PetTrayIconProvider({
     createThumbnailFromPath: (videoPath, size) => nativeImage.createThumbnailFromPath(videoPath, size),
@@ -84,6 +84,7 @@ async function bootstrap() {
     (petIndex) =>
       new PetWindowController(settingsStore, petIndex, {
         preloadPath: runtimePaths.preloadPath,
+        appVersion,
         petRendererURL: runtimePaths.petRendererURL,
         petRendererFile: runtimePaths.petRendererFile,
         getClickThrough: () => settingsStore.isClickThrough
@@ -91,6 +92,7 @@ async function bootstrap() {
   );
   studioWindowController = new StudioWindowController({
     preloadPath: runtimePaths.preloadPath,
+    appVersion,
     studioRendererURL: runtimePaths.studioRendererURL,
     studioRendererFile: runtimePaths.studioRendererFile
   });
@@ -100,8 +102,7 @@ async function bootstrap() {
   );
   const signInActions = createSingleFlightActionGroup();
   const syncActions = createSingleFlightActionGroup();
-  const refreshFriendActions = createSingleFlightActionGroup();
-  const mutateFriendActions = createSingleFlightActionGroup();
+  let desktopEventStream: DesktopEventStream | undefined;
   let refreshTray = () => {};
   const notifyStudioStateChanged = () => studioWindowController?.notifyStateChanged();
   runExistingInstanceReopenAction = (action) => {
@@ -117,13 +118,12 @@ async function bootstrap() {
     }
   };
   const studioState = () => ({
+    appVersion,
     account: settingsStore.currentAccount,
     petCount: settingsStore.petCount,
     petNames: Array.from({ length: settingsStore.petCount }, (_, index) => settingsStore.petName(index)),
     selectedSyncedPetID: settingsStore.selectedSyncedPetID,
     syncedPetCards: settingsStore.syncedPetCards,
-    friendCards: settingsStore.friendCards,
-    hostingRequests: settingsStore.hostingRequests,
     localVideoSlots: Array.from({ length: settingsStore.petCount }, (_, index) =>
       settingsStore.availableVideoSlots(index)
     ),
@@ -135,14 +135,6 @@ async function bootstrap() {
     isClickThrough: settingsStore.isClickThrough,
     isMouseoverCatchEnabled: settingsStore.isMouseoverCatchEnabled
   });
-  const refreshFriendAndHostingCards = async (accessToken: string) => {
-    const [friends, hostingRequests] = await Promise.all([
-      desktopSyncClient.fetchFriends(accessToken),
-      desktopSyncClient.fetchHostingRequests(accessToken)
-    ]);
-    settingsStore.saveFriendCards(friends);
-    settingsStore.saveHostingRequests(hostingRequests);
-  };
   const syncDesktopBundleForAccount = async (account: DesktopAccountSession) => {
     const bundle = await desktopSyncClient.fetchBundle(account.accessToken);
     const replacements = localMaterialReplacementDescriptions(bundle, (slot, petIndex) =>
@@ -159,9 +151,6 @@ async function bootstrap() {
 
     const refreshedAccount = refreshedAccountSessionFromSyncAccount(account, bundle.account);
     settingsStore.saveAccountSession(refreshedAccount);
-    try {
-      await refreshFriendAndHostingCards(refreshedAccount.accessToken);
-    } catch {}
     const summary = await importDesktopBundle(bundle, {
       settingsStore,
       petColonyController,
@@ -172,6 +161,41 @@ async function bootstrap() {
     notifyStudioStateChanged();
     return { summary };
   };
+  const handleDesktopEvent = async (event: DesktopEvent) => {
+    const account = settingsStore.currentAccount;
+    if (!account) {
+      return;
+    }
+
+    const action = desktopEventAction(event.type);
+    if (action === "syncDesktopBundle") {
+      try {
+        await syncActions.run("desktopEventSync", async () => {
+          const latestAccount = requireAccount(settingsStore.currentAccount);
+          await syncDesktopBundleForAccount(latestAccount);
+        });
+      } catch {}
+    }
+  };
+  const stopDesktopEventStream = () => {
+    desktopEventStream?.stop();
+    desktopEventStream = undefined;
+  };
+  const startDesktopEventStream = (account: DesktopAccountSession) => {
+    stopDesktopEventStream();
+    desktopEventStream = new DesktopEventStream({
+      streamURL: desktopSyncClient.desktopEventStreamURL(),
+      accessToken: account.accessToken,
+      onEvent: handleDesktopEvent,
+      onError: () => {}
+    });
+    desktopEventStream.start();
+  };
+
+  if (settingsStore.currentAccount) {
+    startDesktopEventStream(settingsStore.currentAccount);
+  }
+  app.on("before-quit", stopDesktopEventStream);
 
   registerIpcHandlers(ipcMain, {
     getStudioState: studioState,
@@ -182,28 +206,21 @@ async function bootstrap() {
       }
 
       const response = await desktopSyncClient.login(trimmedEmail, password);
-      settingsStore.saveAccountSession({
+      const account = {
         id: response.account.id,
         name: response.account.name,
         email: response.account.email,
         credits: response.account.credits,
         accessToken: response.accessToken,
         signedInAt: new Date().toISOString()
-      });
-
-      try {
-        await refreshFriendAndHostingCards(response.accessToken);
-      } catch {
-        settingsStore.clearFriendCards();
-        settingsStore.clearHostingRequests();
-      }
-
+      };
+      settingsStore.saveAccountSession(account);
+      startDesktopEventStream(account);
       return studioState();
     }),
     signOut: () => {
+      stopDesktopEventStream();
       settingsStore.signOut();
-      settingsStore.clearFriendCards();
-      settingsStore.clearHostingRequests();
       return studioState();
     },
     sync: () => syncActions.run("sync", async () => {
@@ -314,77 +331,6 @@ async function bootstrap() {
       notifyStudioStateChanged();
       return studioState();
     },
-    refreshFriends: () => refreshFriendActions.run("refreshFriends", async () => {
-      const account = requireAccount(settingsStore.currentAccount);
-      await refreshFriendAndHostingCards(account.accessToken);
-      notifyStudioStateChanged();
-      return studioState();
-    }),
-    addFriend: (email) => mutateFriendActions.run(studioActionKey("addFriend", email), async () => {
-      const account = requireAccount(settingsStore.currentAccount);
-      const trimmedEmail = email.trim();
-      if (!trimmedEmail) {
-        throw new Error("请输入好友邮箱。");
-      }
-      const addedFriend = await desktopSyncClient.addFriend(trimmedEmail, account.accessToken);
-      settingsStore.upsertFriendCard(addedFriend);
-      notifyStudioStateChanged();
-      return { addedFriend, ...studioState() };
-    }),
-    removeFriend: (friendId) => mutateFriendActions.run(studioActionKey("removeFriend", friendId), async () => {
-      const account = requireAccount(settingsStore.currentAccount);
-      const target = resolveFriendRemovalTarget(friendId, settingsStore.friendCards);
-      await desktopSyncClient.removeFriend(target.friendId, account.accessToken);
-      settingsStore.removeFriendCard(target.friendId);
-      notifyStudioStateChanged();
-      return studioState();
-    }),
-    requestHosting: (petId, toUserId) => mutateFriendActions.run(studioActionKey("requestHosting", petId, toUserId), async () => {
-      const account = requireAccount(settingsStore.currentAccount);
-      const target = resolveHostingRequestTarget(
-        petId,
-        toUserId,
-        settingsStore.syncedPetCards,
-        settingsStore.friendCards
-      );
-      const response = await desktopSyncClient.requestHosting(target.petId, target.toUserId, account.accessToken);
-      const syncedPetCards = settingsStore.syncedPetCards;
-      const nextSyncedPetCards = syncedPetCardsAfterHostingRequest(syncedPetCards, {
-        id: response.requestId,
-        status: response.status,
-        statusCode: "pending",
-        petId: response.petId,
-        toUserId: response.toUserId
-      });
-      if (nextSyncedPetCards !== syncedPetCards) {
-        settingsStore.saveSyncedPetCards([...nextSyncedPetCards]);
-      }
-      try {
-        settingsStore.saveHostingRequests(await desktopSyncClient.fetchHostingRequests(account.accessToken));
-      } catch {}
-      notifyStudioStateChanged();
-      return studioState();
-    }),
-    updateHostingRequest: (requestId, action) => mutateFriendActions.run(studioActionKey("updateHostingRequest", requestId, action), async () => {
-      const account = requireAccount(settingsStore.currentAccount);
-      const hostingAction = toHostingRequestAction(action);
-      const response = await desktopSyncClient.updateHostingRequest(requestId, hostingAction, account.accessToken);
-      settingsStore.upsertHostingRequest(response.request);
-      let syncResult: { canceled?: boolean; summary?: unknown } = {};
-      if (hostingAction === "accept") {
-        syncResult = await syncDesktopBundleForAccount(account);
-      }
-      notifyStudioStateChanged();
-      return { hostingRequest: response.request, ...syncResult, ...studioState() };
-    }),
-    recallPet: (petId) => mutateFriendActions.run(studioActionKey("recallPet", petId), async () => {
-      const account = requireAccount(settingsStore.currentAccount);
-      const target = resolveRecallPetTarget(petId, settingsStore.syncedPetCards);
-      await desktopSyncClient.recallPet(target.petId, account.accessToken);
-      settingsStore.markSyncedPetRecalled(target.petId);
-      notifyStudioStateChanged();
-      return studioState();
-    }),
     petDragStarted: (petIndex) => {
       petColonyController.dragPetStarted(petIndex);
     },
@@ -406,7 +352,7 @@ async function bootstrap() {
   powerMonitor.on("resume", () => sleepRecoveryCoordinator.systemDidWake());
 
   tray = new Tray(makeTrayIcon());
-  tray.setToolTip("CatDesktopPet");
+  tray.setToolTip(`CatDesktopPet v${appVersion}`);
   refreshTray = () => {
     const template = buildTrayMenuTemplate({
       petCount: settingsStore.petCount,
@@ -612,14 +558,6 @@ function requireAccount<T extends { accessToken: string } | undefined>(account: 
   }
 
   return account;
-}
-
-function toHostingRequestAction(action: string): "accept" | "decline" | "return" {
-  if (action === "accept" || action === "decline" || action === "return") {
-    return action;
-  }
-
-  throw new Error("不支持的寄养操作。");
 }
 
 async function importLocalVideo(input: {

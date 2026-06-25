@@ -94,43 +94,38 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
         XCTAssertEqual(relaunchedViewModel.selectedSyncedPetID, "pet_orange")
     }
 
-    func testRecallActionOnlyShowsForSelectedRecallablePets() {
-        let localPet = makeSyncedPetCard(
-            id: "pet_local",
-            ownership: "owned",
-            displayState: "active"
-        )
-        let awayPet = makeSyncedPetCard(
-            id: "pet_away",
-            ownership: "away",
-            displayState: "unavailable"
-        )
+    func testPausedFriendAndHostingSurfaceIsNotExposed() throws {
+        let viewSourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources")
+            .appendingPathComponent("CatDesktopPet")
+            .appendingPathComponent("PetStudioView.swift")
+        let viewModelSourceURL = viewSourceURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("PetStudioViewModel.swift")
+        let viewSource = try String(contentsOf: viewSourceURL, encoding: .utf8)
+        let viewModelSource = try String(contentsOf: viewModelSourceURL, encoding: .utf8)
 
-        XCTAssertFalse(localPet.shouldShowRecallAction(isSelected: true))
-        XCTAssertTrue(awayPet.shouldShowRecallAction(isSelected: true))
-        XCTAssertFalse(awayPet.shouldShowRecallAction(isSelected: false))
-    }
-
-    func testHostingActionOnlyAllowsOwnedPetsOnThisDesktop() {
-        let localPet = makeSyncedPetCard(
-            id: "pet_local",
-            ownership: "owned",
-            displayState: "active"
-        )
-        let hostedPet = makeSyncedPetCard(
-            id: "pet_hosted",
-            ownership: "hosted",
-            displayState: "active"
-        )
-        let awayPet = makeSyncedPetCard(
-            id: "pet_away",
-            ownership: "away",
-            displayState: "unavailable"
-        )
-
-        XCTAssertTrue(localPet.canRequestHosting)
-        XCTAssertFalse(hostedPet.canRequestHosting)
-        XCTAssertFalse(awayPet.canRequestHosting)
+        for source in [viewSource, viewModelSource] {
+            XCTAssertFalse(source.contains("好友"))
+            XCTAssertFalse(source.contains("friendPanel"))
+            XCTAssertFalse(source.contains("friendEmailDraft"))
+            XCTAssertFalse(source.contains("friendCards"))
+            XCTAssertFalse(source.contains("addFriend"))
+            XCTAssertFalse(source.contains("removeFriend"))
+            XCTAssertFalse(source.contains("refreshFriends"))
+            XCTAssertFalse(source.contains("寄养"))
+            XCTAssertFalse(source.contains("召回"))
+            XCTAssertFalse(source.contains("送回"))
+            XCTAssertFalse(source.contains("hostingPetPickerFriend"))
+            XCTAssertFalse(source.contains("beginHostingPetSelection"))
+            XCTAssertFalse(source.contains("requestHosting"))
+            XCTAssertFalse(source.contains("respondToHostingRequest"))
+            XCTAssertFalse(source.contains("recallPet"))
+            XCTAssertFalse(source.contains("hostingRequests"))
+        }
     }
 
     func testGreenScreenImageCanBeConfirmedWithoutGeneratingFrontImage() {
@@ -158,7 +153,8 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
             petColonyController: petColonyController,
             desktopSyncClient: desktopSyncClient,
             accountSessionStore: accountSessionStore ?? DesktopAccountSessionStore(defaults: accountDefaults),
-            defaults: settingsDefaults
+            defaults: settingsDefaults,
+            startsDesktopEventStream: false
         )
     }
 
@@ -218,26 +214,6 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
                         """.utf8
                     )
                 )
-            case "https://example.com/api/friends":
-                return (
-                    HTTPURLResponse(
-                        url: request.url!,
-                        statusCode: 200,
-                        httpVersion: nil,
-                        headerFields: ["Content-Type": "application/json"]
-                    )!,
-                    Data(#"{"friends":[]}"#.utf8)
-                )
-            case "https://example.com/api/hosting/requests":
-                return (
-                    HTTPURLResponse(
-                        url: request.url!,
-                        statusCode: 200,
-                        httpVersion: nil,
-                        headerFields: ["Content-Type": "application/json"]
-                    )!,
-                    Data(#"{"requests":[]}"#.utf8)
-                )
             default:
                 throw URLError(.badURL)
             }
@@ -268,7 +244,8 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
     private func makeSyncedPetCard(
         id: String,
         ownership: String,
-        displayState: String
+        displayState: String,
+        ownerName: String? = nil
     ) -> DesktopSyncedPetCard {
         DesktopSyncedPetCard(
             id: id,
@@ -276,9 +253,18 @@ final class PetStudioViewModelLayoutTests: XCTestCase {
             name: "栗子",
             ownership: ownership,
             displayState: displayState,
+            ownerName: ownerName,
+            ownerEmail: nil,
             avatarURL: nil,
             materialCount: 0
         )
+    }
+
+    private func seedSyncedPetCards(_ cards: [DesktopSyncedPetCard]) {
+        let encoder = JSONEncoder()
+        let data = try! encoder.encode(cards)
+        settingsDefaults.set(data, forKey: "studio.syncedPetCards")
+        settingsDefaults.set(cards.first?.id, forKey: "studio.selectedSyncedPetID")
     }
 }
 

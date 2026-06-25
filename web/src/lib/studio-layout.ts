@@ -28,10 +28,6 @@ export function desktopPublishFailureMessage(error: unknown) {
   return error instanceof Error ? `同步到桌面端失败：${error.message}` : "同步到桌面端失败。";
 }
 
-export function recallSuccessMessage() {
-  return "召回请求已发送。桌面 App 同步后会重新显示这只宠物。";
-}
-
 export type ClientPlatformId = "mac" | "windows" | "ios" | "android";
 
 export type ClientPlatformCard = {
@@ -46,6 +42,12 @@ export type ClientPlatformCard = {
 
 export const defaultWindowsClientDownloadUrl =
   "https://github.com/Even-kwok/DesktopPet/releases/download/windows-test/CatDesktopPet-win-x64.zip";
+
+export const defaultMacClientDownloadUrl = "/downloads/CatDesktopPet-mac-arm64.dmg";
+
+export function resolveMacClientDownloadUrl(downloadUrl: string | null | undefined) {
+  return downloadUrl?.trim() || defaultMacClientDownloadUrl;
+}
 
 export function resolveWindowsClientDownloadUrl(downloadUrl: string | null | undefined) {
   return downloadUrl?.trim() || defaultWindowsClientDownloadUrl;

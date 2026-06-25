@@ -33,6 +33,8 @@ export type DesktopPetBundlePet = {
   id: string;
   petNumber?: string | null;
   ownerUserId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   currentHostUserId?: string | null;
   name: string;
   type: string;
@@ -49,48 +51,9 @@ export type DesktopPetBundleMaterial = {
   status: string;
 };
 
-export type DesktopFriendCard = {
-  id: string;
-  name: string;
-  status: string;
-  hostedPets: number;
-};
-
-export type DesktopFriendDeleteResponse = {
-  deletedFriendId: string;
-};
-
-export type DesktopHostingRequestCard = {
-  id: string;
-  petId: string;
-  fromUserId: string;
-  toUserId: string;
-  petName: string;
-  from: string;
-  status: string;
-  statusCode: string;
-};
-
-export type DesktopHostingRequestResponse = {
-  requestId: string;
-  status: string;
-  petId: string;
-  toUserId: string;
-};
-
-export type DesktopHostingRequestUpdateResponse = {
-  request: DesktopHostingRequestCard;
-  requestId: string;
-  status: string;
-  petId: string;
-  fromUserId: string;
-  toUserId: string;
-  statusCode: string;
-};
-
-export type DesktopRecallResponse = {
-  petId: string;
-  status: string;
+export type DesktopEventsResponse = {
+  events: unknown[];
+  cursor?: string | null;
 };
 
 export type DesktopPetSyncSummary = {
@@ -99,10 +62,24 @@ export type DesktopPetSyncSummary = {
 };
 
 export class DesktopPetSyncError extends Error {
-  readonly code: "invalidResponse" | "loginFailed" | "sessionExpired" | "emptyBundle" | "missingIdleLoop";
+  readonly code:
+    | "invalidResponse"
+    | "loginFailed"
+    | "networkFailed"
+    | "sessionExpired"
+    | "requestRejected"
+    | "emptyBundle"
+    | "missingIdleLoop";
 
   constructor(
-    code: "invalidResponse" | "loginFailed" | "sessionExpired" | "emptyBundle" | "missingIdleLoop",
+    code:
+      | "invalidResponse"
+      | "loginFailed"
+      | "networkFailed"
+      | "sessionExpired"
+      | "requestRejected"
+      | "emptyBundle"
+      | "missingIdleLoop",
     message: string
   ) {
     super(message);
@@ -118,8 +95,16 @@ export class DesktopPetSyncError extends Error {
     return new DesktopPetSyncError("loginFailed", "登录失败，请检查账号和密码。");
   }
 
+  static networkFailed() {
+    return new DesktopPetSyncError("networkFailed", "连接网页端失败，请检查网络后重试。");
+  }
+
   static sessionExpired() {
     return new DesktopPetSyncError("sessionExpired", "登录已过期，请重新登录。");
+  }
+
+  static requestRejected(message: string) {
+    return new DesktopPetSyncError("requestRejected", message);
   }
 
   static emptyBundle() {
@@ -135,9 +120,14 @@ export class DesktopPetSyncClient {
   readonly #baseURL: string;
   readonly #fetch: typeof fetch;
 
-  constructor(baseURL = "https://web-guoyaowens-projects.vercel.app", fetchImplementation: typeof fetch = fetch) {
-    this.#baseURL = baseURL.replace(/\/+$/, "");
+  constructor(baseURL?: string, fetchImplementation: typeof fetch = fetch) {
+    const resolvedBaseURL = baseURL?.trim() || "https://web-guoyaowens-projects.vercel.app";
+    this.#baseURL = resolvedBaseURL.replace(/\/+$/, "");
     this.#fetch = fetchImplementation;
+  }
+
+  desktopEventStreamURL() {
+    return new URL("/api/desktop/events/stream", this.#baseURL);
   }
 
   async login(email: string, password: string) {
@@ -145,7 +135,8 @@ export class DesktopPetSyncClient {
       path: "/api/desktop/auth/login",
       method: "POST",
       body: { email, password },
-      unauthorizedError: DesktopPetSyncError.loginFailed()
+      unauthorizedError: DesktopPetSyncError.loginFailed(),
+      clientError: DesktopPetSyncError.invalidResponse()
     });
 
     if (!isDesktopLoginResponse(response)) {
@@ -163,114 +154,6 @@ export class DesktopPetSyncClient {
     });
 
     if (!isDesktopPetBundle(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response;
-  }
-
-  async fetchFriends(accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: "/api/friends",
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopFriendsResponse(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response.friends;
-  }
-
-  async addFriend(email: string, accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: "/api/friends",
-      method: "POST",
-      body: { email },
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopFriendResponse(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response.friend;
-  }
-
-  async removeFriend(friendId: string, accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: "/api/friends",
-      method: "DELETE",
-      body: { friendId },
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopFriendDeleteResponse(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response;
-  }
-
-  async fetchHostingRequests(accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: "/api/hosting/requests",
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopHostingRequestsResponse(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response.requests;
-  }
-
-  async requestHosting(petId: string, toUserId: string, accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: "/api/hosting/requests",
-      method: "POST",
-      body: { petId, toUserId },
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopHostingRequestResponse(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response;
-  }
-
-  async updateHostingRequest(requestId: string, action: "accept" | "decline" | "return", accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: `/api/hosting/requests/${encodeURIComponent(requestId)}`,
-      method: "PATCH",
-      body: { action },
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopHostingRequestUpdateResponse(response)) {
-      throw DesktopPetSyncError.invalidResponse();
-    }
-
-    return response;
-  }
-
-  async recallPet(petId: string, accessToken: string) {
-    const response = await this.#sendJSON<unknown>({
-      path: "/api/hosting/recall",
-      method: "POST",
-      body: { petId },
-      accessToken,
-      unauthorizedError: DesktopPetSyncError.sessionExpired()
-    });
-
-    if (!isDesktopRecallResponse(response)) {
       throw DesktopPetSyncError.invalidResponse();
     }
 
@@ -295,11 +178,16 @@ export class DesktopPetSyncClient {
       headers.authorization = `Bearer ${input.accessToken}`;
     }
 
-    const response = await this.#fetch(`${this.#baseURL}${input.path}`, {
-      method: input.method ?? "GET",
-      headers,
-      body: input.body ? JSON.stringify(input.body) : undefined
-    });
+    let response: Response;
+    try {
+      response = await this.#fetch(`${this.#baseURL}${input.path}`, {
+        method: input.method ?? "GET",
+        headers,
+        body: input.body ? JSON.stringify(input.body) : undefined
+      });
+    } catch {
+      throw DesktopPetSyncError.networkFailed();
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -308,6 +196,10 @@ export class DesktopPetSyncClient {
 
       if (response.status >= 400 && response.status < 500 && input.clientError) {
         throw input.clientError;
+      }
+
+      if (response.status >= 400 && response.status < 500) {
+        throw DesktopPetSyncError.requestRejected(await readableErrorMessage(response));
       }
 
       throw DesktopPetSyncError.invalidResponse();
@@ -321,6 +213,22 @@ export class DesktopPetSyncClient {
   }
 }
 
+async function readableErrorMessage(response: Response) {
+  try {
+    const body = await response.json() as unknown;
+    if (isRecord(body)) {
+      if (typeof body.details === "string" && body.details.trim()) {
+        return body.details.trim();
+      }
+      if (typeof body.error === "string" && body.error.trim()) {
+        return body.error.trim();
+      }
+    }
+  } catch {}
+
+  return "请求被服务器拒绝，请先同步账号状态后重试。";
+}
+
 export function displayablePets(bundle: DesktopPetBundle) {
   return bundle.pets.filter((pet) => {
     const displayState = pet.displayState ?? "active";
@@ -329,15 +237,26 @@ export function displayablePets(bundle: DesktopPetBundle) {
 }
 
 export function syncedPetCardsFromBundle(bundle: DesktopPetBundle): DesktopSyncedPetCard[] {
-  return bundle.pets.map((pet) => ({
-    id: pet.id,
-    petNumber: nonEmptyOrDefault(pet.petNumber, pet.id),
-    name: pet.name,
-    ownership: nonEmptyOrDefault(pet.ownership, "owned"),
-    displayState: nonEmptyOrDefault(pet.displayState, "active"),
-    avatarUrl: pet.avatarUrl,
-    materialCount: pet.materials.filter((material) => !isDeprecatedMaterialSlot(material.slot)).length
-  }));
+  return bundle.pets.map((pet) => {
+    const card: DesktopSyncedPetCard = {
+      id: pet.id,
+      petNumber: nonEmptyOrDefault(pet.petNumber, pet.id),
+      name: pet.name,
+      ownership: nonEmptyOrDefault(pet.ownership, "owned"),
+      displayState: nonEmptyOrDefault(pet.displayState, "active"),
+      avatarUrl: pet.avatarUrl,
+      materialCount: pet.materials.filter((material) => !isDeprecatedMaterialSlot(material.slot)).length
+    };
+
+    if (pet.ownerName !== undefined && pet.ownerName !== null) {
+      card.ownerName = pet.ownerName;
+    }
+    if (pet.ownerEmail !== undefined && pet.ownerEmail !== null) {
+      card.ownerEmail = pet.ownerEmail;
+    }
+
+    return card;
+  });
 }
 
 export function readyDesktopMaterials(pet: DesktopPetBundlePet) {
@@ -432,6 +351,8 @@ function isDesktopPetBundlePet(value: unknown): value is DesktopPetBundlePet {
     isNonEmptyString(value.id) &&
     isOptionalString(value.petNumber) &&
     isOptionalString(value.ownerUserId) &&
+    isOptionalString(value.ownerName) &&
+    isOptionalString(value.ownerEmail) &&
     isOptionalString(value.currentHostUserId) &&
     isNonEmptyString(value.name) &&
     isNonEmptyString(value.type) &&
@@ -453,85 +374,6 @@ function isDesktopPetBundleMaterial(value: unknown): value is DesktopPetBundleMa
     isNonEmptyString(value.name) &&
     isRemoteUrlString(value.videoUrl) &&
     isNonEmptyString(value.status)
-  );
-}
-
-function isDesktopFriendsResponse(value: unknown): value is { friends: DesktopFriendCard[] } {
-  return isRecord(value) && Array.isArray(value.friends) && value.friends.every(isDesktopFriendCard);
-}
-
-function isDesktopFriendResponse(value: unknown): value is { friend: DesktopFriendCard } {
-  return isRecord(value) && isDesktopFriendCard(value.friend);
-}
-
-function isDesktopFriendDeleteResponse(value: unknown): value is DesktopFriendDeleteResponse {
-  return isRecord(value) && isNonEmptyString(value.deletedFriendId);
-}
-
-function isDesktopHostingRequestsResponse(value: unknown): value is { requests: DesktopHostingRequestCard[] } {
-  return isRecord(value) && Array.isArray(value.requests) && value.requests.every(isDesktopHostingRequestCard);
-}
-
-function isDesktopHostingRequestResponse(value: unknown): value is DesktopHostingRequestResponse {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isNonEmptyString(value.requestId) &&
-    isNonEmptyString(value.status) &&
-    isNonEmptyString(value.petId) &&
-    isNonEmptyString(value.toUserId)
-  );
-}
-
-function isDesktopHostingRequestUpdateResponse(value: unknown): value is DesktopHostingRequestUpdateResponse {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isDesktopHostingRequestCard(value.request) &&
-    isNonEmptyString(value.requestId) &&
-    isNonEmptyString(value.status) &&
-    isNonEmptyString(value.petId) &&
-    isNonEmptyString(value.fromUserId) &&
-    isNonEmptyString(value.toUserId) &&
-    isNonEmptyString(value.statusCode)
-  );
-}
-
-function isDesktopRecallResponse(value: unknown): value is DesktopRecallResponse {
-  return isRecord(value) && isNonEmptyString(value.petId) && isNonEmptyString(value.status);
-}
-
-function isDesktopHostingRequestCard(value: unknown): value is DesktopHostingRequestCard {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isNonEmptyString(value.id) &&
-    isNonEmptyString(value.petId) &&
-    isNonEmptyString(value.fromUserId) &&
-    isNonEmptyString(value.toUserId) &&
-    isNonEmptyString(value.petName) &&
-    isNonEmptyString(value.from) &&
-    isNonEmptyString(value.status) &&
-    isNonEmptyString(value.statusCode)
-  );
-}
-
-function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isNonEmptyString(value.id) &&
-    isNonEmptyString(value.name) &&
-    isNonEmptyString(value.status) &&
-    isNonNegativeInteger(value.hostedPets)
   );
 }
 

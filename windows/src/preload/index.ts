@@ -30,14 +30,6 @@ const desktopPet = {
   toggleClickThrough: () => ipcRenderer.invoke(ipcChannels.toggleClickThrough),
   toggleMouseoverCatch: () => ipcRenderer.invoke(ipcChannels.toggleMouseoverCatch),
   resetPositions: () => ipcRenderer.invoke(ipcChannels.resetPositions),
-  refreshFriends: () => ipcRenderer.invoke(ipcChannels.refreshFriends),
-  addFriend: (email: string) => ipcRenderer.invoke(ipcChannels.addFriend, email),
-  removeFriend: (friendId: string) => ipcRenderer.invoke(ipcChannels.removeFriend, friendId),
-  requestHosting: (petId: string, toUserId: string) =>
-    ipcRenderer.invoke(ipcChannels.requestHosting, petId, toUserId),
-  updateHostingRequest: (requestId: string, action: "accept" | "decline" | "return") =>
-    ipcRenderer.invoke(ipcChannels.updateHostingRequest, requestId, action),
-  recallPet: (petId: string) => ipcRenderer.invoke(ipcChannels.recallPet, petId),
   petDragStarted: (petIndex: number) => ipcRenderer.send(ipcChannels.petDragStarted, petIndex),
   petDragBy: (petIndex: number, delta: { x: number; y: number }) =>
     ipcRenderer.send(ipcChannels.petDragBy, petIndex, delta),

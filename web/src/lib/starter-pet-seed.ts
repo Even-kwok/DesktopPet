@@ -1,9 +1,5 @@
-import { starterPetAssetBundleUrl } from "./starter-pet.ts";
-
-export type StarterPetAssetSeed = {
-  slot: string;
-  videoUrl: string;
-};
+import { starterPetAssetBundleUrl, type StarterPetAssetSeed } from "./starter-pet.ts";
+export type { StarterPetAssetSeed } from "./starter-pet.ts";
 
 export type StarterPetSeed = {
   name: string;

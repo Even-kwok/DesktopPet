@@ -15,6 +15,7 @@ import {
 
 export type StudioWindowControllerOptions = {
   preloadPath: string;
+  appVersion?: string;
   studioRendererURL?: string;
   studioRendererFile: string;
 };
@@ -96,7 +97,10 @@ export class StudioWindowController {
   }
 
   #createWindow() {
-    const window = new BrowserWindow(studioWindowBrowserOptions(this.#options.preloadPath));
+    const window = new BrowserWindow(
+      studioWindowBrowserOptions(this.#options.preloadPath, this.#options.appVersion)
+    );
+    window.setMenu(null);
 
     window.on("closed", () => {
       this.#window = undefined;

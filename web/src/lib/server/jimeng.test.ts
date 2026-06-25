@@ -49,11 +49,11 @@ function withProviderEnv<T>(env: Record<string, string | undefined>, run: () => 
   }
 }
 
-test("Jimeng config defaults to the Doubao Seedance 2.0 fast model", () => {
-  withProviderEnv({ ARK_API_KEY: " ark-secret " }, () => {
-    assert.equal(getJimengApiKey(), "ark-secret");
-    assert.equal(defaultJimengVideoModel, "doubao-seedance-2-0-fast-260128");
-    assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-fast-260128");
+test("Jimeng config defaults to the Doubao Seedance 2.0 mini model", () => {
+  withProviderEnv({ mini_API_KEY: " mini-secret ", ARK_API_KEY: "ark-secret" }, () => {
+    assert.equal(getJimengApiKey(), "mini-secret");
+    assert.equal(defaultJimengVideoModel, "doubao-seedance-2-0-mini-260615");
+    assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-mini-260615");
   });
 });
 
@@ -111,7 +111,7 @@ test("Jimeng config ignores legacy Seedance env model overrides", () => {
       JIMENG_VIDEO_MODEL: "doubao-seed-2-0-mini-260428"
     },
     () => {
-      assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-fast-260128");
+      assert.equal(getJimengVideoModel(), "doubao-seedance-2-0-mini-260615");
     }
   );
 });

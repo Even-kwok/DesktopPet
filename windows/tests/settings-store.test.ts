@@ -45,6 +45,18 @@ test("defaults match Mac desktop behavior", () => {
   }
 });
 
+test("does not keep paused friend and hosting caches in persisted Windows settings", () => {
+  const source = readFileSync(
+    path.join(process.cwd(), "src/shared/settings-store.ts"),
+    "utf8"
+  );
+
+  assert.doesNotMatch(source, /friendCards/);
+  assert.doesNotMatch(source, /hostingRequests/);
+  assert.doesNotMatch(source, /DesktopFriend/);
+  assert.doesNotMatch(source, /DesktopHosting/);
+});
+
 test("falls back to Mac defaults for malformed setting values", () => {
   const { store, cleanup } = makeStore();
   try {
@@ -129,8 +141,7 @@ test("falls back to empty account and cache state for malformed studio cache val
       JSON.stringify({
         currentAccount: "signed-in",
         syncedPetCards: "cached-pets",
-        selectedSyncedPetID: 42,
-        friendCards: "friends"
+        selectedSyncedPetID: 42
       })
     );
 
@@ -138,7 +149,6 @@ test("falls back to empty account and cache state for malformed studio cache val
     assert.equal(reloaded.currentAccount, undefined);
     assert.deepEqual(reloaded.syncedPetCards, []);
     assert.equal(reloaded.selectedSyncedPetID, undefined);
-    assert.deepEqual(reloaded.friendCards, []);
   } finally {
     cleanup();
   }
@@ -183,11 +193,6 @@ test("filters malformed account and studio cache records", () => {
             displayState: "active",
             materialCount: -1
           }
-        ],
-        friendCards: [
-          { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
-          { id: "friend_broken", name: "坏好友", status: "离线", hostedPets: "none" },
-          { id: "friend_negative", name: "负数好友", status: "离线", hostedPets: -2 }
         ]
       })
     );
@@ -197,10 +202,6 @@ test("filters malformed account and studio cache records", () => {
     assert.deepEqual(
       reloaded.syncedPetCards.map((card) => card.id),
       ["pet_orange"]
-    );
-    assert.deepEqual(
-      reloaded.friendCards.map((card) => card.id),
-      ["friend_1"]
     );
   } finally {
     cleanup();
@@ -238,11 +239,6 @@ test("filters cached studio cards with empty identity fields", () => {
             displayState: "active",
             materialCount: 1
           }
-        ],
-        friendCards: [
-          { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
-          { id: "", name: "空白好友", status: "离线", hostedPets: 0 },
-          { id: "friend_blank_name", name: " ", status: "在线", hostedPets: 0 }
         ]
       })
     );
@@ -252,10 +248,6 @@ test("filters cached studio cards with empty identity fields", () => {
     assert.deepEqual(
       reloaded.syncedPetCards.map((card) => card.id),
       ["pet_orange"]
-    );
-    assert.deepEqual(
-      reloaded.friendCards.map((card) => card.id),
-      ["friend_1"]
     );
   } finally {
     cleanup();
@@ -666,7 +658,7 @@ test("lists restorable video paths for Studio preview", () => {
   }
 });
 
-test("persists synced pet cards and friend cards separately from account session", () => {
+test("persists synced pet cards separately from account session", () => {
   const { store, cleanup } = makeStore();
   try {
     store.saveAccountSession({
@@ -687,45 +679,16 @@ test("persists synced pet cards and friend cards separately from account session
         materialCount: 3
       }
     ]);
-    store.upsertFriendCard({ id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 });
     store.signOut();
 
     const reloaded = new SettingsStore(store.filePath);
     assert.equal(reloaded.currentAccount, undefined);
     assert.equal(reloaded.syncedPetCards[0]?.name, "栗子");
     assert.equal(reloaded.selectedSyncedPetID, "pet_orange");
-    assert.equal(reloaded.friendCards[0]?.name, "阿雯");
 
     reloaded.markSyncedPetRecalled("pet_orange");
     assert.equal(reloaded.syncedPetCards[0]?.displayState, "active");
     assert.equal(reloaded.syncedPetCards[0]?.ownership, "owned");
-
-    reloaded.removeFriendCard("friend_1");
-    assert.deepEqual(reloaded.friendCards, []);
-  } finally {
-    cleanup();
-  }
-});
-
-test("updates existing friend cards without changing their order like the Mac studio cache", () => {
-  const { store, cleanup } = makeStore();
-  try {
-    store.saveFriendCards([
-      { id: "friend_1", name: "阿雯", status: "在线", hostedPets: 1 },
-      { id: "friend_2", name: "小林", status: "离线", hostedPets: 0 }
-    ]);
-
-    store.upsertFriendCard({ id: "friend_1", name: "阿雯", status: "忙碌", hostedPets: 2 });
-    store.upsertFriendCard({ id: "friend_3", name: "小张", status: "在线", hostedPets: 0 });
-
-    assert.deepEqual(
-      store.friendCards.map((friend) => [friend.id, friend.status, friend.hostedPets]),
-      [
-        ["friend_1", "忙碌", 2],
-        ["friend_2", "离线", 0],
-        ["friend_3", "在线", 0]
-      ]
-    );
   } finally {
     cleanup();
   }

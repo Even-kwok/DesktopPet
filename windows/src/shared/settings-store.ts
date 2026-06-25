@@ -1,11 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { allPetActionSlots, clampPetSizeScale } from "./pet-action-slots.ts";
-import type {
-  DesktopFriendCard,
-  DesktopHostingRequestCard,
-  DesktopSyncAccount
-} from "./desktop-sync-client.ts";
+import type { DesktopSyncAccount } from "./desktop-sync-client.ts";
 import type { PetActionSlot } from "./pet-action-slots.ts";
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -26,6 +22,8 @@ export type DesktopSyncedPetCard = {
   name: string;
   ownership: string;
   displayState: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   avatarUrl?: string | null;
   materialCount: number;
 };
@@ -64,8 +62,6 @@ type SettingsData = {
   currentAccount?: DesktopAccountSession;
   syncedPetCards?: DesktopSyncedPetCard[];
   selectedSyncedPetID?: string;
-  friendCards?: DesktopFriendCard[];
-  hostingRequests?: DesktopHostingRequestCard[];
 };
 
 const maxPetSize = { width: 150, height: 150 };
@@ -171,67 +167,6 @@ export class SettingsStore {
     this.#data.syncedPetCards = this.syncedPetCards.map((card) =>
       card.id === petID ? { ...card, displayState: "active", ownership: "owned" } : card
     );
-    this.#write();
-  }
-
-  get friendCards() {
-    return Array.isArray(this.#data.friendCards)
-      ? this.#data.friendCards.filter(isDesktopFriendCard)
-      : [];
-  }
-
-  saveFriendCards(cards: DesktopFriendCard[]) {
-    this.#data.friendCards = cards;
-    this.#write();
-  }
-
-  upsertFriendCard(card: DesktopFriendCard) {
-    const cards = [...this.friendCards];
-    const index = cards.findIndex((friend) => friend.id === card.id);
-    if (index >= 0) {
-      cards[index] = card;
-    } else {
-      cards.push(card);
-    }
-    this.#data.friendCards = cards;
-    this.#write();
-  }
-
-  removeFriendCard(friendID: string) {
-    this.#data.friendCards = this.friendCards.filter((friend) => friend.id !== friendID);
-    this.#write();
-  }
-
-  clearFriendCards() {
-    delete this.#data.friendCards;
-    this.#write();
-  }
-
-  get hostingRequests() {
-    return Array.isArray(this.#data.hostingRequests)
-      ? this.#data.hostingRequests.filter(isDesktopHostingRequestCard)
-      : [];
-  }
-
-  saveHostingRequests(requests: DesktopHostingRequestCard[]) {
-    this.#data.hostingRequests = requests;
-    this.#write();
-  }
-
-  upsertHostingRequest(request: DesktopHostingRequestCard) {
-    const requests = [...this.hostingRequests];
-    const index = requests.findIndex((item) => item.id === request.id);
-    if (index >= 0) {
-      requests[index] = request;
-    } else {
-      requests.unshift(request);
-    }
-    this.#data.hostingRequests = requests;
-    this.#write();
-  }
-
-  clearHostingRequests() {
-    delete this.#data.hostingRequests;
     this.#write();
   }
 
@@ -478,38 +413,10 @@ function isDesktopSyncedPetCard(value: unknown): value is DesktopSyncedPetCard {
     isNonEmptyString(value.name) &&
     isNonEmptyString(value.ownership) &&
     isNonEmptyString(value.displayState) &&
+    isOptionalString(value.ownerName) &&
+    isOptionalString(value.ownerEmail) &&
     isOptionalString(value.avatarUrl) &&
     isNonNegativeInteger(value.materialCount)
-  );
-}
-
-function isDesktopFriendCard(value: unknown): value is DesktopFriendCard {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isNonEmptyString(value.id) &&
-    isNonEmptyString(value.name) &&
-    isNonEmptyString(value.status) &&
-    isNonNegativeInteger(value.hostedPets)
-  );
-}
-
-function isDesktopHostingRequestCard(value: unknown): value is DesktopHostingRequestCard {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    isNonEmptyString(value.id) &&
-    isNonEmptyString(value.petId) &&
-    isNonEmptyString(value.fromUserId) &&
-    isNonEmptyString(value.toUserId) &&
-    isNonEmptyString(value.petName) &&
-    isNonEmptyString(value.from) &&
-    isNonEmptyString(value.status) &&
-    isNonEmptyString(value.statusCode)
   );
 }
 

@@ -16,12 +16,6 @@ export const ipcChannels = {
   toggleClickThrough: "pets:toggle-click-through",
   toggleMouseoverCatch: "pets:toggle-mouseover-catch",
   resetPositions: "pets:reset-positions",
-  refreshFriends: "friends:refresh",
-  addFriend: "friends:add",
-  removeFriend: "friends:remove",
-  requestHosting: "hosting:request",
-  updateHostingRequest: "hosting:update",
-  recallPet: "hosting:recall",
   petDragStarted: "pet:drag-started",
   petDragBy: "pet:drag-by",
   petDragEnded: "pet:drag-ended",
@@ -53,12 +47,6 @@ export type IpcDependencies = {
   toggleClickThrough: () => unknown;
   toggleMouseoverCatch: () => unknown;
   resetPositions: () => unknown;
-  refreshFriends: () => unknown;
-  addFriend: (email: string) => unknown;
-  removeFriend: (friendId: string) => unknown;
-  requestHosting: (petId: string, toUserId: string) => unknown;
-  updateHostingRequest: (requestId: string, action: string) => unknown;
-  recallPet: (petId: string) => unknown;
   petDragStarted: (petIndex: number) => unknown;
   petDragBy: (petIndex: number, delta: { x: number; y: number }) => unknown;
   petDragEnded: (petIndex: number) => unknown;
@@ -95,16 +83,6 @@ export function registerIpcHandlers(ipcMain: IpcMainLike, dependencies: IpcDepen
   ipcMain.handle(ipcChannels.toggleClickThrough, () => dependencies.toggleClickThrough());
   ipcMain.handle(ipcChannels.toggleMouseoverCatch, () => dependencies.toggleMouseoverCatch());
   ipcMain.handle(ipcChannels.resetPositions, () => dependencies.resetPositions());
-  ipcMain.handle(ipcChannels.refreshFriends, () => dependencies.refreshFriends());
-  ipcMain.handle(ipcChannels.addFriend, (_event, email) => dependencies.addFriend(String(email ?? "")));
-  ipcMain.handle(ipcChannels.removeFriend, (_event, friendId) => dependencies.removeFriend(String(friendId ?? "")));
-  ipcMain.handle(ipcChannels.requestHosting, (_event, petId, toUserId) =>
-    dependencies.requestHosting(String(petId ?? ""), String(toUserId ?? ""))
-  );
-  ipcMain.handle(ipcChannels.updateHostingRequest, (_event, requestId, action) =>
-    dependencies.updateHostingRequest(String(requestId ?? ""), String(action ?? ""))
-  );
-  ipcMain.handle(ipcChannels.recallPet, (_event, petId) => dependencies.recallPet(String(petId ?? "")));
   ipcMain.on(ipcChannels.petDragStarted, (_event, petIndex) =>
     dependencies.petDragStarted(Number(petIndex))
   );

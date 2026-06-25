@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
 import type { PetActionSlot } from "../../shared/pet-action-slots.ts";
-import type {
-  DesktopFriendCard,
-  DesktopHostingRequestCard
-} from "../../shared/desktop-sync-client.ts";
 import type { DesktopAccountSession, DesktopSyncedPetCard } from "../../shared/settings-store.ts";
 import type { DesktopPetBridge } from "../../preload/index.ts";
 import {
@@ -11,22 +7,8 @@ import {
   accountDisplayName,
   canSubmitLogin,
   canSyncDesktopBundle,
-  canRefreshFriends,
-  canRequestFriendHosting,
-  canRespondToHostingRequest,
-  canRunFriendMutation,
-  canSubmitFriendEmail,
-  friendEmailInputPlaceholder,
-  friendEmailValidationMessage,
-  friendHostingDetail,
-  friendPanelDetail,
-  friendPanelEmptyDetail,
-  friendPanelEmptyTitle,
-  friendPanelTitle,
-  hostingRequestActionLabel,
   loginPanelDetail,
   loginPanelTitle,
-  shouldSubmitFriendEmailKey,
   loginValidationMessage,
   syncedPetCardAction,
   syncedPetPanelDetail,
@@ -36,22 +18,8 @@ import {
   statusTextForSyncedPet
 } from "../../shared/studio-model.ts";
 import {
-  nextFriendEmailDraftAfterAddFriendAction,
-  nextFriendEmailDraftAfterSignOutAction,
-  pendingStatusMessageForAddFriendAction,
-  pendingStatusMessageForHostingRequestAction,
-  pendingStatusMessageForHostingResponseAction,
-  pendingStatusMessageForRecallAction,
-  pendingStatusMessageForRemoveFriendAction,
   pendingStatusMessageForSignInAction,
   pendingStatusMessageForSyncAction,
-  statusMessageForAddFriendAction,
-  statusMessageForAddFriendError,
-  statusMessageForRemoveFriendAction,
-  statusMessageForRefreshFriendsAction,
-  statusMessageForHostingRequestAction,
-  statusMessageForHostingResponseAction,
-  statusMessageForRecallAction,
   statusMessageForSignInAction,
   statusMessageForSignOutAction,
   statusMessageForSyncAction
@@ -68,13 +36,12 @@ declare global {
 }
 
 type StudioState = {
+  appVersion?: string;
   account?: DesktopAccountSession;
   petCount: number;
   petNames: string[];
   selectedSyncedPetID?: string;
   syncedPetCards: DesktopSyncedPetCard[];
-  friendCards: DesktopFriendCard[];
-  hostingRequests: DesktopHostingRequestCard[];
   localVideoSlots: PetActionSlot[][];
   localVideoPaths: Partial<Record<PetActionSlot, string>>[];
   petSizeScales: number[];
@@ -84,13 +51,12 @@ type StudioState = {
 };
 
 const defaultStudioState: StudioState = {
+  appVersion: undefined,
   account: undefined,
   petCount: 1,
   petNames: ["Pet 1"],
   selectedSyncedPetID: undefined,
   syncedPetCards: [],
-  friendCards: [],
-  hostingRequests: [],
   localVideoSlots: [[]],
   localVideoPaths: [{}],
   petSizeScales: [1],
@@ -104,10 +70,7 @@ export function StudioApp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [friendEmail, setFriendEmail] = useState("");
   const [isSyncingDesktopBundle, setIsSyncingDesktopBundle] = useState(false);
-  const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
-  const [isMutatingFriend, setIsMutatingFriend] = useState(false);
   const [selectedSyncedPetID, setSelectedSyncedPetID] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -153,7 +116,6 @@ export function StudioApp() {
   const account = state.account;
   const selectedSyncedPet =
     state.syncedPetCards.find((pet) => pet.id === selectedSyncedPetID) ?? state.syncedPetCards[0];
-
   const signIn = async () => {
     if (!canSubmitLogin(email, password, isLoggingIn)) {
       return;
@@ -199,127 +161,14 @@ export function StudioApp() {
     }
   };
 
-  const refreshFriends = async () => {
-    if (!canRefreshFriends(account, isRefreshingFriends)) {
-      return;
-    }
-
-    setIsRefreshingFriends(true);
-    try {
-      await runAction(
-        () => bridge?.refreshFriends?.(),
-        "好友列表已刷新。",
-        (result) => statusMessageForRefreshFriendsAction(result)
-      );
-    } finally {
-      setIsRefreshingFriends(false);
-    }
-  };
-
-  const runFriendMutation = async (
-    action: () => Promise<unknown> | unknown,
-    successMessage: string,
-    afterSuccess?: (result: unknown) => string | void,
-    afterError?: (error: unknown) => string | void
-  ) => {
-    if (!canRunFriendMutation(account, isMutatingFriend)) {
-      return;
-    }
-
-    setIsMutatingFriend(true);
-    try {
-      await runAction(action, successMessage, afterSuccess, afterError);
-    } finally {
-      setIsMutatingFriend(false);
-    }
-  };
-
-  const submitFriendEmail = async () => {
-    if (isMutatingFriend) {
-      return;
-    }
-
-    const validationMessage = friendEmailValidationMessage(account, friendEmail);
-    if (validationMessage) {
-      setStatusMessage(validationMessage);
-      return;
-    }
-
-    if (!canSubmitFriendEmail(account, friendEmail, isMutatingFriend)) {
-      return;
-    }
-
-    setStatusMessage(pendingStatusMessageForAddFriendAction());
-    await runFriendMutation(
-      () => bridge?.addFriend?.(friendEmail),
-      "已添加好友。",
-      (result) => {
-        setFriendEmail(nextFriendEmailDraftAfterAddFriendAction(friendEmail, result));
-        return statusMessageForAddFriendAction(result);
-      },
-      () => statusMessageForAddFriendError()
-    );
-  };
-
-  const recallSyncedPet = async (pet: DesktopSyncedPetCard) => {
-    if (!canRunFriendMutation(account, isMutatingFriend)) {
-      return;
-    }
-
-    setStatusMessage(pendingStatusMessageForRecallAction(pet.name));
-    await runFriendMutation(
-      () => bridge?.recallPet?.(pet.id),
-      statusMessageForRecallAction(pet.name)
-    );
-  };
-
-  const requestFriendHosting = async (friend: DesktopFriendCard) => {
-    if (
-      !selectedSyncedPet ||
-      !canRequestFriendHosting(account, selectedSyncedPet, isMutatingFriend)
-    ) {
-      return;
-    }
-
-    setStatusMessage(pendingStatusMessageForHostingRequestAction(friend.name));
-    await runFriendMutation(
-      () => bridge?.requestHosting?.(selectedSyncedPet.id, friend.id),
-      statusMessageForHostingRequestAction(friend.name, selectedSyncedPet.name)
-    );
-  };
-
-  const respondToHostingRequest = async (
-    request: DesktopHostingRequestCard,
-    action: "accept" | "decline"
-  ) => {
-    if (!canRespondToHostingRequest(account, request, isMutatingFriend)) {
-      return;
-    }
-
-    setStatusMessage(pendingStatusMessageForHostingResponseAction(request.petName, action));
-    await runFriendMutation(
-      () => bridge?.updateHostingRequest?.(request.id, action),
-      statusMessageForHostingResponseAction(request.petName, action)
-    );
-  };
-
-  const removeFriend = async (friend: DesktopFriendCard) => {
-    if (!canRunFriendMutation(account, isMutatingFriend)) {
-      return;
-    }
-
-    setStatusMessage(pendingStatusMessageForRemoveFriendAction(friend.name));
-    await runFriendMutation(
-      () => bridge?.removeFriend?.(friend.id),
-      statusMessageForRemoveFriendAction(friend.name)
-    );
-  };
-
   return (
     <main className="studio-app">
       <section className="studio-topbar">
         <div>
-          <h1>{accountDisplayName(account)}</h1>
+          <div className="studio-title-row">
+            <h1>{accountDisplayName(account)}</h1>
+            {state.appVersion ? <span className="version-badge">v{state.appVersion}</span> : null}
+          </div>
           <p>{accountDetail(account)}</p>
         </div>
         <div className="studio-topbar-actions">
@@ -328,8 +177,7 @@ export function StudioApp() {
               onClick={() =>
                 void runAction(
                   () => bridge?.signOut?.(),
-                  statusMessageForSignOutAction(),
-                  (result) => setFriendEmail(nextFriendEmailDraftAfterSignOutAction(friendEmail, result))
+                  statusMessageForSignOutAction()
                 )
               }
             >
@@ -391,106 +239,6 @@ export function StudioApp() {
       <section className="studio-grid">
         <div className="studio-panel">
           <div className="panel-heading">
-            <h2>{friendPanelTitle()}</h2>
-            <span>{friendPanelDetail(state.friendCards.length)}</span>
-          </div>
-          <label>
-            好友邮箱
-            <input
-              value={friendEmail}
-              onChange={(event) => setFriendEmail(event.target.value)}
-              onKeyDown={(event) => {
-                if (shouldSubmitFriendEmailKey(event.key)) {
-                  event.preventDefault();
-                  void submitFriendEmail();
-                }
-              }}
-              placeholder={friendEmailInputPlaceholder()}
-            />
-          </label>
-          <div className="button-grid">
-            <button
-              disabled={!canRefreshFriends(account, isRefreshingFriends)}
-              onClick={() => void refreshFriends()}
-            >
-              刷新好友
-            </button>
-            <button
-              disabled={!canSubmitFriendEmail(account, friendEmail, isMutatingFriend)}
-              onClick={() => void submitFriendEmail()}
-            >
-              添加好友
-            </button>
-          </div>
-          <div className="friend-list">
-            {state.friendCards.length === 0 ? (
-              <div className="empty-copy">
-                <strong>{friendPanelEmptyTitle()}</strong>
-                <span>{friendPanelEmptyDetail()}</span>
-              </div>
-            ) : (
-              state.friendCards.map((friend) => (
-                <div className="friend-row" key={friend.id}>
-                  <div>
-                    <span>{friend.name}</span>
-                    <small>
-                      {friendHostingDetail(friend)}
-                    </small>
-                  </div>
-                  <div>
-                    <button
-                      disabled={!canRequestFriendHosting(account, selectedSyncedPet, isMutatingFriend)}
-                      onClick={() => void requestFriendHosting(friend)}
-                    >
-                      寄养
-                    </button>
-                    <button
-                      disabled={!canRunFriendMutation(account, isMutatingFriend)}
-                      onClick={() => void removeFriend(friend)}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          {state.hostingRequests.length > 0 ? (
-            <div className="friend-list">
-              <div className="panel-heading compact-heading">
-                <h2>寄养请求</h2>
-                <span>{state.hostingRequests.length} 条</span>
-              </div>
-              {state.hostingRequests.map((request) => {
-                const canRespond = canRespondToHostingRequest(account, request, isMutatingFriend);
-
-                return (
-                  <div className="friend-row" key={request.id}>
-                    <div>
-                      <span>{request.petName}</span>
-                      <small>
-                        {request.from} · {request.status}
-                      </small>
-                    </div>
-                    {canRespond ? (
-                      <div>
-                        <button onClick={() => void respondToHostingRequest(request, "accept")}>
-                          {hostingRequestActionLabel("accept")}
-                        </button>
-                        <button onClick={() => void respondToHostingRequest(request, "decline")}>
-                          {hostingRequestActionLabel("decline")}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="studio-panel">
-          <div className="panel-heading">
             <h2>{syncedPetPanelTitle()}</h2>
             <span>{syncedPetPanelDetail(state.syncedPetCards.length)}</span>
           </div>
@@ -507,26 +255,33 @@ export function StudioApp() {
 
                 return (
                   <div className={`synced-card ${isSelected ? "selected" : ""}`} key={pet.id}>
-                    <div>
-                      <span>{pet.name}</span>
-                      <small>
-                        {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
-                      </small>
+                    <div className="synced-pet-summary">
+                      {pet.avatarUrl ? (
+                        <img
+                          alt=""
+                          className="synced-pet-avatar"
+                          loading="lazy"
+                          src={pet.avatarUrl}
+                        />
+                      ) : (
+                        <div aria-hidden="true" className="synced-pet-avatar placeholder">
+                          {pet.name.trim().slice(0, 1) || "猫"}
+                        </div>
+                      )}
+                      <div>
+                        <span>{pet.name}</span>
+                        <small>
+                          {pet.petNumber} · {statusTextForSyncedPet(pet)} · {pet.materialCount} 个素材
+                        </small>
+                      </div>
                     </div>
                     {cardAction ? (
                       <button
-                        disabled={
-                          cardAction.type === "recall" &&
-                          !canRunFriendMutation(account, isMutatingFriend)
-                        }
                         onClick={() => {
                           if (cardAction.type === "select") {
                             setSelectedSyncedPetID(pet.id);
                             void bridge?.selectSyncedPet?.(pet.id);
-                            return;
                           }
-
-                          void recallSyncedPet(pet);
                         }}
                       >
                         {cardAction.label}

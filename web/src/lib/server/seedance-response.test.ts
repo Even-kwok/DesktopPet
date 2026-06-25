@@ -16,3 +16,15 @@ test("extracts the generated video URL from Seedance task content", () => {
   );
 });
 
+test("does not treat generic image URLs as generated videos", () => {
+  assert.equal(
+    extractSeedanceResultUrl({
+      id: "cgt-test",
+      status: "succeeded",
+      content: {
+        url: "https://ark-content-generation-cn-beijing.tos-cn-beijing.volces.com/cat.png"
+      }
+    }),
+    null
+  );
+});

@@ -3,33 +3,12 @@ import type { DesktopAccountSession } from "./settings-store.ts";
 type SyncedPetState = {
   ownership?: string | null;
   displayState?: string | null;
-};
-
-type SyncedPetActionState = SyncedPetState & {
-  id: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
 };
 
 type SyncedPetCardAction =
-  | { type: "select"; label: "选择" }
-  | { type: "recall"; label: "召回" };
-
-type HostingRequestState = {
-  id: string;
-  status: string;
-  statusCode: string;
-  petId?: string;
-  fromUserId?: string;
-  toUserId: string;
-};
-
-type FriendActionState = {
-  id: string;
-};
-
-type FriendHostingDetailState = {
-  status: string;
-  hostedPets: number;
-};
+  | { type: "select"; label: "选择" };
 
 type LocalMaterialStatusState = {
   hasVideo: boolean;
@@ -56,7 +35,7 @@ export function loginPanelTitle() {
 }
 
 export function loginPanelDetail() {
-  return "Windows 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。";
+  return "Windows 端只负责显示和同步；素材生成放在网页端。";
 }
 
 export function canSubmitLogin(_email: string, _password: string, isLoggingIn = false) {
@@ -72,79 +51,6 @@ export function canSyncDesktopBundle(
   isSyncingDesktopBundle = false
 ) {
   return Boolean(account && !isSyncingDesktopBundle);
-}
-
-export function friendHostingDetail(friend: FriendHostingDetailState) {
-  return `${friend.status} · 托管 ${friend.hostedPets} 只`;
-}
-
-export function friendPanelTitle() {
-  return "好友";
-}
-
-export function friendPanelDetail(friendCount: number) {
-  return `${friendCount} 位 · 可寄养和删除`;
-}
-
-export function friendPanelEmptyTitle() {
-  return "还没有好友";
-}
-
-export function friendPanelEmptyDetail() {
-  return "用账号邮箱精确添加。在线状态先按服务器记录显示。";
-}
-
-export function friendEmailInputPlaceholder() {
-  return "输入好友邮箱";
-}
-
-export function friendEmailValidationMessage(
-  account: DesktopAccountSession | undefined,
-  friendEmail: string
-) {
-  if (!account) {
-    return "请先登录账号。";
-  }
-
-  return friendEmail.trim() ? undefined : "请输入好友邮箱。";
-}
-
-export function canSubmitFriendEmail(
-  account: DesktopAccountSession | undefined,
-  friendEmail: string,
-  isSubmittingFriend = false
-) {
-  return Boolean(account && !isSubmittingFriend && friendEmail.trim());
-}
-
-export function canRefreshFriends(
-  account: DesktopAccountSession | undefined,
-  isRefreshingFriends = false
-) {
-  return Boolean(account && !isRefreshingFriends);
-}
-
-export function canRunFriendMutation(
-  account: DesktopAccountSession | undefined,
-  isMutatingFriend = false
-) {
-  return Boolean(account && !isMutatingFriend);
-}
-
-export function canRequestFriendHosting(
-  account: DesktopAccountSession | undefined,
-  selectedPet: SyncedPetState | undefined,
-  isMutatingFriend = false
-) {
-  return Boolean(
-    canRunFriendMutation(account, isMutatingFriend) &&
-      selectedPet &&
-      canRequestHosting(selectedPet)
-  );
-}
-
-export function shouldSubmitFriendEmailKey(key: string) {
-  return key === "Enter";
 }
 
 export function localMaterialStatusText(material: LocalMaterialStatusState) {
@@ -188,14 +94,14 @@ export function syncedPetPanelEmptyDetail() {
 
 export function statusTextForSyncedPet(pet: SyncedPetState) {
   if (pet.ownership === "away") {
-    return "托管在朋友那里";
+    return "暂不可显示";
   }
 
   switch (pet.displayState) {
     case "active":
-      return pet.ownership === "hosted" ? "寄养在我的桌面" : "在我的桌面";
+      return "在我的桌面";
     case "unavailable":
-      return "托管在朋友那里";
+      return "暂不可显示";
     case "hidden":
       return "已隐藏";
     default:
@@ -203,111 +109,13 @@ export function statusTextForSyncedPet(pet: SyncedPetState) {
   }
 }
 
-export function canRequestHosting(pet: SyncedPetState) {
-  return pet.ownership === "owned" && pet.displayState === "active";
-}
-
-export function canRecall(pet: SyncedPetState) {
-  return pet.displayState === "unavailable" || pet.ownership === "away";
-}
-
-export function shouldShowRecallAction(pet: SyncedPetState, isSelected: boolean) {
-  return isSelected && canRecall(pet);
-}
-
 export function syncedPetCardAction(
   pet: SyncedPetState,
   isSelected: boolean
 ): SyncedPetCardAction | undefined {
-  if (shouldShowRecallAction(pet, isSelected)) {
-    return { type: "recall", label: "召回" };
-  }
-
   if (!isSelected) {
     return { type: "select", label: "选择" };
   }
 
   return undefined;
-}
-
-export function resolveHostingRequestTarget(
-  petId: string,
-  toUserId: string,
-  syncedPetCards: readonly SyncedPetActionState[],
-  friendCards: readonly FriendActionState[]
-) {
-  const selectedPet = syncedPetCards.find((pet) => pet.id === petId);
-  if (!selectedPet) {
-    throw new Error("请先同步并选择一只猫咪。");
-  }
-
-  const selectedFriend = friendCards.find((friend) => friend.id === toUserId);
-  if (!selectedFriend) {
-    throw new Error("请选择一位好友。");
-  }
-
-  if (!canRequestHosting(selectedPet)) {
-    throw new Error("这只猫现在不在我的桌面，先召回再寄养。");
-  }
-
-  return {
-    petId: selectedPet.id,
-    toUserId: selectedFriend.id
-  };
-}
-
-export function syncedPetCardsAfterHostingRequest<T extends SyncedPetActionState>(
-  syncedPetCards: readonly T[],
-  _response: HostingRequestState
-) {
-  return syncedPetCards;
-}
-
-export function canRespondToHostingRequest(
-  account: DesktopAccountSession | undefined,
-  request: HostingRequestState,
-  isMutatingFriend = false
-) {
-  return Boolean(
-    account &&
-      !isMutatingFriend &&
-      request.toUserId === account.id &&
-      request.statusCode === "pending"
-  );
-}
-
-export function hostingRequestActionLabel(action: "accept" | "decline") {
-  return action === "accept" ? "接收" : "拒绝";
-}
-
-export function resolveRecallPetTarget(
-  petId: string,
-  syncedPetCards: readonly SyncedPetActionState[]
-) {
-  const selectedPet = syncedPetCards.find((pet) => pet.id === petId);
-  if (!selectedPet) {
-    throw new Error("请先同步并选择一只猫咪。");
-  }
-
-  if (!canRecall(selectedPet)) {
-    throw new Error("这只猫不需要召回。");
-  }
-
-  return {
-    petId: selectedPet.id
-  };
-}
-
-export function resolveFriendRemovalTarget(
-  friendId: string,
-  friendCards: readonly FriendActionState[]
-) {
-  const selectedFriend = friendCards.find((friend) => friend.id === friendId);
-  if (!selectedFriend) {
-    throw new Error("请选择一位好友。");
-  }
-
-  return {
-    friendId: selectedFriend.id
-  };
 }

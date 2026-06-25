@@ -382,245 +382,255 @@ final class DesktopPetSyncClientTests: XCTestCase {
         }
     }
 
-    func testFetchFriendsUsesApiBaseAndBearerToken() async throws {
+    @MainActor
+    func testImportBundleKeepsDesktopPetWhenOptionalMaterialDownloadFails() async throws {
         URLProtocolStub.requestHandler = { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/friends")
-            XCTAssertEqual(request.httpMethod, "GET")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
+            if request.url?.absoluteString == "https://example.com/click.mp4" {
+                throw URLError(.timedOut)
+            }
 
+            XCTAssertEqual(request.url?.absoluteString, "https://example.com/idle.mp4")
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: 200,
                 httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
+                headerFields: ["Content-Type": "video/mp4"]
             )!
-            let data = Data(
-                """
-                {
-                  "friends": [
-                    {
-                      "id": "friend_1",
-                      "name": "Mika",
-                      "status": "离线",
-                      "hostedPets": 0
-                    }
-                  ]
-                }
-                """.utf8
-            )
 
-            return (response, data)
+            return (response, Data("idle-video".utf8))
         }
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [URLProtocolStub.self]
         let session = URLSession(configuration: configuration)
+        let remoteMaterialRootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DesktopPetSyncClientTests.optional.\(UUID().uuidString)", isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: remoteMaterialRootURL)
+        }
         let client = DesktopPetSyncClient(
             endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
-            session: session
+            session: session,
+            remoteMaterialRootURL: remoteMaterialRootURL
         )
-        let friends = try await client.fetchFriends(accessToken: "desktop-token")
+        let bundle = DesktopPetBundle(
+            version: 1,
+            generatedAt: "2026-06-25T08:00:00.000Z",
+            account: nil,
+            sync: nil,
+            pets: [
+                DesktopPetBundlePet(
+                    id: "pet_optional_\(UUID().uuidString)",
+                    petNumber: "CAT-OPTIONAL",
+                    ownerUserId: "user_demo",
+                    ownerName: nil,
+                    ownerEmail: nil,
+                    currentHostUserId: "user_demo",
+                    name: "栗子",
+                    type: "cat",
+                    ownership: "owned",
+                    displayState: "active",
+                    avatarUrl: nil,
+                    materials: [
+                        DesktopPetBundleMaterial(
+                            slot: .idleLoop,
+                            name: "待机循环",
+                            videoUrl: URL(string: "https://example.com/idle.mp4")!,
+                            status: "ready"
+                        ),
+                        DesktopPetBundleMaterial(
+                            slot: .clickReact,
+                            name: "点击反应",
+                            videoUrl: URL(string: "https://example.com/click.mp4")!,
+                            status: "ready"
+                        )
+                    ]
+                )
+            ]
+        )
+        let suiteName = "DesktopPetSyncClientTests.optional.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let settingsStore = SettingsStore(defaults: defaults)
+        let petColonyController = PetColonyController(settingsStore: settingsStore)
 
-        XCTAssertEqual(friends.first?.id, "friend_1")
-        XCTAssertEqual(friends.first?.name, "Mika")
-        XCTAssertEqual(friends.first?.isOnline, false)
+        let summary = try await client.importBundle(
+            bundle,
+            settingsStore: settingsStore,
+            petColonyController: petColonyController
+        )
+
+        XCTAssertEqual(summary.petCount, 1)
+        XCTAssertEqual(summary.materialCount, 1)
+        XCTAssertEqual(settingsStore.petCount, 1)
+        XCTAssertTrue(settingsStore.isPetVisible)
+        XCTAssertNotNil(settingsStore.restoreVideoURL(for: .idleLoop, petIndex: 0))
+        XCTAssertNil(settingsStore.restoreVideoURL(for: .clickReact, petIndex: 0))
     }
 
-    func testAddFriendPostsEmailToFriendsApi() async throws {
-        URLProtocolStub.requestHandler = { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/friends")
-            XCTAssertEqual(request.httpMethod, "POST")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
+    func testImportBundleReusesCachedMaterialWhenURLMetadataMatches() async throws {
+        let petID = "pet_cache_\(UUID().uuidString)"
+        let materialURL = URL(string: "https://example.com/idle.mp4")!
+        let cacheRootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DesktopPetSyncClientTests.cache.\(UUID().uuidString)", isDirectory: true)
+        let directoryURL = cacheRootURL
+            .appendingPathComponent(petID, isDirectory: true)
+        let destinationURL = directoryURL
+            .appendingPathComponent("idle_loop", isDirectory: false)
+            .appendingPathExtension("mp4")
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try Data("cached-video".utf8).write(to: destinationURL)
+        try Data(materialURL.absoluteString.utf8).write(to: destinationURL.appendingPathExtension("url"))
+        defer {
+            try? FileManager.default.removeItem(at: cacheRootURL)
+        }
 
-            let body = try XCTUnwrap(bodyData(for: request))
-            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
-            XCTAssertEqual(payload["email"], "mika@desktop.pet")
-
-            let response = HTTPURLResponse(
-                url: request.url!,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            let data = Data(
-                """
-                {
-                  "friend": {
-                    "id": "friend_1",
-                    "name": "Mika",
-                    "status": "离线",
-                    "hostedPets": 0
-                  }
-                }
-                """.utf8
-            )
-
-            return (response, data)
+        URLProtocolStub.requestHandler = { _ in
+            XCTFail("Expected cached material to be reused without downloading.")
+            throw URLError(.badServerResponse)
         }
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [URLProtocolStub.self]
-        let session = URLSession(configuration: configuration)
         let client = DesktopPetSyncClient(
             endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
-            session: session
+            session: URLSession(configuration: configuration),
+            remoteMaterialRootURL: cacheRootURL
         )
-        let friend = try await client.addFriend(
-            email: "mika@desktop.pet",
-            accessToken: "desktop-token"
+        let bundle = DesktopPetBundle(
+            version: 1,
+            generatedAt: "2026-06-25T08:00:00.000Z",
+            account: nil,
+            sync: nil,
+            pets: [
+                DesktopPetBundlePet(
+                    id: petID,
+                    petNumber: "CAT-CACHE",
+                    ownerUserId: "user_demo",
+                    ownerName: nil,
+                    ownerEmail: nil,
+                    currentHostUserId: "user_demo",
+                    name: "缓存猫",
+                    type: "cat",
+                    ownership: "owned",
+                    displayState: "active",
+                    avatarUrl: nil,
+                    materials: [
+                        DesktopPetBundleMaterial(
+                            slot: .idleLoop,
+                            name: "待机循环",
+                            videoUrl: materialURL,
+                            status: "ready"
+                        )
+                    ]
+                )
+            ]
+        )
+        let suiteName = "DesktopPetSyncClientTests.cache.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let settingsStore = SettingsStore(defaults: defaults)
+        let petColonyController = PetColonyController(settingsStore: settingsStore)
+
+        let summary = try await client.importBundle(
+            bundle,
+            settingsStore: settingsStore,
+            petColonyController: petColonyController
         )
 
-        XCTAssertEqual(friend.id, "friend_1")
+        XCTAssertEqual(summary.petCount, 1)
+        XCTAssertEqual(summary.materialCount, 1)
+        XCTAssertEqual(settingsStore.restoreVideoURL(for: .idleLoop, petIndex: 0), destinationURL)
     }
 
-    func testRemoveFriendSendsDeleteBodyToFriendsApi() async throws {
-        URLProtocolStub.requestHandler = { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/friends")
-            XCTAssertEqual(request.httpMethod, "DELETE")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
-
-            let body = try XCTUnwrap(bodyData(for: request))
-            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
-            XCTAssertEqual(payload["friendId"], "friend_1")
-
-            let response = HTTPURLResponse(
-                url: request.url!,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            let data = Data(
-                """
-                {
-                  "deletedFriendId": "friend_1"
-                }
-                """.utf8
-            )
-
-            return (response, data)
+    func testImportBundleHidesOldDesktopPetsWhenBundleHasNoDisplayablePets() async throws {
+        URLProtocolStub.requestHandler = { _ in
+            XCTFail("Unavailable pets should not download materials.")
+            throw URLError(.badServerResponse)
         }
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [URLProtocolStub.self]
-        let session = URLSession(configuration: configuration)
         let client = DesktopPetSyncClient(
             endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
-            session: session
+            session: URLSession(configuration: configuration)
         )
-        let result = try await client.removeFriend(
-            friendID: "friend_1",
-            accessToken: "desktop-token"
+        let bundle = DesktopPetBundle(
+            version: 1,
+            generatedAt: "2026-06-25T08:00:00.000Z",
+            account: nil,
+            sync: nil,
+            pets: [
+                DesktopPetBundlePet(
+                    id: "pet_orange",
+                    petNumber: "CAT-OWNER",
+                    ownerUserId: "user_demo",
+                    ownerName: nil,
+                    ownerEmail: nil,
+                    currentHostUserId: "friend_1",
+                    name: "栗子",
+                    type: "cat",
+                    ownership: "away",
+                    displayState: "unavailable",
+                    avatarUrl: nil,
+                    materials: [
+                        DesktopPetBundleMaterial(
+                            slot: .idleLoop,
+                            name: "待机循环",
+                            videoUrl: URL(string: "https://example.com/idle.mp4")!,
+                            status: "ready"
+                        )
+                    ]
+                )
+            ]
+        )
+        let suiteName = "DesktopPetSyncClientTests.hidden.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let settingsStore = SettingsStore(defaults: defaults)
+        settingsStore.petCount = 1
+        settingsStore.isPetVisible = true
+        let petColonyController = PetColonyController(settingsStore: settingsStore)
+
+        let summary = try await client.importBundle(
+            bundle,
+            settingsStore: settingsStore,
+            petColonyController: petColonyController
         )
 
-        XCTAssertEqual(result.deletedFriendId, "friend_1")
+        XCTAssertEqual(summary.petCount, 0)
+        XCTAssertEqual(summary.materialCount, 0)
+        XCTAssertEqual(settingsStore.petCount, 0)
+        XCTAssertFalse(settingsStore.isPetVisible)
     }
 
-    func testFetchHostingRequestsUsesApiBaseAndBearerToken() async throws {
-        URLProtocolStub.requestHandler = { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/hosting/requests")
-            XCTAssertEqual(request.httpMethod, "GET")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
+    func testDesktopSyncClientDoesNotExposePausedFriendAndHostingEndpoints() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/CatDesktopPet/DesktopPetSyncClient.swift")
+        let source = try String(contentsOf: sourceURL)
 
-            let response = HTTPURLResponse(
-                url: request.url!,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            let data = Data(
-                """
-                {
-                  "requests": [
-                    {
-                      "id": "hosting_1",
-                      "petId": "pet_orange",
-                      "fromUserId": "user_demo",
-                      "toUserId": "friend_1",
-                      "petName": "栗子",
-                      "from": "栗子主人",
-                      "status": "等待你接收",
-                      "statusCode": "pending"
-                    }
-                  ]
-                }
-                """.utf8
-            )
-
-            return (response, data)
+        for removedSymbol in [
+            "DesktopFriend",
+            "DesktopHosting",
+            "fetchFriends",
+            "addFriend",
+            "removeFriend",
+            "fetchHostingRequests",
+            "requestHosting",
+            "updateHostingRequest",
+            "recallPet"
+        ] {
+            XCTAssertFalse(source.contains(removedSymbol), "\(removedSymbol) should stay paused on Mac desktop")
         }
-
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [URLProtocolStub.self]
-        let session = URLSession(configuration: configuration)
-        let client = DesktopPetSyncClient(
-            endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
-            session: session
-        )
-        let requests = try await client.fetchHostingRequests(accessToken: "desktop-token")
-
-        XCTAssertEqual(requests.first?.id, "hosting_1")
-        XCTAssertEqual(requests.first?.statusCode, "pending")
-        XCTAssertEqual(requests.first?.toUserID, "friend_1")
-    }
-
-    func testUpdateHostingRequestSendsActionBody() async throws {
-        URLProtocolStub.requestHandler = { request in
-            XCTAssertEqual(request.url?.absoluteString, "https://example.com/api/hosting/requests/hosting_1")
-            XCTAssertEqual(request.httpMethod, "PATCH")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer desktop-token")
-
-            let body = try XCTUnwrap(bodyData(for: request))
-            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
-            XCTAssertEqual(payload["action"], "accept")
-
-            let response = HTTPURLResponse(
-                url: request.url!,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            let data = Data(
-                """
-                {
-                  "request": {
-                    "id": "hosting_1",
-                    "petId": "pet_orange",
-                    "fromUserId": "user_demo",
-                    "toUserId": "friend_1",
-                    "petName": "栗子",
-                    "from": "栗子主人",
-                    "status": "已接收托管",
-                    "statusCode": "accepted"
-                  },
-                  "requestId": "hosting_1",
-                  "status": "已接收托管",
-                  "petId": "pet_orange",
-                  "fromUserId": "user_demo",
-                  "toUserId": "friend_1",
-                  "statusCode": "accepted"
-                }
-                """.utf8
-            )
-
-            return (response, data)
-        }
-
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [URLProtocolStub.self]
-        let session = URLSession(configuration: configuration)
-        let client = DesktopPetSyncClient(
-            endpointURL: URL(string: "https://example.com/api/desktop/pets")!,
-            session: session
-        )
-        let result = try await client.updateHostingRequest(
-            requestID: "hosting_1",
-            action: "accept",
-            accessToken: "desktop-token"
-        )
-
-        XCTAssertEqual(result.requestId, "hosting_1")
-        XCTAssertEqual(result.statusCode, "accepted")
-        XCTAssertEqual(result.request.status, "已接收托管")
     }
 
     func testDefaultLoginURLUsesProductionAlias() async throws {

@@ -105,7 +105,7 @@ export async function provisionSupabaseAccount(input: ProvisionInput) {
     .then(unwrapSupabaseResult);
 }
 
-async function loadStarterPetSeedFromTemplate() {
+export async function loadStarterPetSeedFromTemplate() {
   const fallback = getStarterPetSeed();
   const templatePetId = starterPetTemplateId();
   const supabase = getSupabaseAdminClient();

@@ -1,4 +1,5 @@
 import { buildDesktopPetBundle, desktopPetBundleStoragePath } from "@/lib/desktop-bundle";
+import { loadStarterPetSeedFromTemplate } from "@/lib/server/account-provisioning";
 import { loadAccountDataSnapshot } from "@/lib/server/account-data-store";
 import { getBackendStatus, getStorageBuckets, getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { CurrentUser, DesktopPetBundle, DesktopPetBundlePublishResponse } from "@/lib/types";
@@ -13,13 +14,17 @@ function emptyDesktopPetBundle(): DesktopPetBundle {
 
 export async function loadDesktopPetBundle(account: CurrentUser): Promise<DesktopPetBundle> {
   const backend = getBackendStatus();
-  const snapshot = await loadAccountDataSnapshot(account);
+  const [snapshot, starterPetSeed] = await Promise.all([
+    loadAccountDataSnapshot(account),
+    loadStarterPetSeedFromTemplate()
+  ]);
 
   return buildDesktopPetBundle({
     account: snapshot.user,
     backendMode: backend.mode,
     pets: snapshot.pets,
-    assets: snapshot.assets
+    assets: snapshot.assets,
+    starterPetAssets: starterPetSeed.assets
   });
 }
 

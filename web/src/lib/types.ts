@@ -103,6 +103,8 @@ export type Pet = {
   id: string;
   petNumber: string;
   ownerUserId: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   currentHostUserId?: string | null;
   name: string;
   type: "cat" | "dog";
@@ -143,6 +145,24 @@ export type HostingRequest = {
   statusCode: HostingRequestStatusCode;
 };
 
+export type DesktopEventType =
+  | "hosting_request_created"
+  | "hosting_request_accepted"
+  | "hosting_request_declined"
+  | "pet_recalled"
+  | "desktop_bundle_changed";
+
+export type DesktopEvent = {
+  id: string;
+  userId: string;
+  type: DesktopEventType;
+  actorUserId?: string | null;
+  petId?: string | null;
+  hostingRequestId?: string | null;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+};
+
 export type PetAssetStatus = "missing" | "queued" | "generating" | "ready" | "failed";
 
 export type PetAsset = {
@@ -164,6 +184,8 @@ export type DesktopPetBundlePet = {
   id: string;
   petNumber: string;
   ownerUserId: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   currentHostUserId?: string | null;
   name: string;
   type: "cat" | "dog";

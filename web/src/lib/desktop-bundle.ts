@@ -1,5 +1,9 @@
 import type { BackendMode, CurrentUser, DesktopPetBundle, Pet, PetAsset } from "@/lib/types";
 import { isDeprecatedMaterialSlotId } from "./material-slots.ts";
+import {
+  isLegacyDefaultStarterPetAssetUrl,
+  type StarterPetAssetSeed
+} from "./starter-pet.ts";
 
 export const desktopPetBundleVersion = 1;
 export const desktopPetBundleStoragePath =
@@ -11,6 +15,7 @@ type BuildDesktopPetBundleInput = {
   generatedAt?: string;
   pets: Pet[];
   assets: PetAsset[];
+  starterPetAssets?: StarterPetAssetSeed[];
 };
 
 const materialNameBySlot: Record<string, string> = {
@@ -62,28 +67,18 @@ export function buildDesktopPetBundle(input: BuildDesktopPetBundleInput): Deskto
       recommendedPollSeconds: 300
     },
     pets: visiblePets.map((pet) => {
-      const materials = input.assets
-        .filter(
-          (asset) =>
-            asset.petId === pet.id &&
-            asset.status === "ready" &&
-            typeof asset.videoUrl === "string" &&
-            asset.videoUrl.length > 0 &&
-            !isDeprecatedMaterialSlotId(asset.slot)
-        )
-        .map((asset) => {
-          return {
-            slot: asset.slot,
-            name: materialNameBySlot[asset.slot] ?? asset.slot,
-            videoUrl: asset.videoUrl as string,
-            status: "ready" as const
-          };
-        });
+      const materials = desktopMaterialsForPet({
+        pet,
+        assets: input.assets,
+        starterPetAssets: input.starterPetAssets ?? []
+      });
 
       return {
         id: pet.id,
         petNumber: pet.petNumber,
         ownerUserId: pet.ownerUserId,
+        ownerName: pet.ownerName ?? null,
+        ownerEmail: pet.ownerEmail ?? null,
         currentHostUserId: pet.currentHostUserId ?? null,
         name: pet.name,
         type: pet.type,
@@ -93,6 +88,78 @@ export function buildDesktopPetBundle(input: BuildDesktopPetBundleInput): Deskto
         materials
       };
     })
+  };
+}
+
+function desktopMaterialsForPet(input: {
+  pet: Pet;
+  assets: PetAsset[];
+  starterPetAssets: StarterPetAssetSeed[];
+}) {
+  const materials = new Map<string, DesktopPetBundle["pets"][number]["materials"][number]>();
+  const starterAssetsBySlot = new Map(
+    input.starterPetAssets
+      .filter((asset) => !isDeprecatedMaterialSlotId(asset.slot) && asset.videoUrl.trim().length > 0)
+      .map((asset) => [asset.slot, asset.videoUrl.trim()])
+  );
+
+  for (const asset of input.assets) {
+    if (
+      asset.petId !== input.pet.id ||
+      asset.status !== "ready" ||
+      typeof asset.videoUrl !== "string" ||
+      asset.videoUrl.trim().length === 0 ||
+      isDeprecatedMaterialSlotId(asset.slot)
+    ) {
+      continue;
+    }
+
+    const videoUrl = desktopVideoUrlForAsset({
+      pet: input.pet,
+      slot: asset.slot,
+      videoUrl: asset.videoUrl,
+      starterAssetsBySlot
+    });
+
+    if (!videoUrl) {
+      continue;
+    }
+
+    materials.set(asset.slot, desktopMaterial(asset.slot, videoUrl));
+  }
+
+  if (input.pet.isReadonly) {
+    for (const [slot, videoUrl] of starterAssetsBySlot) {
+      if (!materials.has(slot)) {
+        materials.set(slot, desktopMaterial(slot, videoUrl));
+      }
+    }
+  }
+
+  return [...materials.values()];
+}
+
+function desktopVideoUrlForAsset(input: {
+  pet: Pet;
+  slot: string;
+  videoUrl: string;
+  starterAssetsBySlot: Map<string, string>;
+}) {
+  const videoUrl = input.videoUrl.trim();
+
+  if (!input.pet.isReadonly || !isLegacyDefaultStarterPetAssetUrl(videoUrl)) {
+    return videoUrl;
+  }
+
+  return input.starterAssetsBySlot.get(input.slot) ?? null;
+}
+
+function desktopMaterial(slot: string, videoUrl: string): DesktopPetBundle["pets"][number]["materials"][number] {
+  return {
+    slot,
+    name: materialNameBySlot[slot] ?? slot,
+    videoUrl,
+    status: "ready"
   };
 }
 

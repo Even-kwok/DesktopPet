@@ -23,76 +23,6 @@ struct DesktopLoginResponse: Decodable {
     let account: DesktopSyncAccount
 }
 
-struct DesktopFriendsResponse: Decodable {
-    let friends: [DesktopFriendCard]
-}
-
-struct DesktopFriendResponse: Decodable {
-    let friend: DesktopFriendCard
-}
-
-struct DesktopFriendDeleteResponse: Decodable {
-    let deletedFriendId: String
-}
-
-struct DesktopHostingRequestCard: Decodable, Identifiable, Equatable {
-    let id: String
-    let petId: String
-    let fromUserID: String
-    let toUserID: String
-    let petName: String
-    let from: String
-    let status: String
-    let statusCode: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case petId
-        case fromUserID = "fromUserId"
-        case toUserID = "toUserId"
-        case petName
-        case from
-        case status
-        case statusCode
-    }
-}
-
-struct DesktopHostingRequestsResponse: Decodable {
-    let requests: [DesktopHostingRequestCard]
-}
-
-struct DesktopHostingRequestResponse: Decodable {
-    let requestId: String
-    let status: String
-    let petId: String
-    let toUserId: String
-}
-
-struct DesktopHostingRequestUpdateResponse: Decodable {
-    let request: DesktopHostingRequestCard
-    let requestId: String
-    let status: String
-    let petId: String
-    let fromUserID: String
-    let toUserID: String
-    let statusCode: String
-
-    enum CodingKeys: String, CodingKey {
-        case request
-        case requestId
-        case status
-        case petId
-        case fromUserID = "fromUserId"
-        case toUserID = "toUserId"
-        case statusCode
-    }
-}
-
-struct DesktopRecallResponse: Decodable {
-    let petId: String
-    let status: String
-}
-
 struct DesktopSyncMetadata: Decodable {
     let mode: String
     let source: String
@@ -103,6 +33,8 @@ struct DesktopPetBundlePet: Decodable {
     let id: String
     let petNumber: String?
     let ownerUserId: String?
+    let ownerName: String?
+    let ownerEmail: String?
     let currentHostUserId: String?
     let name: String
     let type: String
@@ -118,6 +50,10 @@ struct DesktopPetBundlePet: Decodable {
     var isDisplayableOnDesktop: Bool {
         displayState != "unavailable" && displayState != "hidden" && hasIdleLoopMaterial
     }
+
+    var isActiveDesktopPet: Bool {
+        displayState != "unavailable" && displayState != "hidden"
+    }
 }
 
 struct DesktopPetBundleMaterial: Decodable {
@@ -130,6 +66,21 @@ struct DesktopPetBundleMaterial: Decodable {
 struct DesktopPetSyncSummary {
     let petCount: Int
     let materialCount: Int
+}
+
+private struct ImportedDesktopPetMaterial {
+    let material: DesktopPetBundleMaterial
+    let localURL: URL
+}
+
+private struct ImportedDesktopPet {
+    let pet: DesktopPetBundlePet
+    let materials: [ImportedDesktopPetMaterial]
+}
+
+private struct DesktopAPIErrorResponse: Decodable {
+    let error: String?
+    let details: String?
 }
 
 extension DesktopPetBundle {
@@ -172,6 +123,7 @@ enum DesktopPetSyncError: LocalizedError, Equatable {
     case loginFailed
     case sessionExpired
     case requestTimedOut
+    case requestRejected(String)
     case emptyBundle
     case missingIdleLoop
 
@@ -185,6 +137,8 @@ enum DesktopPetSyncError: LocalizedError, Equatable {
             "登录已过期，请重新登录。"
         case .requestTimedOut:
             "同步链接响应超时，请稍后重试或重新登录。"
+        case .requestRejected(let message):
+            message
         case .emptyBundle:
             "网页端还没有可同步的视频素材。"
         case .missingIdleLoop:
@@ -209,12 +163,14 @@ final class DesktopPetSyncClient {
     private let loginURL: URL
     private let session: URLSession
     private let fileManager: FileManager
+    private let remoteMaterialRootURL: URL?
 
     init(
         endpointURL: URL = DesktopPetSyncClient.defaultEndpointURL(),
         loginURL: URL? = nil,
         session: URLSession = DesktopPetSyncClient.makeDefaultSession(),
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        remoteMaterialRootURL: URL? = nil
     ) {
         self.endpointURL = endpointURL
         self.apiBaseURL = endpointURL
@@ -225,6 +181,7 @@ final class DesktopPetSyncClient {
             .appendingPathComponent("auth/login")
         self.session = session
         self.fileManager = fileManager
+        self.remoteMaterialRootURL = remoteMaterialRootURL
     }
 
     private static func defaultEndpointURL() -> URL {
@@ -273,72 +230,11 @@ final class DesktopPetSyncClient {
         return try JSONDecoder.desktopPetSync.decode(DesktopLoginResponse.self, from: data)
     }
 
-    func fetchFriends(accessToken: String) async throws -> [DesktopFriendCard] {
-        let response: DesktopFriendsResponse = try await sendAuthorizedJSONRequest(
-            pathComponents: ["friends"],
-            accessToken: accessToken
-        )
-
-        return response.friends
-    }
-
-    func addFriend(email: String, accessToken: String) async throws -> DesktopFriendCard {
-        let response: DesktopFriendResponse = try await sendAuthorizedJSONRequest(
-            pathComponents: ["friends"],
-            accessToken: accessToken,
-            method: "POST",
-            body: ["email": email]
-        )
-
-        return response.friend
-    }
-
-    func removeFriend(friendID: String, accessToken: String) async throws -> DesktopFriendDeleteResponse {
-        try await sendAuthorizedJSONRequest(
-            pathComponents: ["friends"],
-            accessToken: accessToken,
-            method: "DELETE",
-            body: ["friendId": friendID]
-        )
-    }
-
-    func fetchHostingRequests(accessToken: String) async throws -> [DesktopHostingRequestCard] {
-        let response: DesktopHostingRequestsResponse = try await sendAuthorizedJSONRequest(
-            pathComponents: ["hosting", "requests"],
-            accessToken: accessToken
-        )
-
-        return response.requests
-    }
-
-    func requestHosting(petID: String, toUserID: String, accessToken: String) async throws -> DesktopHostingRequestResponse {
-        try await sendAuthorizedJSONRequest(
-            pathComponents: ["hosting", "requests"],
-            accessToken: accessToken,
-            method: "POST",
-            body: [
-                "petId": petID,
-                "toUserId": toUserID
-            ]
-        )
-    }
-
-    func updateHostingRequest(requestID: String, action: String, accessToken: String) async throws -> DesktopHostingRequestUpdateResponse {
-        try await sendAuthorizedJSONRequest(
-            pathComponents: ["hosting", "requests", requestID],
-            accessToken: accessToken,
-            method: "PATCH",
-            body: ["action": action]
-        )
-    }
-
-    func recallPet(petID: String, accessToken: String) async throws -> DesktopRecallResponse {
-        try await sendAuthorizedJSONRequest(
-            pathComponents: ["hosting", "recall"],
-            accessToken: accessToken,
-            method: "POST",
-            body: ["petId": petID]
-        )
+    func desktopEventStreamURL() -> URL {
+        apiBaseURL
+            .appendingPathComponent("desktop")
+            .appendingPathComponent("events")
+            .appendingPathComponent("stream")
     }
 
     func fetchBundle(accessToken: String? = nil) async throws -> DesktopPetBundle {
@@ -397,10 +293,32 @@ final class DesktopPetSyncClient {
                 throw DesktopPetSyncError.sessionExpired
             }
 
+            if (400..<500).contains(httpResponse.statusCode) {
+                throw DesktopPetSyncError.requestRejected(apiErrorMessage(from: data))
+            }
+
             throw DesktopPetSyncError.invalidResponse
         }
 
         return try JSONDecoder.desktopPetSync.decode(T.self, from: data)
+    }
+
+    private func apiErrorMessage(from data: Data) -> String {
+        guard let response = try? JSONDecoder.desktopPetSync.decode(DesktopAPIErrorResponse.self, from: data) else {
+            return "请求被服务器拒绝，请先同步账号状态后重试。"
+        }
+
+        let details = response.details?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let details, !details.isEmpty {
+            return details
+        }
+
+        let error = response.error?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let error, !error.isEmpty {
+            return error
+        }
+
+        return "请求被服务器拒绝，请先同步账号状态后重试。"
     }
 
     @MainActor
@@ -432,21 +350,92 @@ final class DesktopPetSyncClient {
         let displayablePets = petsWithMaterials.filter(\.isDisplayableOnDesktop)
 
         guard !displayablePets.isEmpty else {
-            throw DesktopPetSyncError.missingIdleLoop
+            let hasActivePetMissingIdleLoop = petsWithMaterials.contains { pet in
+                pet.isActiveDesktopPet && !pet.hasIdleLoopMaterial
+            }
+
+            if hasActivePetMissingIdleLoop {
+                throw DesktopPetSyncError.missingIdleLoop
+            }
+
+            petColonyController.setPetCount(0)
+            settingsStore.isPetVisible = false
+            petColonyController.hideAll()
+            petColonyController.refreshDisplayNames()
+
+            return DesktopPetSyncSummary(
+                petCount: 0,
+                materialCount: 0
+            )
         }
 
-        if settingsStore.petCount < displayablePets.count {
-            petColonyController.setPetCount(displayablePets.count)
+        var importedPets: [ImportedDesktopPet] = []
+        var idleLoopErrors: [Error] = []
+
+        for pet in displayablePets {
+            guard let idleLoopMaterial = pet.materials.first(where: {
+                $0.status == "ready" && $0.slot == .idleLoop
+            }) else {
+                continue
+            }
+
+            do {
+                let idleLoopURL = try await downloadMaterial(idleLoopMaterial, petID: pet.id)
+                var importedMaterials = [
+                    ImportedDesktopPetMaterial(material: idleLoopMaterial, localURL: idleLoopURL)
+                ]
+
+                for material in pet.materials where material.status == "ready"
+                    && material.slot != .idleLoop
+                    && !material.slot.isDeprecatedMaterialSlot {
+                    do {
+                        let localURL = try await downloadMaterial(material, petID: pet.id)
+                        importedMaterials.append(
+                            ImportedDesktopPetMaterial(material: material, localURL: localURL)
+                        )
+                    } catch {
+                        NSLog(
+                            "Skipped optional desktop material %@ for pet %@: %@",
+                            material.slot.rawValue,
+                            pet.id,
+                            error.localizedDescription
+                        )
+                    }
+                }
+
+                importedPets.append(
+                    ImportedDesktopPet(pet: pet, materials: importedMaterials)
+                )
+            } catch {
+                idleLoopErrors.append(error)
+            }
         }
+
+        guard !importedPets.isEmpty else {
+            if let firstError = idleLoopErrors.first {
+                throw firstError
+            }
+
+            throw DesktopPetSyncError.emptyBundle
+        }
+
+        petColonyController.setPetCount(importedPets.count)
 
         var importedMaterialCount = 0
 
-        for (petIndex, pet) in displayablePets.enumerated() {
-            settingsStore.setPetName(pet.name, for: petIndex)
+        for (petIndex, importedPet) in importedPets.enumerated() {
+            settingsStore.setPetName(importedPet.pet.name, for: petIndex)
 
-            for material in pet.materials where material.status == "ready" && !material.slot.isDeprecatedMaterialSlot {
-                let localURL = try await downloadMaterial(material, petID: pet.id)
-                settingsStore.saveVideoURL(localURL, for: material.slot, petIndex: petIndex)
+            for slot in PetActionSlot.allCases {
+                settingsStore.removeVideo(for: slot, petIndex: petIndex)
+            }
+
+            for importedMaterial in importedPet.materials {
+                settingsStore.saveVideoURL(
+                    importedMaterial.localURL,
+                    for: importedMaterial.material.slot,
+                    petIndex: petIndex
+                )
                 importedMaterialCount += 1
             }
         }
@@ -460,12 +449,24 @@ final class DesktopPetSyncClient {
         petColonyController.showAll()
 
         return DesktopPetSyncSummary(
-            petCount: displayablePets.count,
+            petCount: importedPets.count,
             materialCount: importedMaterialCount
         )
     }
 
     private func downloadMaterial(_ material: DesktopPetBundleMaterial, petID: String) async throws -> URL {
+        let directory = try cacheDirectory(for: petID)
+        let fileExtension = material.videoUrl.pathExtension.isEmpty
+            ? "mp4"
+            : material.videoUrl.pathExtension
+        let destinationURL = directory
+            .appendingPathComponent(material.slot.rawValue, isDirectory: false)
+            .appendingPathExtension(fileExtension)
+
+        if canReuseCachedMaterial(at: destinationURL, videoURL: material.videoUrl) {
+            return destinationURL
+        }
+
         var request = URLRequest(url: material.videoUrl)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = DesktopPetSyncClient.requestTimeoutInterval
@@ -476,25 +477,42 @@ final class DesktopPetSyncClient {
             throw DesktopPetSyncError.invalidResponse
         }
 
-        let directory = try cacheDirectory(for: petID)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-
-        let fileExtension = material.videoUrl.pathExtension.isEmpty
-            ? "mp4"
-            : material.videoUrl.pathExtension
-        let destinationURL = directory
-            .appendingPathComponent(material.slot.rawValue, isDirectory: false)
-            .appendingPathExtension(fileExtension)
 
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }
 
         try fileManager.moveItem(at: temporaryURL, to: destinationURL)
+        writeCachedMaterialMetadata(for: destinationURL, videoURL: material.videoUrl)
         return destinationURL
     }
 
+    private func canReuseCachedMaterial(at destinationURL: URL, videoURL: URL) -> Bool {
+        guard fileManager.fileExists(atPath: destinationURL.path),
+              let data = try? Data(contentsOf: cachedMaterialMetadataURL(for: destinationURL)),
+              let cachedURL = String(data: data, encoding: .utf8) else {
+            return false
+        }
+
+        return cachedURL == videoURL.absoluteString
+    }
+
+    private func writeCachedMaterialMetadata(for destinationURL: URL, videoURL: URL) {
+        let data = Data(videoURL.absoluteString.utf8)
+        try? data.write(to: cachedMaterialMetadataURL(for: destinationURL), options: .atomic)
+    }
+
+    private func cachedMaterialMetadataURL(for destinationURL: URL) -> URL {
+        destinationURL.appendingPathExtension("url")
+    }
+
     private func cacheDirectory(for petID: String) throws -> URL {
+        if let remoteMaterialRootURL {
+            return remoteMaterialRootURL
+                .appendingPathComponent(safePathComponent(petID), isDirectory: true)
+        }
+
         let rootURL = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,

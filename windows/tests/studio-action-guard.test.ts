@@ -35,15 +35,15 @@ test("rejects a different studio action instead of reusing the in-flight result"
   const group = createSingleFlightActionGroup();
   let runCount = 0;
 
-  const first = group.run("addFriend", async () => {
+  const first = group.run("sync", async () => {
     runCount += 1;
     return await new Promise<string>(() => undefined);
   });
 
   await assert.rejects(
-    group.run("removeFriend", async () => {
+    group.run("signIn", async () => {
       runCount += 1;
-      return "removed";
+      return "signed-in";
     }),
     (error) =>
       error instanceof StudioActionBusyError &&
@@ -56,16 +56,16 @@ test("rejects a different studio action instead of reusing the in-flight result"
 
 test("builds stable studio action keys from the action target", () => {
   assert.equal(
-    studioActionKey("addFriend", " friend@example.com "),
-    studioActionKey("addFriend", "friend@example.com")
+    studioActionKey("signIn", " demo@desktop.pet "),
+    studioActionKey("signIn", "demo@desktop.pet")
   );
   assert.notEqual(
-    studioActionKey("removeFriend", "friend_1"),
-    studioActionKey("removeFriend", "friend_2")
+    studioActionKey("selectSyncedPet", "pet_1"),
+    studioActionKey("selectSyncedPet", "pet_2")
   );
   assert.notEqual(
-    studioActionKey("requestHosting", "pet_1", "friend_1"),
-    studioActionKey("requestHosting", "pet_1", "friend_2")
+    studioActionKey("sync", "pet_1", 1),
+    studioActionKey("sync", "pet_1", 2)
   );
 });
 

@@ -12,7 +12,7 @@ import {
   petNameEditControlCopy,
   petPanelImageUrl,
   petPanelStats,
-  recallSuccessMessage,
+  resolveMacClientDownloadUrl,
   resolveWindowsClientDownloadUrl,
   studioStatusMessageClassName
 } from "./studio-layout.ts";
@@ -146,6 +146,17 @@ test("Windows client download URL defaults to the published test release", () =>
   );
 });
 
+test("Mac client download URL defaults to the hosted web asset", () => {
+  assert.equal(
+    resolveMacClientDownloadUrl(null),
+    "/downloads/CatDesktopPet-mac-arm64.dmg"
+  );
+  assert.equal(
+    resolveMacClientDownloadUrl(" https://example.com/custom-mac.dmg "),
+    "https://example.com/custom-mac.dmg"
+  );
+});
+
 test("material workflow steps describe the current generation path", () => {
   assert.deepEqual(
     buildMaterialWorkflowSteps({
@@ -189,10 +200,6 @@ test("desktop publish status copy covers Mac and Windows clients", () => {
     "同步到桌面端失败：storage unavailable"
   );
   assert.equal(desktopPublishFailureMessage("failed"), "同步到桌面端失败。");
-});
-
-test("recall success copy points to the shared desktop clients", () => {
-  assert.equal(recallSuccessMessage(), "召回请求已发送。桌面 App 同步后会重新显示这只宠物。");
 });
 
 test("job display name uses the material name instead of slot code or provider id", async () => {
@@ -361,4 +368,43 @@ test("material cards do not render a separate preview button", () => {
   const studioSource = readFileSync("src/components/studio/studio-app.tsx", "utf8");
 
   assert.doesNotMatch(studioSource, /<a[\s\S]*?>\s*预览\s*<\/a>/);
+});
+
+test("material cards render generated videos through the chroma key preview", () => {
+  const studioSource = readFileSync("src/components/studio/studio-app.tsx", "utf8");
+
+  assert.match(studioSource, /<ChromaKeyVideoPreview\s+src=\{previewState\.videoUrl\}/);
+});
+
+test("web Studio does not expose paused friend and hosting controls", () => {
+  const studioSource = readFileSync("src/components/studio/studio-app.tsx", "utf8");
+
+  assert.doesNotMatch(studioSource, /好友/);
+  assert.doesNotMatch(studioSource, /好友托管/);
+  assert.doesNotMatch(studioSource, /寄养/);
+  assert.doesNotMatch(studioSource, /召回/);
+  assert.doesNotMatch(studioSource, /addFriend/);
+  assert.doesNotMatch(studioSource, /removeFriend/);
+  assert.doesNotMatch(studioSource, /FriendsTab/);
+  assert.doesNotMatch(studioSource, /sendHostingRequest/);
+  assert.doesNotMatch(studioSource, /updateHostingRequest/);
+  assert.doesNotMatch(studioSource, /recallPet/);
+  assert.doesNotMatch(studioSource, /handleSendHosting/);
+  assert.doesNotMatch(studioSource, /handleHostingAction/);
+});
+
+test("web friend and hosting operation APIs are disabled", () => {
+  const friendRouteSource = readFileSync("src/app/api/friends/route.ts", "utf8");
+  const hostingRouteSource = readFileSync("src/app/api/hosting/requests/route.ts", "utf8");
+  const hostingActionRouteSource = readFileSync(
+    "src/app/api/hosting/requests/[requestId]/route.ts",
+    "utf8"
+  );
+  const recallRouteSource = readFileSync("src/app/api/hosting/recall/route.ts", "utf8");
+
+  assert.match(friendRouteSource, /FRIENDS_DISABLED/);
+  assert.match(friendRouteSource, /status:\s*410/);
+  assert.match(hostingRouteSource, /HOSTING_DISABLED/);
+  assert.match(hostingActionRouteSource, /HOSTING_DISABLED/);
+  assert.match(recallRouteSource, /HOSTING_DISABLED/);
 });

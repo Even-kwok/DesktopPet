@@ -1,5 +1,7 @@
 import type {
   CurrentUser,
+  DesktopEvent,
+  DesktopEventType,
   Friend,
   GenerationJob,
   GenerationJobStatus,
@@ -23,6 +25,7 @@ export type AccountDataState = {
   generationJobs: GenerationJob[];
   friends: Friend[];
   hostingRequests: HostingRequest[];
+  desktopEvents: DesktopEvent[];
   referralCodes: ReferralCode[];
   userReferrals: UserReferral[];
   referralRewardLedger: ReferralRewardLedgerEntry[];
@@ -94,6 +97,7 @@ export function createMockAccountDataState(input: Partial<AccountDataState>): Ac
     generationJobs: cloneArray(input.generationJobs ?? []),
     friends: cloneArray(input.friends ?? []),
     hostingRequests: cloneArray(input.hostingRequests ?? []),
+    desktopEvents: cloneArray(input.desktopEvents ?? []),
     referralCodes: cloneArray(input.referralCodes ?? []),
     userReferrals: cloneArray(input.userReferrals ?? []),
     referralRewardLedger: cloneArray(input.referralRewardLedger ?? []),
@@ -106,8 +110,9 @@ export function loadMockAccountDataSnapshot(
   state: AccountDataState
 ): AccountDataSnapshot {
   const user = state.users.find((item) => item.id === account.id || item.email === account.email) ?? account;
+  const usersById = new Map(state.users.map((item) => [item.id, item]));
   const visiblePets = sortPetsForAccount(state.pets.filter((pet) => canAccountSeePet(account, pet)))
-    .map((pet) => petForAccount(user, pet));
+    .map((pet) => petForAccount(user, pet, usersById.get(pet.ownerUserId)));
   const visiblePetIds = new Set(visiblePets.map((pet) => pet.id));
   const visibleAssets = state.assets.filter((asset) => visiblePetIds.has(asset.petId));
   const visibleJobs = state.generationJobs.filter(
@@ -122,6 +127,7 @@ export function loadMockAccountDataSnapshot(
     generationJobs: visibleJobs,
     friends: cloneArray(state.friends),
     hostingRequests: hostingRequestsForAccount(state, user),
+    desktopEvents: desktopEventsForAccount(state, user),
     referralCodes: cloneArray(state.referralCodes),
     userReferrals: cloneArray(state.userReferrals),
     referralRewardLedger: cloneArray(state.referralRewardLedger),
@@ -314,32 +320,56 @@ export function createHostingRequestInState(
   account: CurrentUser,
   input: HostingRequestInput
 ): HostingRequest {
-  const pet = state.pets.find(
-    (item) =>
-      item.id === input.petId &&
-      item.ownerUserId === account.id &&
-      item.currentHostUserId === account.id
-  );
+  const requestedPet = state.pets.find((item) => item.id === input.petId);
   const targetUser = state.users.find((user) => user.id === input.toUserId);
   const friend = state.friends.find((item) => item.id === input.toUserId);
 
-  if (!pet || !targetUser || !friend) {
-    throw new Error("HOSTING_TARGET_NOT_FOUND");
+  if (!requestedPet || requestedPet.ownerUserId !== account.id) {
+    throw new Error("HOSTING_PET_NOT_FOUND");
+  }
+
+  if (requestedPet.currentHostUserId !== account.id) {
+    throw new Error("HOSTING_PET_UNAVAILABLE");
+  }
+
+  if (!targetUser || !friend) {
+    throw new Error("HOSTING_FRIEND_NOT_FOUND");
   }
 
   const request: HostingRequest = {
     id: input.id ?? `hosting_${globalThis.crypto.randomUUID()}`,
-    petId: pet.id,
+    petId: requestedPet.id,
     fromUserId: account.id,
     toUserId: targetUser.id,
-    petName: pet.name,
+    petName: requestedPet.name,
     from: account.name,
     status: "pending",
     statusCode: "pending"
   };
 
   state.hostingRequests.unshift(request);
+  enqueueDesktopEvent(state, {
+    userId: request.toUserId,
+    type: "hosting_request_created",
+    actorUserId: request.fromUserId,
+    petId: request.petId,
+    hostingRequestId: request.id
+  });
   return hostingRequestForAccount(request, account, state);
+}
+
+export function desktopEventsForAccount(
+  state: AccountDataState,
+  account: CurrentUser,
+  afterId?: string | null
+): DesktopEvent[] {
+  const afterNumber = numericEventId(afterId);
+
+  return state.desktopEvents
+    .filter((event) => event.userId === account.id)
+    .filter((event) => afterNumber === null || numericEventId(event.id) > afterNumber)
+    .sort((left, right) => numericEventId(left.id) - numericEventId(right.id))
+    .map((event) => ({ ...event, payload: event.payload ? { ...event.payload } : undefined }));
 }
 
 export function hostingRequestsForAccount(
@@ -347,6 +377,7 @@ export function hostingRequestsForAccount(
   account: CurrentUser
 ): HostingRequest[] {
   return state.hostingRequests
+    .filter((request) => hostingStatusCode(request) === "pending")
     .filter((request) => request.fromUserId === account.id || request.toUserId === account.id)
     .map((request) => hostingRequestForAccount(request, account, state));
 }
@@ -389,6 +420,20 @@ export function updateHostingRequestInState(
       currentHostUserId: request.toUserId,
       locationStatus: "hosted_by_friend"
     };
+    enqueueDesktopEvent(state, {
+      userId: request.fromUserId,
+      type: "hosting_request_accepted",
+      actorUserId: request.toUserId,
+      petId: request.petId,
+      hostingRequestId: request.id
+    });
+    enqueueDesktopEvent(state, {
+      userId: request.toUserId,
+      type: "desktop_bundle_changed",
+      actorUserId: request.toUserId,
+      petId: request.petId,
+      hostingRequestId: request.id
+    });
   } else if (input.action === "decline") {
     if (request.toUserId !== account.id || hostingStatusCode(request) !== "pending") {
       throw new Error("HOSTING_REQUEST_NOT_FOUND");
@@ -399,6 +444,13 @@ export function updateHostingRequestInState(
       status: "declined",
       statusCode: "declined"
     };
+    enqueueDesktopEvent(state, {
+      userId: request.fromUserId,
+      type: "hosting_request_declined",
+      actorUserId: request.toUserId,
+      petId: request.petId,
+      hostingRequestId: request.id
+    });
   } else {
     if (request.toUserId !== account.id || hostingStatusCode(request) !== "accepted") {
       throw new Error("HOSTING_REQUEST_NOT_FOUND");
@@ -414,9 +466,50 @@ export function updateHostingRequestInState(
       currentHostUserId: request.fromUserId,
       locationStatus: "at_owner_desktop"
     };
+    enqueueDesktopEvent(state, {
+      userId: request.fromUserId,
+      type: "pet_recalled",
+      actorUserId: request.toUserId,
+      petId: request.petId,
+      hostingRequestId: request.id
+    });
+    enqueueDesktopEvent(state, {
+      userId: request.toUserId,
+      type: "pet_recalled",
+      actorUserId: request.toUserId,
+      petId: request.petId,
+      hostingRequestId: request.id
+    });
   }
 
   return hostingRequestForAccount(state.hostingRequests[requestIndex], account, state);
+}
+
+export function enqueueDesktopEvent(
+  state: AccountDataState,
+  input: {
+    userId: string;
+    type: DesktopEventType;
+    actorUserId?: string | null;
+    petId?: string | null;
+    hostingRequestId?: string | null;
+    payload?: Record<string, unknown>;
+    createdAt?: string;
+  }
+): DesktopEvent {
+  const event: DesktopEvent = {
+    id: String(nextDesktopEventId(state)),
+    userId: input.userId,
+    type: input.type,
+    actorUserId: input.actorUserId ?? null,
+    petId: input.petId ?? null,
+    hostingRequestId: input.hostingRequestId ?? null,
+    payload: input.payload ? { ...input.payload } : undefined,
+    createdAt: input.createdAt ?? new Date().toISOString()
+  };
+
+  state.desktopEvents.push(event);
+  return event;
 }
 
 export function updateUserProfileInState(
@@ -856,10 +949,12 @@ export function canAccountSeePet(account: CurrentUser, pet: Pet) {
   return pet.ownerUserId === account.id || pet.currentHostUserId === account.id;
 }
 
-function petForAccount(account: CurrentUser, pet: Pet): Pet {
+function petForAccount(account: CurrentUser, pet: Pet, owner?: CurrentUser): Pet {
   const ownership = ownershipForAccount(account, pet);
   return {
     ...pet,
+    ownerName: owner?.name ?? pet.ownerName ?? null,
+    ownerEmail: owner?.email ?? pet.ownerEmail ?? null,
     ownership,
     host: ownership === "away" ? "friend" : "me",
     status: petStatusForAccount(pet, ownership)
@@ -1102,4 +1197,20 @@ function normalizeGenerationJobStatus(status: GenerationJobStatus): GenerationJo
 
 function isActiveGenerationStatus(status: GenerationJobStatus) {
   return status === "queued" || status === "running";
+}
+
+function nextDesktopEventId(state: AccountDataState) {
+  return state.desktopEvents.reduce(
+    (nextId, event) => Math.max(nextId, numericEventId(event.id) + 1),
+    1
+  );
+}
+
+function numericEventId(value: string | null | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const numberValue = Number(value);
+  return Number.isSafeInteger(numberValue) && numberValue >= 0 ? numberValue : 0;
 }

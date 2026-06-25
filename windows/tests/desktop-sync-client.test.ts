@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import test from "node:test";
 import {
   DesktopPetSyncClient,
@@ -67,6 +69,44 @@ test("logs in and stores bearer-capable account response", async () => {
   } finally {
     await server.close();
   }
+});
+
+test("uses the production web endpoint when the configured base URL is blank", async () => {
+  let requestedURL = "";
+  const client = new DesktopPetSyncClient("", (async (input) => {
+    requestedURL = String(input);
+    return new Response(
+      JSON.stringify({
+        mode: "supabase",
+        tokenType: "bearer",
+        accessToken: "desktop-token",
+        expiresIn: 3600,
+        account: { id: "user_demo", name: "栗子主人", email: "demo@desktop.pet", credits: 120 }
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }) as typeof fetch);
+
+  await client.login("demo@desktop.pet", "123456");
+
+  assert.equal(
+    requestedURL,
+    "https://web-guoyaowens-projects.vercel.app/api/desktop/auth/login"
+  );
+});
+
+test("maps network login failures to readable sync errors", async () => {
+  const client = new DesktopPetSyncClient("https://web-guoyaowens-projects.vercel.app", (async () => {
+    throw new TypeError("fetch failed");
+  }) as typeof fetch);
+
+  await assert.rejects(
+    client.login("demo@desktop.pet", "123456"),
+    (error) =>
+      error instanceof DesktopPetSyncError &&
+      error.code === "networkFailed" &&
+      error.message === "连接网页端失败，请检查网络后重试。"
+  );
 });
 
 test("maps malformed login responses to invalid response", async () => {
@@ -663,352 +703,24 @@ test("maps unauthorized bundle fetches to session expired", async () => {
   }
 });
 
-test("maps malformed friend list responses to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: {
-      friends: [{ id: "friend_1", name: "阿雯", status: "在线", hostedPets: "one" }]
-    }
-  }));
+test("does not expose paused friend and hosting endpoints from the Windows sync client", () => {
+  const source = readFileSync(
+    path.join(process.cwd(), "src/shared/desktop-sync-client.ts"),
+    "utf8"
+  );
 
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.fetchFriends("desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps friend list responses with empty friend identity fields to invalid response", async () => {
-  const malformedFriends = [
-    { id: " ", name: "阿雯" },
-    { id: "friend_1", name: " " }
-  ];
-
-  for (const friend of malformedFriends) {
-    const server = await withServer(() => ({
-      status: 200,
-      body: {
-        friends: [{ ...friend, status: "在线", hostedPets: 1 }]
-      }
-    }));
-
-    try {
-      const client = new DesktopPetSyncClient(server.baseURL);
-
-      await assert.rejects(
-        client.fetchFriends("desktop-token"),
-        (error) =>
-          error instanceof DesktopPetSyncError &&
-          error.code === "invalidResponse" &&
-          error.message === "桌面同步返回异常。"
-      );
-    } finally {
-      await server.close();
-    }
-  }
-});
-
-test("maps friend list responses with empty friend statuses to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: {
-      friends: [{ id: "friend_1", name: "阿雯", status: " ", hostedPets: 1 }]
-    }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.fetchFriends("desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps friend list responses with negative hosted-pet counts to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: {
-      friends: [{ id: "friend_1", name: "阿雯", status: "在线", hostedPets: -1 }]
-    }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.fetchFriends("desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps malformed add-friend responses to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: {
-      friend: { id: "friend_1", name: "阿雯", status: "在线", hostedPets: "one" }
-    }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.addFriend("friend@example.com", "desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps malformed remove-friend responses to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: { deletedFriendId: 123 }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.removeFriend("friend_1", "desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps remove-friend responses with empty deleted friend IDs to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: { deletedFriendId: " " }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.removeFriend("friend_1", "desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("fetches hosting requests with bearer auth", async () => {
-  const server = await withServer((request) => {
-    assert.equal(request.url, "/api/hosting/requests");
-    assert.equal(request.method, "GET");
-    assert.equal(request.headers.authorization, "Bearer desktop-token");
-    return {
-      status: 200,
-      body: {
-        requests: [
-          {
-            id: "hosting_1",
-            petId: "pet_orange",
-            fromUserId: "user_demo",
-            toUserId: "friend_1",
-            petName: "栗子",
-            from: "栗子主人",
-            status: "等待你接收",
-            statusCode: "pending"
-          }
-        ]
-      }
-    };
-  });
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-    const requests = await client.fetchHostingRequests("desktop-token");
-
-    assert.equal(requests[0]?.id, "hosting_1");
-    assert.equal(requests[0]?.statusCode, "pending");
-    assert.equal(requests[0]?.toUserId, "friend_1");
-  } finally {
-    await server.close();
-  }
-});
-
-test("updates hosting requests with an action body", async () => {
-  const server = await withServer((request, body) => {
-    assert.equal(request.url, "/api/hosting/requests/hosting_1");
-    assert.equal(request.method, "PATCH");
-    assert.equal(request.headers.authorization, "Bearer desktop-token");
-    assert.deepEqual(JSON.parse(body), { action: "accept" });
-    return {
-      status: 200,
-      body: {
-        request: {
-          id: "hosting_1",
-          petId: "pet_orange",
-          fromUserId: "user_demo",
-          toUserId: "friend_1",
-          petName: "栗子",
-          from: "栗子主人",
-          status: "已接收托管",
-          statusCode: "accepted"
-        },
-        requestId: "hosting_1",
-        status: "已接收托管",
-        petId: "pet_orange",
-        fromUserId: "user_demo",
-        toUserId: "friend_1",
-        statusCode: "accepted"
-      }
-    };
-  });
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-    const response = await client.updateHostingRequest("hosting_1", "accept", "desktop-token");
-
-    assert.equal(response.requestId, "hosting_1");
-    assert.equal(response.statusCode, "accepted");
-    assert.equal(response.request.status, "已接收托管");
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps malformed hosting request responses to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: {
-      requestId: "request_1",
-      status: "pending",
-      petId: "pet_1",
-      toUserId: 123
-    }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.requestHosting("pet_1", "user_friend", "desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps hosting request responses with empty action fields to invalid response", async () => {
-  const malformedResponses = [
-    { requestId: " ", status: "pending", petId: "pet_1", toUserId: "user_friend" },
-    { requestId: "request_1", status: " ", petId: "pet_1", toUserId: "user_friend" },
-    { requestId: "request_1", status: "pending", petId: " ", toUserId: "user_friend" },
-    { requestId: "request_1", status: "pending", petId: "pet_1", toUserId: " " }
-  ];
-
-  for (const body of malformedResponses) {
-    const server = await withServer(() => ({
-      status: 200,
-      body
-    }));
-
-    try {
-      const client = new DesktopPetSyncClient(server.baseURL);
-
-      await assert.rejects(
-        client.requestHosting("pet_1", "user_friend", "desktop-token"),
-        (error) =>
-          error instanceof DesktopPetSyncError &&
-          error.code === "invalidResponse" &&
-          error.message === "桌面同步返回异常。"
-      );
-    } finally {
-      await server.close();
-    }
-  }
-});
-
-test("maps malformed recall responses to invalid response", async () => {
-  const server = await withServer(() => ({
-    status: 200,
-    body: {
-      petId: "pet_1",
-      status: 200
-    }
-  }));
-
-  try {
-    const client = new DesktopPetSyncClient(server.baseURL);
-
-    await assert.rejects(
-      client.recallPet("pet_1", "desktop-token"),
-      (error) =>
-        error instanceof DesktopPetSyncError &&
-        error.code === "invalidResponse" &&
-        error.message === "桌面同步返回异常。"
-    );
-  } finally {
-    await server.close();
-  }
-});
-
-test("maps recall responses with empty action fields to invalid response", async () => {
-  const malformedResponses = [
-    { petId: " ", status: "recalled" },
-    { petId: "pet_1", status: " " }
-  ];
-
-  for (const body of malformedResponses) {
-    const server = await withServer(() => ({
-      status: 200,
-      body
-    }));
-
-    try {
-      const client = new DesktopPetSyncClient(server.baseURL);
-
-      await assert.rejects(
-        client.recallPet("pet_1", "desktop-token"),
-        (error) =>
-          error instanceof DesktopPetSyncError &&
-          error.code === "invalidResponse" &&
-          error.message === "桌面同步返回异常。"
-      );
-    } finally {
-      await server.close();
-    }
+  for (const removedSymbol of [
+    "DesktopFriend",
+    "DesktopHosting",
+    "fetchFriends",
+    "addFriend",
+    "removeFriend",
+    "fetchHostingRequests",
+    "requestHosting",
+    "updateHostingRequest",
+    "recallPet"
+  ]) {
+    assert.doesNotMatch(source, new RegExp(removedSymbol));
   }
 });
 

@@ -29,6 +29,7 @@ import type { PetActionSlot, PetInteractionSide } from "../shared/pet-action-slo
 
 export type PetWindowControllerOptions = {
   preloadPath: string;
+  appVersion?: string;
   petRendererURL?: string;
   petRendererFile: string;
   getClickThrough: () => boolean;
@@ -554,7 +555,8 @@ export class PetWindowController implements PetWindowControllerLike {
   }
 
   #windowTitle() {
-    return `CatDesktopPet - ${this.#settingsStore.petName(this.#petIndex)}`;
+    const appName = this.#options.appVersion ? `CatDesktopPet v${this.#options.appVersion}` : "CatDesktopPet";
+    return `${appName} - ${this.#settingsStore.petName(this.#petIndex)}`;
   }
 
   #petFrameForCurrentScreen() {

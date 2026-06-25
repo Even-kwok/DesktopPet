@@ -17,7 +17,7 @@ final class PetStudioWindowController: NSWindowController {
 
         let hostingController = NSHostingController(rootView: PetStudioView(viewModel: viewModel))
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "CatDesktopPet"
+        window.title = DesktopClientVersion.appTitle
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 560, height: 520))
         window.minSize = NSSize(width: 520, height: 460)

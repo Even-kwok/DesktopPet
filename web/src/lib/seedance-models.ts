@@ -4,7 +4,7 @@ export const seedanceVideoModelValues = [seedanceFastModel, seedanceMiniModel] a
 
 export type SeedanceVideoModel = (typeof seedanceVideoModelValues)[number];
 
-export const defaultSeedanceVideoModel: SeedanceVideoModel = seedanceFastModel;
+export const defaultSeedanceVideoModel: SeedanceVideoModel = seedanceMiniModel;
 
 export const seedanceVideoModelOptions: Array<{
   value: SeedanceVideoModel;

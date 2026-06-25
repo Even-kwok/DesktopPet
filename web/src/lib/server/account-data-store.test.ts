@@ -11,6 +11,7 @@ import {
   deleteUserFromState,
   deletePetFromState,
   findActiveGenerationJobInState,
+  desktopEventsForAccount,
   hostingRequestsForAccount,
   loadMockAccountDataSnapshot,
   normalizePetAssets,
@@ -574,6 +575,16 @@ test("hosting requests are visible to the sender and receiver with viewer-specif
     ]),
     [["hosting_1", "栗子", "栗子主人", "等待你接收", ownPet.id, account.id, friendAccount.id, "pending"]]
   );
+  assert.deepEqual(
+    desktopEventsForAccount(state, friendAccount).map((event) => [
+      event.type,
+      event.userId,
+      event.actorUserId,
+      event.petId,
+      event.hostingRequestId
+    ]),
+    [["hosting_request_created", friendAccount.id, account.id, ownPet.id, "hosting_1"]]
+  );
 });
 
 test("accepting a hosting request moves the pet to the receiver desktop", () => {
@@ -602,6 +613,31 @@ test("accepting a hosting request moves the pet to the receiver desktop", () => 
   assert.equal(loadMockAccountDataSnapshot(friendAccount, state).pets[0]?.status, "寄养在我的桌面");
   assert.equal(loadMockAccountDataSnapshot(account, state).pets[0]?.ownership, "away");
   assert.equal(loadMockAccountDataSnapshot(account, state).pets[0]?.status, "托管在朋友家");
+  assert.deepEqual(hostingRequestsForAccount(state, account), []);
+  assert.deepEqual(hostingRequestsForAccount(state, friendAccount), []);
+  assert.deepEqual(
+    desktopEventsForAccount(state, account).map((event) => [
+      event.type,
+      event.userId,
+      event.actorUserId,
+      event.petId,
+      event.hostingRequestId
+    ]),
+    [["hosting_request_accepted", account.id, friendAccount.id, ownPet.id, "hosting_1"]]
+  );
+  assert.deepEqual(
+    desktopEventsForAccount(state, friendAccount).map((event) => [
+      event.type,
+      event.userId,
+      event.actorUserId,
+      event.petId,
+      event.hostingRequestId
+    ]),
+    [
+      ["hosting_request_created", friendAccount.id, account.id, ownPet.id, "hosting_1"],
+      ["desktop_bundle_changed", friendAccount.id, friendAccount.id, ownPet.id, "hosting_1"]
+    ]
+  );
 });
 
 test("declining a hosting request reports rejection without moving the pet", () => {
@@ -626,7 +662,54 @@ test("declining a hosting request reports rejection without moving the pet", () 
   assert.equal(updatedRequest.status, "已拒绝");
   assert.equal(state.pets[0]?.currentHostUserId, account.id);
   assert.deepEqual(loadMockAccountDataSnapshot(friendAccount, state).pets, []);
-  assert.equal(hostingRequestsForAccount(state, account)[0]?.status, "已拒绝");
+  assert.deepEqual(hostingRequestsForAccount(state, account), []);
+  assert.deepEqual(hostingRequestsForAccount(state, friendAccount), []);
+  assert.deepEqual(
+    desktopEventsForAccount(state, account).map((event) => [
+      event.type,
+      event.userId,
+      event.actorUserId,
+      event.petId,
+      event.hostingRequestId
+    ]),
+    [["hosting_request_declined", account.id, friendAccount.id, ownPet.id, "hosting_1"]]
+  );
+});
+
+test("returning an accepted hosting request sends recall events to owner and receiver", () => {
+  const state = createMockAccountDataState({
+    users: [account, friendAccount],
+    pets: [ownPet],
+    assets: [],
+    friends: [{ id: friendAccount.id, name: friendAccount.name, status: "离线", hostedPets: 0 }]
+  });
+  createHostingRequestInState(state, account, {
+    id: "hosting_1",
+    petId: ownPet.id,
+    toUserId: friendAccount.id
+  });
+  updateHostingRequestInState(state, friendAccount, {
+    requestId: "hosting_1",
+    action: "accept"
+  });
+
+  const returnedRequest = updateHostingRequestInState(state, friendAccount, {
+    requestId: "hosting_1",
+    action: "return"
+  });
+
+  assert.equal(returnedRequest.statusCode, "returned");
+  assert.equal(state.pets[0]?.currentHostUserId, account.id);
+  assert.deepEqual(hostingRequestsForAccount(state, account), []);
+  assert.deepEqual(hostingRequestsForAccount(state, friendAccount), []);
+  assert.deepEqual(
+    desktopEventsForAccount(state, account).map((event) => event.type),
+    ["hosting_request_accepted", "pet_recalled"]
+  );
+  assert.deepEqual(
+    desktopEventsForAccount(state, friendAccount).map((event) => event.type),
+    ["hosting_request_created", "desktop_bundle_changed", "pet_recalled"]
+  );
 });
 
 test("normalizePetAssets only marks ready assets that have a real video URL", () => {

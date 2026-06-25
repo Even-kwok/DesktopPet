@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 test("Windows package exposes a reproducible x64 ZIP build", () => {
+  assert.equal(packageJson.version, "0.1.2");
   assert.equal(
     packageJson.scripts["dist:win"],
     "npm run build && electron-builder --win zip --x64 --publish never"

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { processChromaKeyFrame } from "./chroma-key.ts";
+import { hasVisibleChromaKeyContent, processChromaKeyFrame } from "./chroma-key.ts";
 import {
   nextPetPlaybackRequest,
   nextPetVisualEffectRequest,
-  petCommandFromUnknown
+  petCommandFromUnknown,
+  playOnceRecoveryDelayMs
 } from "./pet-playback-command.ts";
 import { createPetPointerInteraction } from "./pet-pointer-interaction.ts";
 import type {
-  PetPlaybackMode,
   PetPlaybackRequest,
   PetVisualEffectRequest
 } from "./pet-playback-command.ts";
@@ -18,7 +18,6 @@ export function PetWindow() {
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const petIndexRef = useRef(0);
-  const modeRef = useRef<PetPlaybackMode>("loop");
   const pointerInteractionRef = useRef<ReturnType<typeof createPetPointerInteraction> | null>(null);
   const [playbackRequest, setPlaybackRequest] = useState<PetPlaybackRequest>();
   const [visualEffectRequest, setVisualEffectRequest] = useState<PetVisualEffectRequest>();
@@ -50,7 +49,6 @@ export function PetWindow() {
       }
 
       petIndexRef.current = command.petIndex;
-      modeRef.current = command.mode;
       setPlaybackRequest((current) => nextPetPlaybackRequest(current, command));
     });
 
@@ -67,9 +65,53 @@ export function PetWindow() {
 
     video.src = playbackRequest.source;
     video.loop = playbackRequest.mode === "loop";
-    void video.play();
+    let recoveryTimeout: number | undefined;
+    let didNotifyPlaybackEnded = false;
+    const clearRecoveryTimeout = () => {
+      if (recoveryTimeout !== undefined) {
+        window.clearTimeout(recoveryTimeout);
+        recoveryTimeout = undefined;
+      }
+    };
+    const notifyPlaybackEnded = () => {
+      if (playbackRequest.mode === "playOnce" && !didNotifyPlaybackEnded) {
+        didNotifyPlaybackEnded = true;
+        clearRecoveryTimeout();
+        window.desktopPet?.petPlaybackEnded?.(petIndexRef.current);
+      }
+    };
+    const armRecoveryTimeout = () => {
+      clearRecoveryTimeout();
+      if (playbackRequest.mode !== "playOnce") {
+        return;
+      }
+
+      recoveryTimeout = window.setTimeout(
+        notifyPlaybackEnded,
+        playOnceRecoveryDelayMs(video.duration)
+      );
+    };
+    const handleEnded = () => {
+      notifyPlaybackEnded();
+    };
+    const handleError = () => {
+      notifyPlaybackEnded();
+    };
+    const handleLoadedMetadata = () => {
+      armRecoveryTimeout();
+    };
+
+    video.addEventListener("ended", handleEnded);
+    video.addEventListener("error", handleError);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    armRecoveryTimeout();
+    void video.play().catch(handleError);
 
     return () => {
+      clearRecoveryTimeout();
+      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("error", handleError);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.pause();
       video.removeAttribute("src");
       video.load();
@@ -111,11 +153,6 @@ export function PetWindow() {
         className="pet-video-source"
         muted
         playsInline
-        onEnded={() => {
-          if (modeRef.current === "playOnce") {
-            window.desktopPet?.petPlaybackEnded?.(petIndexRef.current);
-          }
-        }}
       />
       <canvas
         ref={canvasRef}
@@ -185,8 +222,13 @@ function drawCurrentFrame(
   offscreenContext.clearRect(0, 0, width, height);
   offscreenContext.drawImage(video, ...aspectFit(video.videoWidth, video.videoHeight, width, height));
   const frame = offscreenContext.getImageData(0, 0, width, height);
+  const keyedFrame = processChromaKeyFrame(frame);
+  if (!hasVisibleChromaKeyContent(keyedFrame)) {
+    return;
+  }
+
   visibleContext.clearRect(0, 0, width, height);
-  visibleContext.putImageData(processChromaKeyFrame(frame), 0, 0);
+  visibleContext.putImageData(keyedFrame, 0, 0);
 }
 
 function aspectFit(sourceWidth: number, sourceHeight: number, targetWidth: number, targetHeight: number) {

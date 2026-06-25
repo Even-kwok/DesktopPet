@@ -4,8 +4,6 @@ import type {
   DesktopPetBundle,
   DesktopPetBundlePublishResponse,
   GenerationJob,
-  HostingRequest,
-  HostingRequestAction,
   Pet,
   PetCreateResponse,
   PetDeleteResponse,
@@ -200,52 +198,4 @@ export function savePetMaterial(input: {
       }
     }
   );
-}
-
-export function sendHostingRequest(input: {
-  petId: string;
-  toUserId: string;
-}) {
-  return requestJSON<{
-    request: HostingRequest;
-    requestId: string;
-    status: string;
-    petId: string;
-    fromUserId: string;
-    toUserId: string;
-    statusCode: HostingRequest["statusCode"];
-  }>("/api/hosting/requests", {
-    method: "POST",
-    body: input
-  });
-}
-
-export function updateHostingRequest(input: {
-  requestId: string;
-  action: HostingRequestAction;
-}) {
-  return requestJSON<{
-    request: HostingRequest;
-    requestId: string;
-    status: string;
-    petId: string;
-    fromUserId: string;
-    toUserId: string;
-    statusCode: HostingRequest["statusCode"];
-  }>(
-    `/api/hosting/requests/${encodeURIComponent(input.requestId)}`,
-    {
-      method: "PATCH",
-      body: {
-        action: input.action
-      }
-    }
-  );
-}
-
-export function recallPet(input: { petId: string }) {
-  return requestJSON<{ petId: string; status: string }>("/api/hosting/recall", {
-    method: "POST",
-    body: input
-  });
 }

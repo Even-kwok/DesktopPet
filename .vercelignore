@@ -2,9 +2,13 @@
 .swiftpm/
 .git/
 .vercel/
+.DS_Store
 DerivedData/
 *.xcuserstate
 *.xcuserdata/
+windows/node_modules/
+windows/out/
+windows/release/
 web/.next/
 web/node_modules/
 web/.env.local

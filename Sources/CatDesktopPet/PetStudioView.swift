@@ -18,7 +18,6 @@ struct PetStudioView: View {
                 if viewModel.isSignedIn {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 10) {
-                            friendHostingPanel
                             petSwitchPanel
                         }
                     }
@@ -116,7 +115,7 @@ struct PetStudioView: View {
             Text("登录后同步你的猫咪")
                 .font(.system(size: 20, weight: .heavy, design: .rounded))
 
-            Text("Mac 端只负责显示、同步、好友寄养和召回；素材生成放在网页端。")
+            Text("Mac 端只负责显示和同步；素材生成放在网页端。")
                 .font(.callout)
                 .foregroundStyle(StudioPalette.muted)
                 .multilineTextAlignment(.center)
@@ -235,12 +234,7 @@ struct PetStudioView: View {
 
             Spacer()
 
-            if pet.shouldShowRecallAction(isSelected: isSelected) {
-                Button("召回") {
-                    viewModel.recallSelectedPet()
-                }
-                .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
-            } else if !isSelected {
+            if !isSelected {
                 Button("选择") {
                     viewModel.selectSyncedPet(pet.id)
                 }
@@ -254,228 +248,6 @@ struct PetStudioView: View {
                 .stroke(isSelected ? StudioPalette.line : Color.clear, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var friendHostingPanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("好友")
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
-                    Text("\(viewModel.friendCards.count) 位 · 可寄养和删除")
-                        .font(.caption)
-                        .foregroundStyle(StudioPalette.muted)
-                }
-
-                Spacer()
-
-                if viewModel.isRefreshingFriends {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                iconActionButton(
-                    systemImage: "arrow.clockwise",
-                    tint: StudioPalette.sky,
-                    help: "刷新好友"
-                ) {
-                    viewModel.refreshFriends()
-                }
-                .disabled(viewModel.isRefreshingFriends)
-            }
-
-            friendAddRow
-
-            if viewModel.friendCards.isEmpty {
-                friendEmptyState
-            } else {
-                ForEach(viewModel.friendCards) { friend in
-                    friendRow(friend)
-                }
-            }
-
-            if !viewModel.hostingRequests.isEmpty {
-                Divider()
-                    .background(StudioPalette.line)
-
-                Text("寄养请求")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundStyle(StudioPalette.muted)
-
-                ForEach(viewModel.hostingRequests) { request in
-                    hostingRequestRow(request)
-                }
-            }
-        }
-        .padding(12)
-        .background(StudioPalette.panel)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(StudioPalette.line, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var friendAddRow: some View {
-        HStack(spacing: 8) {
-            TextField("输入好友邮箱", text: $viewModel.friendEmailDraft)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13, weight: .semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(StudioPalette.field)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .onSubmit {
-                    viewModel.addFriend()
-                }
-
-            Button {
-                viewModel.addFriend()
-            } label: {
-                if viewModel.isMutatingFriend {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(width: 18, height: 18)
-                } else {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .heavy))
-                        .frame(width: 18, height: 18)
-                }
-            }
-            .buttonStyle(StudioButtonStyle(kind: .primary, compact: true))
-            .disabled(!viewModel.canAddFriend)
-        }
-    }
-
-    private var friendEmptyState: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "person.2.badge.plus")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(StudioPalette.placeholder)
-                .frame(width: 34, height: 34)
-                .background(StudioPalette.field)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("还没有好友")
-                    .font(.callout)
-                    .fontWeight(.heavy)
-                Text("用账号邮箱精确添加。在线状态先按服务器记录显示。")
-                    .font(.caption)
-                    .foregroundStyle(StudioPalette.muted)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-        }
-        .padding(10)
-        .background(StudioPalette.field.opacity(0.42))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func friendRow(_ friend: DesktopFriendCard) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: friend.isOnline ? "person.2.fill" : "person.2")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(friend.isOnline ? StudioPalette.mint : StudioPalette.muted)
-                .frame(width: 32, height: 32)
-                .background(StudioPalette.field)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(friend.name)
-                    .font(.callout)
-                    .fontWeight(.heavy)
-                    .lineLimit(1)
-                Text("\(friend.status) · 托管 \(friend.hostedPets) 只")
-                    .font(.caption)
-                    .foregroundStyle(StudioPalette.muted)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            Button("寄养") {
-                viewModel.requestHosting(to: friend)
-            }
-            .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
-            .disabled(viewModel.selectedSyncedPetCard?.canRequestHosting != true || viewModel.isMutatingFriend)
-
-            iconActionButton(
-                systemImage: "trash",
-                tint: StudioPalette.danger,
-                help: "删除好友"
-            ) {
-                viewModel.removeFriend(friend)
-            }
-            .disabled(viewModel.isMutatingFriend)
-        }
-        .padding(10)
-        .background(StudioPalette.field.opacity(0.42))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func hostingRequestRow(_ request: DesktopHostingRequestCard) -> some View {
-        let canRespond = request.statusCode == "pending"
-            && request.toUserID == viewModel.currentAccount?.id
-
-        return HStack(spacing: 10) {
-            Image(systemName: canRespond ? "tray.and.arrow.down.fill" : "tray.full.fill")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(canRespond ? StudioPalette.mint : StudioPalette.muted)
-                .frame(width: 32, height: 32)
-                .background(StudioPalette.field)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(request.petName)
-                    .font(.callout)
-                    .fontWeight(.heavy)
-                    .lineLimit(1)
-                Text("\(request.from) · \(request.status)")
-                    .font(.caption)
-                    .foregroundStyle(StudioPalette.muted)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            if canRespond {
-                Button("接收") {
-                    viewModel.respondToHostingRequest(request, action: "accept")
-                }
-                .buttonStyle(StudioButtonStyle(kind: .success, compact: true))
-                .disabled(viewModel.isMutatingFriend)
-
-                Button("拒绝") {
-                    viewModel.respondToHostingRequest(request, action: "decline")
-                }
-                .buttonStyle(StudioButtonStyle(kind: .secondary, compact: true))
-                .disabled(viewModel.isMutatingFriend)
-            }
-        }
-        .padding(10)
-        .background(StudioPalette.field.opacity(0.42))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func iconActionButton(
-        systemImage: String,
-        tint: Color,
-        help: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .heavy))
-                .frame(width: 30, height: 30)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(tint)
-        .background(tint.opacity(0.13))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .help(help)
     }
 
     private func petAvatar(_ pet: DesktopSyncedPetCard, size: CGFloat) -> some View {
@@ -501,10 +273,18 @@ struct PetStudioView: View {
 
                 HStack(alignment: .center, spacing: 18) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("CatDesktopPet Studio")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(StudioPalette.muted)
-                            .textCase(.uppercase)
+                        HStack(spacing: 6) {
+                            Text("CatDesktopPet Studio")
+                                .textCase(.uppercase)
+
+                            Text("v\(DesktopClientVersion.current)")
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(StudioPalette.field.opacity(0.9))
+                                .clipShape(Capsule())
+                        }
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(StudioPalette.muted)
 
                         HStack(spacing: 10) {
                             Picker("宠物", selection: petSelection) {

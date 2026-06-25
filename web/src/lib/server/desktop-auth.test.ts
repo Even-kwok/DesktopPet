@@ -20,7 +20,7 @@ test("desktop auth accepts server-signed desktop tokens when Supabase auth is co
     credits: 0,
     purpose: "desktop",
     issuedAt: "2026-06-18T00:00:00.000Z",
-    expiresAt: "2026-06-25T00:00:00.000Z"
+    expiresAt: "2099-06-25T00:00:00.000Z"
   });
 
   const auth = await getDesktopAuthContext(

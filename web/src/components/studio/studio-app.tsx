@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { processChromaKeyFrame } from "@/lib/chroma-key";
 import { buildDesktopPetBundle } from "@/lib/desktop-bundle";
 import {
   createActionVideoJob,
@@ -9,11 +10,8 @@ import {
   getGenerationJob,
   getStudioBootstrap,
   publishDesktopPetBundle,
-  recallPet,
   savePetMaterial,
-  sendHostingRequest,
   updateAccountProfile,
-  updateHostingRequest,
   updatePetName,
   uploadSourceImage
 } from "@/lib/api-client";
@@ -40,14 +38,13 @@ import {
   materialCardPreviewState,
   petPanelImageUrl,
   petPanelStats,
-  recallSuccessMessage,
+  resolveMacClientDownloadUrl,
   resolveWindowsClientDownloadUrl,
   studioStatusMessageClassName
 } from "@/lib/studio-layout";
 import type {
   CurrentUser,
   GenerationJob,
-  HostingRequest,
   Pet,
   PetAsset,
   PetAssetStatus,
@@ -55,7 +52,7 @@ import type {
   StudioBootstrap
 } from "@/lib/types";
 
-type StudioTab = "materials" | "pets" | "friends" | "jobs" | "billing";
+type StudioTab = "materials" | "pets" | "jobs" | "billing";
 
 type MessageTone = "info" | "success" | "error";
 
@@ -86,7 +83,9 @@ const materialTierSections: Array<{
   }
 ];
 
-const macClientDownloadUrl = process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL?.trim() || null;
+const macClientDownloadUrl = resolveMacClientDownloadUrl(
+  process.env.NEXT_PUBLIC_MAC_CLIENT_DOWNLOAD_URL
+);
 const windowsClientDownloadUrl = resolveWindowsClientDownloadUrl(
   process.env.NEXT_PUBLIC_WINDOWS_CLIENT_DOWNLOAD_URL
 );
@@ -96,9 +95,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
   const [user, setUser] = useState<CurrentUser>(initialData.user);
   const [pets, setPets] = useState<Pet[]>(initialData.pets);
   const [assets, setAssets] = useState<PetAsset[]>(initialData.assets);
-  const [hostingRequests, setHostingRequests] = useState<HostingRequest[]>(
-    initialData.hostingRequests
-  );
   const [jobs, setJobs] = useState<GenerationJob[]>(initialData.jobs);
   const [selectedPetId, setSelectedPetId] = useState(initialData.pets[0]?.id ?? "");
   const [activeTab, setActiveTab] = useState<StudioTab>("materials");
@@ -320,7 +316,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     setUser(data.user);
     setPets(data.pets);
     setAssets(data.assets);
-    setHostingRequests(data.hostingRequests);
     setJobs(data.jobs);
 
     if (!data.pets.some((pet) => pet.id === selectedPetId)) {
@@ -660,66 +655,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
     }
   }
 
-  async function handleSendHosting(friendId: string) {
-    if (!selectedPet) {
-      return;
-    }
-
-    try {
-      const response = await sendHostingRequest({
-        petId: selectedPet.id,
-        toUserId: friendId
-      });
-      setHostingRequests((currentRequests) => [
-        response.request,
-        ...currentRequests
-      ]);
-      setMessage({ tone: "success", text: "托管请求已送出，好友同步后就能看到。" });
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : "发送托管请求失败。"
-      });
-    }
-  }
-
-  async function handleHostingAction(request: HostingRequest, action: "accept" | "decline" | "return") {
-    try {
-      const response = await updateHostingRequest({
-        requestId: request.id,
-        action
-      });
-      setHostingRequests((currentRequests) =>
-        currentRequests.map((item) =>
-          item.id === request.id ? response.request : item
-        )
-      );
-      setMessage({ tone: "success", text: "托管状态已更新。" });
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : "托管状态更新失败。"
-      });
-    }
-  }
-
-  async function handleRecallPet() {
-    if (!selectedPet) {
-      return;
-    }
-
-    try {
-      const response = await recallPet({ petId: selectedPet.id });
-      setPetPatch(selectedPet.id, { status: response.status, host: "me" });
-      setMessage({ tone: "success", text: recallSuccessMessage() });
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : "召回宠物失败。"
-      });
-    }
-  }
-
   function handleRequestDeletePet(pet: Pet) {
     if (deletingPetId) {
       return;
@@ -989,9 +924,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
             <TabButton active={activeTab === "pets"} onClick={() => setActiveTab("pets")}>
               我的宠物
             </TabButton>
-            <TabButton active={activeTab === "friends"} onClick={() => setActiveTab("friends")}>
-              好友托管
-            </TabButton>
             <TabButton active={activeTab === "jobs"} onClick={() => setActiveTab("jobs")}>
               生成记录
             </TabButton>
@@ -1021,16 +953,6 @@ export function StudioApp({ initialData }: { initialData: StudioBootstrap }) {
               selectedPetId={selectedPet?.id}
               onDeletePet={handleRequestDeletePet}
               onRenamePet={handleRenamePet}
-              onRecallPet={handleRecallPet}
-            />
-          ) : null}
-
-          {activeTab === "friends" ? (
-            <FriendsTab
-              friends={initialData.friends}
-              requests={hostingRequests}
-              onSendHosting={handleSendHosting}
-              onHostingAction={handleHostingAction}
             />
           ) : null}
 
@@ -1428,21 +1350,7 @@ function MaterialCard({
     <article className={isReady ? "card material-card ready-card" : "card material-card"} style={cardStyle}>
       <div className="preview">
         {previewState.kind === "video" ? (
-          <video
-            className="preview-video"
-            src={previewState.videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            onLoadedMetadata={(event) => {
-              const video = event.currentTarget;
-
-              if (video.videoHeight > 0) {
-                setVideoRatio(video.videoWidth / video.videoHeight);
-              }
-            }}
-          />
+          <ChromaKeyVideoPreview src={previewState.videoUrl} onVideoRatio={setVideoRatio} />
         ) : previewState.kind === "icon" ? (
           <span className="preview-icon">{previewState.icon}</span>
         ) : null}
@@ -1478,14 +1386,176 @@ function MaterialCard({
   );
 }
 
+function ChromaKeyVideoPreview({
+  src,
+  onVideoRatio
+}: {
+  src: string;
+  onVideoRatio: (ratio: number) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [useFallbackVideo, setUseFallbackVideo] = useState(false);
+
+  useEffect(() => {
+    setUseFallbackVideo(false);
+  }, [src]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || useFallbackVideo) {
+      return;
+    }
+
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (!context) {
+      setUseFallbackVideo(true);
+      return;
+    }
+
+    let frameId: number | null = null;
+    let stopped = false;
+
+    const drawFrame = () => {
+      if (stopped) {
+        return;
+      }
+
+      if (
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0
+      ) {
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width * pixelRatio));
+        const height = Math.max(1, Math.round(rect.height * pixelRatio));
+
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+
+        const target = containedFrameRect(width, height, video.videoWidth, video.videoHeight);
+
+        try {
+          context.clearRect(0, 0, width, height);
+          context.drawImage(video, target.x, target.y, target.width, target.height);
+          const keyedFrame = processChromaKeyFrame(context.getImageData(0, 0, width, height));
+          context.putImageData(keyedFrame, 0, 0);
+        } catch (error) {
+          console.warn("Chroma key video preview fell back to the source video.", error);
+          setUseFallbackVideo(true);
+          return;
+        }
+      }
+
+      frameId = window.requestAnimationFrame(drawFrame);
+    };
+
+    const startDrawing = () => {
+      if (frameId === null) {
+        frameId = window.requestAnimationFrame(drawFrame);
+      }
+    };
+
+    video.addEventListener("loadeddata", startDrawing);
+    video.addEventListener("play", startDrawing);
+    void video.play().catch(() => undefined);
+    startDrawing();
+
+    return () => {
+      stopped = true;
+      video.removeEventListener("loadeddata", startDrawing);
+      video.removeEventListener("play", startDrawing);
+
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [src, useFallbackVideo]);
+
+  function handleLoadedMetadata(video: HTMLVideoElement) {
+    if (video.videoHeight > 0) {
+      onVideoRatio(video.videoWidth / video.videoHeight);
+    }
+  }
+
+  if (useFallbackVideo) {
+    return (
+      <video
+        className="preview-video chroma-key-preview-fallback"
+        src={src}
+        autoPlay
+        loop
+        muted
+        playsInline
+        onLoadedMetadata={(event) => handleLoadedMetadata(event.currentTarget)}
+      />
+    );
+  }
+
+  return (
+    <>
+      <canvas className="preview-video chroma-key-preview-canvas" ref={canvasRef} />
+      <video
+        ref={videoRef}
+        className="chroma-key-preview-source"
+        src={src}
+        crossOrigin="anonymous"
+        autoPlay
+        loop
+        muted
+        playsInline
+        onError={() => setUseFallbackVideo(true)}
+        onLoadedMetadata={(event) => handleLoadedMetadata(event.currentTarget)}
+      />
+    </>
+  );
+}
+
+function containedFrameRect(
+  containerWidth: number,
+  containerHeight: number,
+  sourceWidth: number,
+  sourceHeight: number
+) {
+  const sourceRatio = sourceWidth / sourceHeight;
+  const containerRatio = containerWidth / containerHeight;
+
+  if (containerRatio > sourceRatio) {
+    const height = containerHeight;
+    const width = height * sourceRatio;
+
+    return {
+      x: (containerWidth - width) / 2,
+      y: 0,
+      width,
+      height
+    };
+  }
+
+  const width = containerWidth;
+  const height = width / sourceRatio;
+
+  return {
+    x: 0,
+    y: (containerHeight - height) / 2,
+    width,
+    height
+  };
+}
+
 function PetsTab({
   currentUser,
   deletingPetId,
   pets,
   selectedPetId,
   onDeletePet,
-  onRenamePet,
-  onRecallPet
+  onRenamePet
 }: {
   currentUser: CurrentUser;
   deletingPetId: string | null;
@@ -1493,7 +1563,6 @@ function PetsTab({
   selectedPetId: string | undefined;
   onDeletePet: (pet: Pet) => void;
   onRenamePet: (petId: string, name: string) => Promise<void>;
-  onRecallPet: () => void;
 }) {
   const [editingPetId, setEditingPetId] = useState<string | null>(null);
   const [petNameDraft, setPetNameDraft] = useState("");
@@ -1607,11 +1676,6 @@ function PetsTab({
                   {isDeleting ? "删除中" : "删除"}
                 </button>
               ) : null}
-              {pet.host === "friend" ? (
-                <button className="button" onClick={() => void onRecallPet()}>
-                  召回
-                </button>
-              ) : null}
             </article>
           );
         })}
@@ -1702,58 +1766,6 @@ function DeletePetDialog({
         </div>
       </section>
     </div>
-  );
-}
-
-function FriendsTab({
-  friends,
-  requests,
-  onSendHosting,
-  onHostingAction
-}: {
-  friends: StudioBootstrap["friends"];
-  requests: HostingRequest[];
-  onSendHosting: (friendId: string) => void;
-  onHostingAction: (request: HostingRequest, action: "accept" | "decline" | "return") => void;
-}) {
-  return (
-    <section className="friend-board">
-      <div className="panel friend-card">
-        <PanelTitle icon="👥" title="好友列表" subtitle="把猫咪临时送去好友桌面玩。" />
-        {friends.map((friend) => (
-          <div className="friend-row" key={friend.id}>
-            <div>
-              <strong>{friend.name}</strong>
-              <p>{friend.status} · 托管 {friend.hostedPets} 只</p>
-            </div>
-            <button className="button secondary" onClick={() => void onSendHosting(friend.id)}>
-              请求托管
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="panel friend-card">
-        <PanelTitle icon="🏠" title="托管状态" subtitle="每只猫同一时间只会出现在一个桌面。" />
-        {requests.map((request) => (
-          <div className="hosting-state" key={request.id}>
-            <strong>{request.petName}</strong>
-            <p>{request.from} · {request.status}</p>
-            <div className="card-actions">
-              <button className="button secondary" onClick={() => void onHostingAction(request, "accept")}>
-                接收
-              </button>
-              <button className="button ghost" onClick={() => void onHostingAction(request, "decline")}>
-                拒绝
-              </button>
-              <button className="button secondary" onClick={() => void onHostingAction(request, "return")}>
-                送回
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -1866,7 +1878,7 @@ function BillingTab({
           <h3>{activeCode ? activeCode.code : "暂未开通推荐码"}</h3>
           <p>
             {activeCode
-              ? `好友使用你的推荐码注册，首次充值可享 ${referralSummary.firstRechargeDiscountPercent}% 优惠。`
+              ? `被推荐用户使用你的推荐码注册，首次充值可享 ${referralSummary.firstRechargeDiscountPercent}% 优惠。`
               : "推荐码由后台为认证博主或合作用户开通。"}
           </p>
         </div>

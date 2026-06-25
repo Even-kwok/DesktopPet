@@ -67,19 +67,31 @@ export async function PATCH(
     return NextResponse.json({ asset });
   } catch (error) {
     const message = error instanceof Error ? error.message : "SAVE_MATERIAL_FAILED";
+    const isKnownError =
+      message === "PET_NOT_FOUND" ||
+      message === "PET_READONLY" ||
+      message === "ACTION_VIDEO_NOT_VIDEO";
 
     return NextResponse.json(
       {
-        error:
-          message === "PET_NOT_FOUND" || message === "PET_READONLY"
-            ? message
-            : "SAVE_MATERIAL_FAILED",
+        error: isKnownError ? message : "SAVE_MATERIAL_FAILED",
         details:
           message === "PET_READONLY"
             ? "体验猫的素材不能重新保存，可以添加新的猫咪后编辑。"
+            : message === "ACTION_VIDEO_NOT_VIDEO"
+              ? "动作素材必须是视频文件，不能使用静态图片。"
             : message
       },
-      { status: message === "PET_NOT_FOUND" ? 404 : message === "PET_READONLY" ? 403 : 500 }
+      {
+        status:
+          message === "PET_NOT_FOUND"
+            ? 404
+            : message === "PET_READONLY"
+              ? 403
+              : message === "ACTION_VIDEO_NOT_VIDEO"
+                ? 400
+                : 500
+      }
     );
   }
 }

@@ -40,7 +40,7 @@ final class StatusBarController: NSObject {
             button.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "CatDesktopPet")
             button.image?.isTemplate = true
             button.title = " Pet"
-            button.toolTip = "CatDesktopPet"
+            button.toolTip = DesktopClientVersion.appTitle
         }
 
         statusItem.menu = makeControlMenu(keepsStatusReferences: true)

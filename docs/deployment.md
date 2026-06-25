@@ -273,7 +273,7 @@ For the currently enabled Volcengine Ark model, use:
 ```text
 JIMENG_API_BASE_URL=https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks
 JIMENG_QUERY_URL_TEMPLATE=https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{taskId}
-JIMENG_VIDEO_MODEL=doubao-seedance-2-0-fast-260128
+JIMENG_VIDEO_MODEL=doubao-seedance-2-0-mini-260615
 JIMENG_VIDEO_DURATION_SECONDS=10
 JIMENG_VIDEO_CAMERA_FIXED=true
 JIMENG_VIDEO_WATERMARK=false
@@ -283,7 +283,7 @@ GENERATION_JOB_RECOVERY_WINDOW_SECONDS=86400
 
 `JIMENG_API_BASE_URL` is the provider's create-task endpoint. `JIMENG_QUERY_URL_TEMPLATE` should contain `{taskId}` where the provider task id belongs. Keep API keys server-only and never expose them to the Mac app or browser.
 
-The admin generation-settings panel defaults to `Doubao-Seedance-2.0-fast` (`doubao-seedance-2-0-fast-260128`) and can switch to `Doubao-Seedance-2.0-mini` (`doubao-seedance-2-0-mini-260615`) after API access is available. The server reads `JIMENG_API_KEY`, `ARK_API_KEY`, `DOUBAO_SEEDANCE_API_KEY`, and compatible model-specific key aliases.
+The admin generation-settings panel defaults to `Doubao-Seedance-2.0-mini` (`doubao-seedance-2-0-mini-260615`) and can switch to `Doubao-Seedance-2.0-fast` (`doubao-seedance-2-0-fast-260128`) when needed. The server reads `mini_API_KEY`, `JIMENG_API_KEY`, `ARK_API_KEY`, `DOUBAO_SEEDANCE_API_KEY`, and compatible model-specific key aliases.
 
 Generation jobs use a 30-minute local timeout by default. The task queue also re-checks expired Jimeng jobs for 24 hours, so a provider result that arrives shortly after the local timeout can still be restored on refresh.
 

@@ -211,6 +211,28 @@ create table if not exists public.pet_hosting_requests (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.desktop_events (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  type text not null check (
+    type in (
+      'hosting_request_created',
+      'hosting_request_accepted',
+      'hosting_request_declined',
+      'pet_recalled',
+      'desktop_bundle_changed'
+    )
+  ),
+  actor_user_id uuid references public.profiles(id) on delete set null,
+  pet_id uuid references public.pets(id) on delete set null,
+  hosting_request_id uuid references public.pet_hosting_requests(id) on delete set null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists desktop_events_user_id_id_idx
+on public.desktop_events(user_id, id);
+
 alter table public.profiles enable row level security;
 alter table public.credit_balances enable row level security;
 alter table public.pets enable row level security;
@@ -226,6 +248,7 @@ alter table public.referral_reward_ledger enable row level security;
 alter table public.friend_requests enable row level security;
 alter table public.friendships enable row level security;
 alter table public.pet_hosting_requests enable row level security;
+alter table public.desktop_events enable row level security;
 
 grant select, insert, update on public.profiles to authenticated;
 grant select on public.credit_balances to authenticated;
@@ -249,6 +272,9 @@ grant select, insert, update on public.referral_reward_ledger to service_role;
 grant select, insert, update on public.friend_requests to authenticated;
 grant select, insert, delete on public.friendships to authenticated;
 grant select, insert, update on public.pet_hosting_requests to authenticated;
+grant select on public.desktop_events to authenticated;
+grant insert on public.desktop_events to service_role;
+grant usage, select on sequence public.desktop_events_id_seq to service_role;
 
 drop policy if exists "profiles are visible to their owner" on public.profiles;
 create policy "profiles are visible to their owner"
@@ -348,6 +374,15 @@ using (
   and (from_user_id = auth.uid() or to_user_id = auth.uid())
 );
 
+drop policy if exists "users can view their desktop events" on public.desktop_events;
+create policy "users can view their desktop events"
+on public.desktop_events for select
+to authenticated
+using (
+  auth.uid() is not null
+  and user_id = auth.uid()
+);
+
 drop policy if exists "users can view their friendships" on public.friendships;
 create policy "users can view their friendships"
 on public.friendships for select
@@ -361,7 +396,7 @@ insert into public.app_settings (key, value, updated_at)
 values (
   'video_generation_settings',
   '{
-    "model": "doubao-seedance-2-0-fast-260128",
+    "model": "doubao-seedance-2-0-mini-260615",
     "durationSeconds": 10,
     "ratio": "adaptive",
     "resolution": "720p",
