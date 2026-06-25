@@ -17,3 +17,4 @@ windows/release/
 release/
 .vercel
 .superpowers/
+/.env.local
