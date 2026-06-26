@@ -4,6 +4,8 @@ import type { Rect, SettingsStore } from "../shared/settings-store.ts";
 import { PetStateMachine } from "../shared/pet-state-machine.ts";
 import type { PetWindowControllerLike } from "./pet-colony-controller.ts";
 import {
+  movedPetFrameFromWindowBounds,
+  movePetFrameBy,
   petFrameForScreen,
   resetPetFrameForScreen,
   setPetSizeScaleForScreen
@@ -89,6 +91,7 @@ export class PetWindowController implements PetWindowControllerLike {
   setSizeScale(scale: number) {
     this.frame = setPetSizeScaleForScreen(this.#settingsStore, this.#petIndex, scale, this.#currentScreenSize());
     if (this.#window) {
+      this.#lockWindowSizeToFrame(this.#window, this.frame);
       this.#window.setBounds(this.#rectToBounds(this.frame));
     }
   }
@@ -140,7 +143,10 @@ export class PetWindowController implements PetWindowControllerLike {
   resetPosition() {
     const frame = resetPetFrameForScreen(this.#settingsStore, this.#petIndex, this.#currentScreenSize());
     this.frame = frame;
-    this.#window?.setBounds(this.#rectToBounds(frame));
+    if (this.#window) {
+      this.#lockWindowSizeToFrame(this.#window, frame);
+      this.#window.setBounds(this.#rectToBounds(frame));
+    }
   }
 
   dragBy(delta: { x: number; y: number }) {
@@ -148,14 +154,10 @@ export class PetWindowController implements PetWindowControllerLike {
       return;
     }
 
-    const bounds = this.#window.getBounds();
-    const nextBounds = {
-      ...bounds,
-      x: bounds.x + Math.round(delta.x),
-      y: bounds.y + Math.round(delta.y)
-    };
-    this.#window.setBounds(nextBounds);
-    this.#saveBounds(nextBounds);
+    const frame = movePetFrameBy(this.frame ?? this.#petFrameForCurrentScreen(), delta);
+    this.#lockWindowSizeToFrame(this.#window, frame);
+    this.#window.setBounds(this.#rectToBounds(frame));
+    this.#saveFrame(frame);
   }
 
   dragStarted() {
@@ -205,7 +207,10 @@ export class PetWindowController implements PetWindowControllerLike {
           return;
         }
 
-        window.setBounds(this.#rectToBounds(this.#petFrameForCurrentScreen()));
+        const frame = this.#petFrameForCurrentScreen();
+        this.frame = frame;
+        this.#lockWindowSizeToFrame(window, frame);
+        window.setBounds(this.#rectToBounds(frame));
         window.setIgnoreMouseEvents(this.#options.getClickThrough(), { forward: true });
         window.showInactive();
         window.moveTop();
@@ -224,8 +229,8 @@ export class PetWindowController implements PetWindowControllerLike {
       })
     );
 
-    window.on("moved", () => this.#saveBounds(window.getBounds()));
-    window.on("resized", () => this.#saveBounds(window.getBounds()));
+    this.#lockWindowSizeToFrame(window, frame);
+    window.on("moved", () => this.#saveMovedBounds(window.getBounds()));
     window.on("closed", () => {
       this.#window = undefined;
       this.isVisible = false;
@@ -539,10 +544,22 @@ export class PetWindowController implements PetWindowControllerLike {
     window.webContents.send("pet:command", command);
   }
 
-  #saveBounds(bounds: Rectangle) {
-    const frame = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+  #saveMovedBounds(bounds: Rectangle) {
+    this.#saveFrame(movedPetFrameFromWindowBounds(this.frame ?? this.#petFrameForCurrentScreen(), bounds));
+  }
+
+  #saveFrame(frame: Rect) {
     this.frame = frame;
     this.#settingsStore.setPetFrame(frame, this.#petIndex);
+  }
+
+  #lockWindowSizeToFrame(window: BrowserWindow, rect: Rect) {
+    const bounds = this.#rectToBounds(rect);
+    const width = Math.max(1, bounds.width);
+    const height = Math.max(1, bounds.height);
+    window.setMinimumSize(1, 1);
+    window.setMaximumSize(width, height);
+    window.setMinimumSize(width, height);
   }
 
   #rectToBounds(rect: Rect) {

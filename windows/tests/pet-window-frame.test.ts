@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  movedPetFrameFromWindowBounds,
+  movePetFrameBy,
   petFrameForScreen,
   resetPetFrameForScreen,
   setPetSizeScaleForScreen
@@ -47,6 +49,22 @@ test("includes the Windows work area origin when deriving default pet frames", (
   }
 });
 
+test("normalizes persisted frame size from the current pet size scale", () => {
+  const { store, cleanup } = makeStore();
+  try {
+    store.setPetFrame({ x: 10, y: 20, width: 300, height: 360 }, 0);
+
+    assert.deepEqual(petFrameForScreen(store, 0, { width: 1920, height: 1080 }), {
+      x: 85,
+      y: 125,
+      width: 150,
+      height: 150
+    });
+  } finally {
+    cleanup();
+  }
+});
+
 test("resets and resizes around the screen-derived pet center", () => {
   const { store, cleanup } = makeStore();
   try {
@@ -62,4 +80,23 @@ test("resets and resizes around the screen-derived pet center", () => {
   } finally {
     cleanup();
   }
+});
+
+test("moves dragged pet frames without changing their size", () => {
+  assert.deepEqual(movePetFrameBy({ x: 12, y: 34, width: 150, height: 75 }, { x: 2.4, y: -5.6 }), {
+    x: 14,
+    y: 28,
+    width: 150,
+    height: 75
+  });
+});
+
+test("keeps the previous pet size when moved window bounds report size drift", () => {
+  assert.deepEqual(
+    movedPetFrameFromWindowBounds(
+      { x: 12, y: 34, width: 150, height: 150 },
+      { x: 14, y: 28, width: 152, height: 171 }
+    ),
+    { x: 14, y: 28, width: 150, height: 150 }
+  );
 });
